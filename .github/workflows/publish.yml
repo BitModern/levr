@@ -1,0 +1,49 @@
+# Public-repo publish workflow (BitModern/levr).
+# Tracked in the monorepo (scripts/export/templates/) and copied verbatim by
+# scripts/export/levr.mjs — edit it here, never in the public repo.
+name: publish
+
+on:
+  push:
+    tags:
+      - 'auth-v*'
+      - 'setup-v*'
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Resolve package name from the tag prefix
+        id: pkg
+        run: |
+          # auth-v1.2.3 -> auth ; setup-v1.2.3 -> setup
+          PKG="${GITHUB_REF_NAME%%-v*}"
+          if [ "$PKG" != "auth" ] && [ "$PKG" != "setup" ]; then
+            echo "Unrecognized tag prefix: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+          echo "pkg=$PKG" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install
+        run: yarn install --no-immutable
+
+      - name: Build
+        run: yarn workspace @levr-one/${{ steps.pkg.outputs.pkg }} build
+
+      - name: Publish to npm
+        run: npm publish -w @levr-one/${{ steps.pkg.outputs.pkg }} --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

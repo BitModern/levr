@@ -1,0 +1,19 @@
+{
+  "name": "levr-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public workspace for the @levr/* npm packages",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BitModern/levr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/BitModern/levr/issues"
+  },
+  "homepage": "https://github.com/BitModern/levr#readme"
+}
