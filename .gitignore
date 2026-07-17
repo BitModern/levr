@@ -1,0 +1,7 @@
+# Public-repo .gitignore (copied to the export root as `.gitignore`).
+node_modules/
+dist/
+*.tgz
+*.log
+.DS_Store
+.turbo/

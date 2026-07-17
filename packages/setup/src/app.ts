@@ -1,9 +1,5 @@
 import { buildApplication, buildCommand, buildRouteMap } from '@stricli/core';
 import {
-  buildInstallCommand,
-  buildUninstallCommand,
-} from '@stricli/auto-complete';
-import {
   OAuthClient,
   PRESETS,
   resolveFromApiUrl,
@@ -164,19 +160,18 @@ const setupCommand = buildCommand({
   },
 });
 
+// A single route today (`setup`, also the default so bare `levr` runs it),
+// extensible to more setup steps later. Deliberately NO @stricli/auto-complete
+// install/uninstall commands: those need a second `bin` (a bash-complete entry),
+// and a package with two bins can't be invoked as `npx @levr-one/setup` (npx
+// can't pick between them). One bin keeps `npx @levr-one/setup` working.
 const routes = buildRouteMap({
   routes: {
     setup: setupCommand,
-    install: buildInstallCommand('levr', { bash: '__levr_bash_complete' }),
-    uninstall: buildUninstallCommand('levr', { bash: true }),
   },
   defaultCommand: 'setup',
   docs: {
     brief: 'Levr setup CLI',
-    hideRoute: {
-      install: true,
-      uninstall: true,
-    },
   },
 });
 
