@@ -64,7 +64,7 @@ export class ConfigWatcher {
         fs.mkdirSync(tqDir, { recursive: true, mode: 0o700 });
       } catch {
         console.error(
-          '[tq-oauth] Failed to create .tq directory for config watching',
+          '[levr-auth] Failed to create .tq directory for config watching',
         );
       }
     }
@@ -79,10 +79,10 @@ export class ConfigWatcher {
       });
 
       this.watcher.on('error', (error) => {
-        console.error('[tq-oauth] Config watch error:', error);
+        console.error('[levr-auth] Config watch error:', error);
       });
     } catch (error) {
-      console.error('[tq-oauth] Failed to start config watcher:', error);
+      console.error('[levr-auth] Failed to start config watcher:', error);
     }
 
     // Poll as backup (unref so timer doesn't keep the process alive)
@@ -154,14 +154,14 @@ export class ConfigWatcher {
       this.lastConfigJson = configJson;
 
       console.error(
-        `[tq-oauth] Config change detected: ${prev?.environment ?? 'unknown'} (${prev?.apiUrl ?? '?'}) → ${config.environment} (${config.apiUrl})`,
+        `[levr-auth] Config change detected: ${prev?.environment ?? 'unknown'} (${prev?.apiUrl ?? '?'}) → ${config.environment} (${config.apiUrl})`,
       );
 
       this.callbacks.forEach((cb) => {
         try {
           cb(config);
         } catch (error) {
-          console.error('[tq-oauth] Error in config change callback:', error);
+          console.error('[levr-auth] Error in config change callback:', error);
         }
       });
     }

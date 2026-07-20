@@ -180,7 +180,7 @@ export class OAuthClient {
 
       server.listen(port, () => {
         console.log(
-          `[tq-oauth] OAuth callback server listening on port ${port}`,
+          `[levr-auth] OAuth callback server listening on port ${port}`,
         );
       });
 
@@ -216,9 +216,9 @@ export class OAuthClient {
     authUrl.searchParams.set('code_challenge_method', 'S256');
 
     // Open browser for user authorization
-    console.log('[tq-oauth] Opening browser for authorization...');
+    console.log('[levr-auth] Opening browser for authorization...');
     console.log(
-      `[tq-oauth] If browser doesn't open, visit: ${authUrl.toString()}`,
+      `[levr-auth] If browser doesn't open, visit: ${authUrl.toString()}`,
     );
 
     // Dynamic import of 'open' package (ESM)
@@ -235,7 +235,7 @@ export class OAuthClient {
 
     // Fresh authorization clears any prior rejection
     this.refreshRejected = false;
-    console.log('[tq-oauth] Authorization successful!');
+    console.log('[levr-auth] Authorization successful!');
   }
 
   /**
@@ -388,7 +388,7 @@ export class OAuthClient {
         this.loadStoredTokens();
         if (this.refreshToken) {
           console.error(
-            '[tq-oauth] Recovered refresh token from backup, retrying...',
+            '[levr-auth] Recovered refresh token from backup, retrying...',
           );
           return this.refresh();
         }
@@ -422,7 +422,7 @@ export class OAuthClient {
       // Better to race than to block indefinitely if the lock subsystem
       // itself is broken (e.g. disk full, permissions, etc.).
       console.error(
-        '[tq-oauth] File lock acquire failed; proceeding without lock:',
+        '[levr-auth] File lock acquire failed; proceeding without lock:',
         err instanceof Error ? err.message : String(err),
       );
       return null;
@@ -430,7 +430,7 @@ export class OAuthClient {
 
     if (lock?.brokeStaleLock) {
       console.error(
-        '[tq-oauth] Broke stale refresh lock (previous holder likely crashed)',
+        '[levr-auth] Broke stale refresh lock (previous holder likely crashed)',
       );
     }
 
@@ -493,7 +493,7 @@ export class OAuthClient {
         this.consecutiveRefreshFailures++;
 
         console.error(
-          `[tq-oauth] Refresh rejected (${response.status}), ` +
+          `[levr-auth] Refresh rejected (${response.status}), ` +
             `failure ${this.consecutiveRefreshFailures}/${CLEAR_TOKENS_AFTER_FAILURES}`,
         );
 
@@ -503,7 +503,7 @@ export class OAuthClient {
         // still valid.
         if (this.consecutiveRefreshFailures >= CLEAR_TOKENS_AFTER_FAILURES) {
           console.error(
-            '[tq-oauth] Clearing tokens after ' +
+            '[levr-auth] Clearing tokens after ' +
               `${this.consecutiveRefreshFailures} consecutive failures`,
           );
           this.accessToken = null;
@@ -564,7 +564,7 @@ export class OAuthClient {
       try {
         saveWorkspace(tokens.user.workspace_id);
       } catch (err) {
-        console.error('[tq-oauth] Failed to persist workspace:', err);
+        console.error('[levr-auth] Failed to persist workspace:', err);
       }
     }
   }

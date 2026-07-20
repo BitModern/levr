@@ -87,7 +87,7 @@ function readTokenMap(): TokenMap {
 
     return parsed as unknown as TokenMap;
   } catch (error) {
-    console.error('[tq-oauth] Failed to load stored tokens:', error);
+    console.error('[levr-auth] Failed to load stored tokens:', error);
     return {};
   }
 }
@@ -183,7 +183,7 @@ export function saveTokens(tokens: StoredTokens): void {
     map[key] = tokens;
     writeTokenMap(map);
   } catch (error) {
-    console.error('[tq-oauth] Failed to save tokens:', error);
+    console.error('[levr-auth] Failed to save tokens:', error);
     throw error;
   }
 }
@@ -228,7 +228,7 @@ export function clearTokens(): void {
       fs.unlinkSync(TOKEN_FILE);
     }
   } catch (error) {
-    console.error('[tq-oauth] Failed to clear tokens:', error);
+    console.error('[levr-auth] Failed to clear tokens:', error);
   }
 }
 
@@ -249,7 +249,7 @@ export function restoreTokensFromBackup(): boolean {
         const key = legacy.apiBaseUrl ?? ENV_URLS.staging;
         writeTokenMap({ [key]: legacy });
         console.error(
-          '[tq-oauth] Restored tokens from backup — refresh token recovered',
+          '[levr-auth] Restored tokens from backup — refresh token recovered',
         );
         return true;
       }
@@ -260,13 +260,13 @@ export function restoreTokensFromBackup(): boolean {
       if (hasRefresh) {
         writeTokenMap(map);
         console.error(
-          '[tq-oauth] Restored tokens from backup — refresh token recovered',
+          '[levr-auth] Restored tokens from backup — refresh token recovered',
         );
         return true;
       }
     }
   } catch (error) {
-    console.error('[tq-oauth] Failed to restore tokens from backup:', error);
+    console.error('[levr-auth] Failed to restore tokens from backup:', error);
   }
   return false;
 }

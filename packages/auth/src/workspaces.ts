@@ -70,6 +70,23 @@ interface SitesResponseEnvelope {
 }
 
 /**
+ * `true` only for a non-null, non-array object. `typeof null === 'object'` and
+ * arrays are objects too, so both need excluding explicitly.
+ */
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * Validates the *elements*, not just the container. `JSON.parse` happily yields
+ * `[null]`, `["a"]`, or `[1]`, and a bare `Array.isArray()` check would pass
+ * those straight through to callers that then dereference `site.workspace_name`
+ * and crash with a TypeError. Reject an unexpected shape here so it surfaces as
+ * a typed `WorkspaceFetchError` (contract drift) rather than a downstream crash.
+ */
+const isSiteArray = (value: unknown): value is WorkspaceSite[] =>
+  Array.isArray(value) && value.every(isPlainObject);
+
+/**
  * List the workspaces (sites) the authenticated user has access to.
  *
  * Resolves the env/client from the persisted `~/.tq/config.json` (via
@@ -124,6 +141,32 @@ export async function listWorkspaces(): Promise<WorkspaceSite[]> {
 
   // Backend returns { sites: [...], current_workspace_id: "..." }.
   // Tolerate older bare-array responses for forward compat.
-  const data = (await res.json()) as WorkspaceSite[] | SitesResponseEnvelope;
-  return Array.isArray(data) ? data : (data.sites ?? []);
+  let data: unknown;
+  try {
+    data = await res.json();
+  } catch {
+    throw new WorkspaceFetchError(
+      'http_error',
+      'Workspace list response was not valid JSON.',
+      { status: res.status },
+    );
+  }
+
+  if (isSiteArray(data)) {
+    return data;
+  }
+  const sites = isPlainObject(data)
+    ? (data as SitesResponseEnvelope).sites
+    : undefined;
+  if (isSiteArray(sites)) {
+    return sites;
+  }
+  // Surface a contract drift instead of silently returning an empty list —
+  // an empty `{ sites: [] }` is a valid array and returns above; only an
+  // unrecognized shape reaches here.
+  throw new WorkspaceFetchError(
+    'http_error',
+    'Workspace list response had an unexpected shape.',
+    { status: res.status },
+  );
 }

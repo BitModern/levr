@@ -34,7 +34,7 @@ function writeWorkspaceJsonAtomic(payload: object): void {
 
     fs.renameSync(tempPath, filePath);
   } catch (error) {
-    console.error('[tq-oauth] Failed to write workspace.json:', error);
+    console.error('[levr-auth] Failed to write workspace.json:', error);
   }
 }
 
@@ -69,7 +69,7 @@ export function loadWorkspace(): string | null {
       }
     }
   } catch (error) {
-    console.error('[tq-oauth] Failed to load workspace:', error);
+    console.error('[levr-auth] Failed to load workspace:', error);
   }
   return null;
 }
@@ -159,7 +159,7 @@ export function clearWorkspace(): void {
       fs.unlinkSync(filePath);
     }
   } catch (error) {
-    console.error('[tq-oauth] Failed to clear workspace:', error);
+    console.error('[levr-auth] Failed to clear workspace:', error);
   }
 }
 

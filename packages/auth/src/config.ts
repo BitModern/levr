@@ -206,7 +206,7 @@ export function loadConfig(): TqConfig {
         return config;
       } catch {
         process.stderr.write(
-          `[tq-oauth] WARNING: Malformed config at ${configPath}, falling back to default.\n`,
+          `[levr-auth] WARNING: Malformed config at ${configPath}, falling back to default.\n`,
         );
       }
     }
@@ -221,7 +221,7 @@ export function loadConfig(): TqConfig {
         config.oauthClientId = process.env.TQ_OAUTH_CLIENT_ID;
       }
       process.stderr.write(
-        `[tq-oauth] No config.json found. Using environment from token: ${config.environment} (${config.apiUrl})\n`,
+        `[levr-auth] No config.json found. Using environment from token: ${config.environment} (${config.apiUrl})\n`,
       );
       return config;
     }

@@ -1,6 +1,6 @@
 {
   "name": "@levr-one/setup",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Levr setup CLI — authenticate and list your Levr workspaces",
   "type": "module",
   "license": "MIT",
@@ -35,7 +35,7 @@
   ],
   "dependencies": {
     "@stricli/core": "^1.2.0",
-    "@levr-one/auth": "^1.0.0"
+    "@levr-one/auth": "^1.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

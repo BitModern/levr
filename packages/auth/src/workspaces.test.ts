@@ -140,4 +140,34 @@ describe('listWorkspaces', () => {
     const sites = await listWorkspaces();
     expect(sites).toEqual([SITE]);
   });
+
+  it('throws http_error (not a raw SyntaxError) on a non-JSON 200 body', async () => {
+    mockLoadTokens.mockReturnValue(FAKE_TOKENS);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+      }),
+    );
+
+    const err = await listWorkspaces().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(WorkspaceFetchError);
+    expect(err).toMatchObject({ code: 'http_error' });
+  });
+
+  it('throws on an unrecognized response shape rather than silently returning []', async () => {
+    mockLoadTokens.mockReturnValue(FAKE_TOKENS);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ unexpected: 'shape' }),
+      }),
+    );
+
+    await expect(listWorkspaces()).rejects.toBeInstanceOf(WorkspaceFetchError);
+  });
 });

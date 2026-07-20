@@ -74,7 +74,7 @@ export class TokenWatcher {
       try {
         fs.mkdirSync(tqDir, { recursive: true, mode: 0o700 });
       } catch {
-        console.error('[tq-oauth] Failed to create .tq directory for watching');
+        console.error('[levr-auth] Failed to create .tq directory for watching');
       }
     }
 
@@ -88,11 +88,11 @@ export class TokenWatcher {
       });
 
       this.watcher.on('error', (error) => {
-        console.error('[tq-oauth] Watch error:', error);
+        console.error('[levr-auth] Watch error:', error);
         // Continue with polling as fallback
       });
     } catch (error) {
-      console.error('[tq-oauth] Failed to start file watcher:', error);
+      console.error('[levr-auth] Failed to start file watcher:', error);
       // Continue with polling as fallback
     }
 
@@ -202,9 +202,9 @@ export class TokenWatcher {
       // Log state change
       if (tokens) {
         const status = this.getAuthStatus();
-        console.error(`[tq-oauth] Token change detected, status: ${status}`);
+        console.error(`[levr-auth] Token change detected, status: ${status}`);
       } else {
-        console.error('[tq-oauth] Token file cleared or missing');
+        console.error('[levr-auth] Token file cleared or missing');
       }
 
       // Notify all callbacks
@@ -212,7 +212,7 @@ export class TokenWatcher {
         try {
           cb(tokens);
         } catch (error) {
-          console.error('[tq-oauth] Error in token change callback:', error);
+          console.error('[levr-auth] Error in token change callback:', error);
         }
       });
     }
