@@ -7,7 +7,7 @@ on:
   push:
     tags:
       - 'auth-v*'
-      - 'setup-v*'
+      - 'cli-v*'
 
 concurrency:
   group: publish-${{ github.ref }}
@@ -22,9 +22,9 @@ jobs:
       - name: Resolve package name from the tag prefix
         id: pkg
         run: |
-          # auth-v1.2.3 -> auth ; setup-v1.2.3 -> setup
+          # auth-v1.2.3 -> auth ; cli-v1.2.3 -> cli
           PKG="${GITHUB_REF_NAME%%-v*}"
-          if [ "$PKG" != "auth" ] && [ "$PKG" != "setup" ]; then
+          if [ "$PKG" != "auth" ] && [ "$PKG" != "cli" ]; then
             echo "Unrecognized tag prefix: ${GITHUB_REF_NAME}" >&2
             exit 1
           fi
@@ -40,8 +40,18 @@ jobs:
       - name: Install
         run: yarn install --no-immutable
 
+      # The cli ships PRE-BUILT from the monorepo (its dist/ is bundled +
+      # brand-scrubbed and copied verbatim by the export) — @testlm/sdk /
+      # @testlm/ci-env are bundled in and don't exist in this mirror workspace,
+      # so a rebuild here would fail. auth still builds from source (D3/C1).
       - name: Build
-        run: yarn workspace @levr-one/${{ steps.pkg.outputs.pkg }} build
+        run: |
+          PKG="${{ steps.pkg.outputs.pkg }}"
+          if [ "$PKG" = "cli" ]; then
+            echo "cli ships prebuilt from the monorepo — skipping build."
+          else
+            yarn workspace @levr-one/${PKG} build
+          fi
 
       - name: Publish to npm
         run: npm publish -w @levr-one/${{ steps.pkg.outputs.pkg }} --access public

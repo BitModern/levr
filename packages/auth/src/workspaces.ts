@@ -2,7 +2,7 @@
  * Workspace listing — public library surface for `@levr-one/auth`.
  *
  * Promotes the CLI's former private `fetchWorkspaceSites()` into a reusable
- * library function (internal / D2). Consumed by `@levr-one/setup` and any other
+ * library function (internal / D2). Consumed by `@levr/setup` and any other
  * embedder of `@levr-one/auth`.
  *
  * IMPORTANT (internal / R2F1): a public library function must NEVER terminate

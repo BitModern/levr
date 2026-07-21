@@ -1,6 +1,13 @@
 # Public-repo .gitignore (copied to the export root as `.gitignore`).
 node_modules/
 dist/
+# ...EXCEPT the cli, which ships PRE-BUILT: its bundled, brand-scrubbed dist/ is
+# built in the monorepo and copied verbatim (the mirror can't rebuild it). It
+# MUST be committed to the mirror or every published @levr-one/cli would ship an
+# empty package (files:["dist",...] matching nothing). auth still rebuilds in the
+# mirror, so its dist/ stays ignored.
+!packages/cli/dist/
+!packages/cli/dist/**
 *.tgz
 *.log
 .DS_Store
