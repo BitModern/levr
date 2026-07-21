@@ -149,13 +149,13 @@ withEnv(["LEVR_TOKEN=${LEVR_TOKEN}"]) {
 
 All configuration is via environment variables. Flags take precedence.
 
-| Variable        | Description                                                                              | Default                 |
-| --------------- | ---------------------------------------------------------------------------------------- | ----------------------- |
-| `LEVR_TOKEN`    | Personal Access Token (for CI / headless)                                                |                         |
-| `LEVR_URL`      | API base URL                                                                             | `https://api.levr.one`  |
-| `LEVR_AUTH_URL` | Auth server URL                                                                          | `https://auth.levr.one` |
-| `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default)  |                         |
-| `LEVR_SOURCE`   | Automation source name override (groups imports, remembers team)                         |                         |
+| Variable        | Description                                                                             | Default                 |
+| --------------- | --------------------------------------------------------------------------------------- | ----------------------- |
+| `LEVR_TOKEN`    | Personal Access Token (for CI / headless)                                               |                         |
+| `LEVR_URL`      | API base URL                                                                            | `https://api.levr.one`  |
+| `LEVR_AUTH_URL` | Auth server URL                                                                         | `https://auth.levr.one` |
+| `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default) |                         |
+| `LEVR_SOURCE`   | Automation source name override (groups imports, remembers team)                        |                         |
 
 ## Troubleshooting
 
