@@ -1,12 +1,11 @@
 {
   "name": "@levr-one/cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The command-line interface for Levr",
   "type": "module",
   "license": "MIT",
   "main": "dist/cli.js",
   "bin": {
-    "__levr_bash_complete": "dist/bash-complete.js",
     "levr": "dist/cli.js"
   },
   "files": [

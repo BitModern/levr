@@ -1,8 +1,8 @@
-import "./credentials-CfHLkU7k.js";
-import { authGetSitesV1, configureClient } from "./sdk-client-DunBmYLR.js";
-import { loadWorkspace } from "./workspace-store-BcyMJAht.js";
-import "./token-refresh-waF23pyw.js";
-import { resolveToken } from "./resolve-token-BL8vL_ok.js";
+import "./credentials-Ciq9mA7N.js";
+import { authGetSitesV1, configureClient } from "./sdk-client-rpUEykDw.js";
+import { loadWorkspace } from "./workspace-store-4hfvsEHS.js";
+import "./token-refresh-Pl6Adngb.js";
+import { resolveToken } from "./resolve-token-CQU55U6J.js";
 
 //#region src/commands/workspace/listHandler.ts
 async function listHandler() {

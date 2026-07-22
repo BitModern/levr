@@ -10,6 +10,7 @@ import { pushCommand } from './commands/push.js';
 import { listCommand } from './commands/workspace/list.js';
 import { selectCommand } from './commands/workspace/select.js';
 import { currentCommand } from './commands/workspace/current.js';
+import { version } from '../package.json' with { type: 'json' };
 
 const authRoutes = buildRouteMap({
   routes: {
@@ -39,7 +40,10 @@ const routes = buildRouteMap({
     workspace: workspaceRoutes,
     push: pushCommand,
     install: buildInstallCommand('levr', {
-      bash: '__levr_bash_complete',
+      // Route completion through the single `levr` bin's hidden `__complete`
+      // handler (see src/bin/cli.ts) rather than a separate completion binary,
+      // so the published package has one bin and `npx @levr-one/cli …` resolves.
+      bash: 'levr __complete',
     }),
     uninstall: buildUninstallCommand('levr', { bash: true }),
   },
@@ -55,7 +59,9 @@ const routes = buildRouteMap({
 export const app = buildApplication(routes, {
   name: 'levr',
   versionInfo: {
-    currentVersion: '0.1.0',
+    // Single source of truth: read the version from package.json (inlined at
+    // build time) instead of duplicating the literal here.
+    currentVersion: version,
   },
   localization: {
     loadText: () => ({

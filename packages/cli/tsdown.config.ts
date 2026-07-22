@@ -68,7 +68,7 @@ const brandScrubPlugin = {
 };
 
 export default defineConfig({
-  entry: ['src/bin/cli.ts', 'src/bin/bash-complete.ts'],
+  entry: ['src/bin/cli.ts'],
   format: 'esm',
   // Public build: no source maps. Maps would repack original TS source strings,
   // full monorepo file paths, and internal brand names into the published

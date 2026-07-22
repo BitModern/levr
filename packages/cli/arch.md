@@ -38,8 +38,7 @@
 ```
 src/
 ├── bin/
-│   ├── cli.ts              # Entry point (Stricli run)
-│   └── bash-complete.ts    # Bash completion entry
+│   └── cli.ts              # Entry point: Stricli run + the hidden `__complete` tab-completion route
 ├── commands/
 │   ├── push.ts             # Push command definition (flags, args)
 │   ├── pushHandler.ts      # Push command handler
@@ -69,6 +68,7 @@ src/
 │   ├── auth-types.ts       # ResolvedAuth, StoredCredentials, OAuthTokenResponse, DeviceAuthorizationResponse
 │   └── push-types.ts       # PushCommandFlags, CiMetadata
 ├── app.ts                  # Stricli app config and command tree
+├── completion.ts           # Shell tab-completion helper (levr __complete)
 └── context.ts              # LocalContext interface and builder
 ```
 

@@ -1,4 +1,4 @@
-import { getApiUrl } from "./credentials-CfHLkU7k.js";
+import { getApiUrl } from "./credentials-Ciq9mA7N.js";
 import { z } from "zod/v3";
 
 //#region ../sdk/dist/gen/_common/zod.js
