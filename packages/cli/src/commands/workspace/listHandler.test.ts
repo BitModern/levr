@@ -3,6 +3,7 @@ import type { LocalContext } from '../../context.js';
 
 vi.mock('../../auth/resolve-token.js', () => ({
   resolveToken: vi.fn(),
+  CredentialsMismatchError: class extends Error {},
 }));
 
 vi.mock('../../utils/sdk-client.js', () => ({
@@ -63,12 +64,28 @@ beforeEach(() => {
 });
 
 describe('listHandler', () => {
-  it('shows error when not authenticated', async () => {
-    mockResolveToken.mockRejectedValue(new Error('No auth'));
+  it('forwards the resolveToken error when not authenticated', async () => {
+    mockResolveToken.mockRejectedValue(
+      new Error("Not authenticated. Run 'levr auth login' first."),
+    );
     const ctx = createMockContext();
     await listHandler.call(ctx);
     expect(logError).toHaveBeenCalledWith(
       expect.stringContaining('levr auth login'),
+    );
+    expect(ctx.process.exitCode).toBe(1);
+  });
+
+  it('surfaces the cross-environment mismatch message verbatim', async () => {
+    mockResolveToken.mockRejectedValue(
+      new Error(
+        'Stored credentials are for https://api.levr.one, but this command targets https://api.levr.now.',
+      ),
+    );
+    const ctx = createMockContext();
+    await listHandler.call(ctx);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('Stored credentials are for'),
     );
     expect(ctx.process.exitCode).toBe(1);
   });

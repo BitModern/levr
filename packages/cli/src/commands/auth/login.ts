@@ -20,6 +20,13 @@ Examples:
         default: false,
         brief: 'Use device code flow (for SSH/headless environments)',
       },
+      url: {
+        kind: 'parsed',
+        parse: String,
+        brief: 'API base URL (default: https://api.levr.one)',
+        placeholder: 'url',
+        optional: true,
+      },
     },
     aliases: {
       d: 'device-code',

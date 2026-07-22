@@ -12,7 +12,19 @@ npm install -g @levr-one/cli    # global install for daily use
 npx @levr-one/cli --help
 ```
 
-The package is self-contained — no peer setup required.
+The package is self-contained — no peer setup required. A global install
+replaces the `levr` bin from the deprecated `@levr-one/setup` package.
+
+## Get started
+
+```bash
+npx @levr-one/cli init    # authenticate and list your workspaces
+```
+
+`levr init` is the first-run onboarding command: it logs you in (browser
+PKCE by default, `--device-code` for SSH/headless) and lists the workspaces
+you can push to. Re-running it reuses your stored session — it never
+re-opens the browser unnecessarily.
 
 ### Shell completion (optional)
 
@@ -149,13 +161,13 @@ withEnv(["LEVR_TOKEN=${LEVR_TOKEN}"]) {
 
 All configuration is via environment variables. Flags take precedence.
 
-| Variable        | Description                                                                             | Default                 |
-| --------------- | --------------------------------------------------------------------------------------- | ----------------------- |
-| `LEVR_TOKEN`    | Personal Access Token (for CI / headless)                                               |                         |
-| `LEVR_URL`      | API base URL                                                                            | `https://api.levr.one`  |
-| `LEVR_AUTH_URL` | Auth server URL                                                                         | `https://auth.levr.one` |
-| `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default) |                         |
-| `LEVR_SOURCE`   | Automation source name override (groups imports, remembers team)                        |                         |
+| Variable        | Description                                                                             | Default                |
+| --------------- | --------------------------------------------------------------------------------------- | ---------------------- |
+| `LEVR_TOKEN`    | Personal Access Token (for CI / headless)                                               |                        |
+| `LEVR_URL`      | API base URL (`--url` flag > `LEVR_URL` > URL stored at login > default)                | `https://api.levr.one` |
+| `LEVR_AUTH_URL` | Auth server URL for the browser login page (derived from the API URL when unset)        | derived                |
+| `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default) |                        |
+| `LEVR_SOURCE`   | Automation source name override (groups imports, remembers team)                        |                        |
 
 ## Troubleshooting
 

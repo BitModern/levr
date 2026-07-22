@@ -12,7 +12,12 @@ import {
 } from '../../auth/device-flow.js';
 import { writeCredentials } from '../../auth/credentials.js';
 import { autoSelectWorkspace } from '../../workspace/resolve-workspace.js';
-import { getApiUrl, getAuthUrl, CLI_CLIENT_ID } from '../../utils/env.js';
+import {
+  getApiUrl,
+  getAuthUrl,
+  setSessionApiUrl,
+  CLI_CLIENT_ID,
+} from '../../utils/env.js';
 import { configureClient } from '../../utils/sdk-client.js';
 import type {
   OAuthTokenResponse,
@@ -21,6 +26,12 @@ import type {
 
 interface LoginFlags {
   'device-code': boolean;
+  url?: string;
+}
+
+export interface LoginOptions {
+  deviceCode: boolean;
+  url?: string;
 }
 
 function formatCountdown(ms: number): string {
@@ -34,17 +45,42 @@ export async function loginHandler(
   this: LocalContext,
   flags: LoginFlags,
 ): Promise<void> {
-  if (flags['device-code']) {
-    await deviceCodeLogin(this);
-    return;
-  }
-
-  await pkceLogin(this);
+  await performLogin(this, {
+    deviceCode: flags['device-code'],
+    url: flags.url,
+  });
 }
 
-async function pkceLogin(ctx: LocalContext): Promise<void> {
+/**
+ * Run the login flow (PKCE or device code). Reusable outside the Stricli
+ * handler (levr init composes it). Returns true on success; on failure the
+ * error has been printed and `exitCode` set.
+ */
+export async function performLogin(
+  ctx: LocalContext,
+  options: LoginOptions,
+): Promise<boolean> {
+  if (options.url) {
+    setSessionApiUrl(options.url);
+  }
+  if (options.deviceCode) {
+    return deviceCodeLogin(ctx);
+  }
+  return pkceLogin(ctx);
+}
+
+async function pkceLogin(ctx: LocalContext): Promise<boolean> {
   const apiUrl = getApiUrl();
-  const authUrl = getAuthUrl();
+  let authUrl: string;
+  try {
+    authUrl = getAuthUrl();
+  } catch (err) {
+    ctx.logger.error(
+      err instanceof Error ? err.message : 'Invalid auth server configuration.',
+    );
+    ctx.process.exitCode = 1;
+    return false;
+  }
 
   // 1. Generate PKCE pair + state
   const codeVerifier = generateCodeVerifier();
@@ -113,7 +149,7 @@ async function pkceLogin(ctx: LocalContext): Promise<void> {
       err instanceof Error ? err.message : 'Authentication failed.',
     );
     ctx.process.exitCode = 1;
-    return;
+    return false;
   }
   clearInterval(countdownTimer);
 
@@ -138,17 +174,18 @@ async function pkceLogin(ctx: LocalContext): Promise<void> {
 
     const tokenData = (await tokenRes.json()) as OAuthTokenResponse;
 
-    await saveTokensAndFinish(ctx, tokenData);
+    return await saveTokensAndFinish(ctx, tokenData);
   } catch (err) {
     ctx.process.stdout.write('\n');
     ctx.logger.error(
       err instanceof Error ? err.message : 'Token exchange failed.',
     );
     ctx.process.exitCode = 1;
+    return false;
   }
 }
 
-async function deviceCodeLogin(ctx: LocalContext): Promise<void> {
+async function deviceCodeLogin(ctx: LocalContext): Promise<boolean> {
   try {
     // 1. Request device code
     const device = await requestDeviceCode();
@@ -186,20 +223,21 @@ async function deviceCodeLogin(ctx: LocalContext): Promise<void> {
     }
     clearInterval(deviceTimer);
 
-    await saveTokensAndFinish(ctx, tokenData);
+    return await saveTokensAndFinish(ctx, tokenData);
   } catch (err) {
     ctx.process.stdout.write('\n');
     ctx.logger.error(
       err instanceof Error ? err.message : 'Device flow failed.',
     );
     ctx.process.exitCode = 1;
+    return false;
   }
 }
 
 async function saveTokensAndFinish(
   ctx: LocalContext,
   tokenData: OAuthTokenResponse,
-): Promise<void> {
+): Promise<boolean> {
   const apiUrl = getApiUrl();
 
   // Configure SDK client with the new token
@@ -211,7 +249,7 @@ async function saveTokensAndFinish(
     ctx.process.stdout.write('\n');
     ctx.logger.error('Token response missing user data.');
     ctx.process.exitCode = 1;
-    return;
+    return false;
   }
 
   const creds: StoredCredentials = {
@@ -246,4 +284,6 @@ async function saveTokensAndFinish(
       `\n${wsResult.count} workspaces available. Run ${chalk.cyan("'levr workspace list'")} to see them.\n`,
     );
   }
+
+  return true;
 }

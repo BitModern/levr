@@ -10,14 +10,21 @@ import { sleep } from '../utils/sleep.js';
  */
 export async function requestDeviceCode(): Promise<DeviceAuthorizationResponse> {
   const apiUrl = getApiUrl();
-  const res = await fetch(`${apiUrl}/v1/oauth/device/authorize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: CLI_CLIENT_ID,
-      scope: 'read:own write:own',
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl}/v1/oauth/device/authorize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: CLI_CLIENT_ID,
+        scope: 'read:own write:own',
+      }),
+    });
+  } catch {
+    throw new Error(
+      `Could not reach ${apiUrl} — check the URL and your network connection.`,
+    );
+  }
 
   if (!res.ok) {
     const body = await res.text();

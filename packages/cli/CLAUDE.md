@@ -14,13 +14,13 @@ See [arch.md](arch.md) for architecture, component diagrams, auth flows, and dat
 
 ## Environment Variables
 
-| Variable        | Description                                                                             | Default                 |
-| --------------- | --------------------------------------------------------------------------------------- | ----------------------- |
-| `LEVR_TOKEN`    | Personal Access Token (for CI/headless)                                                 |                         |
-| `LEVR_URL`      | API base URL                                                                            | `https://api.levr.one`  |
-| `LEVR_AUTH_URL` | Auth server URL                                                                         | `https://auth.levr.one` |
-| `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default) |                         |
-| `LEVR_SOURCE`   | Default automation source name                                                          |                         |
+| Variable        | Description                                                                                                                                                                                        | Default                |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `LEVR_TOKEN`    | Personal Access Token (for CI/headless)                                                                                                                                                            |                        |
+| `LEVR_URL`      | API base URL. Resolution: `--url` flag > `LEVR_URL` > `api_url` stored at login > default (ENG-2361)                                                                                               | `https://api.levr.one` |
+| `LEVR_AUTH_URL` | Auth server URL (browser PKCE consent page only). Derived from the API URL for known hosts (`api.levr.one`/`api.levr.now`) when unset; unrecognized hosts (localhost stacks) require it explicitly | derived                |
+| `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default)                                                                                                            |                        |
+| `LEVR_SOURCE`   | Default automation source name                                                                                                                                                                     |                        |
 
 ## ESLint Rules
 

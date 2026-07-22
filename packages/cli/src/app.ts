@@ -3,6 +3,7 @@ import {
   buildInstallCommand,
   buildUninstallCommand,
 } from '@stricli/auto-complete';
+import { initCommand } from './commands/init.js';
 import { loginCommand } from './commands/auth/login.js';
 import { logoutCommand } from './commands/auth/logout.js';
 import { statusCommand } from './commands/auth/status.js';
@@ -36,6 +37,7 @@ const workspaceRoutes = buildRouteMap({
 
 const routes = buildRouteMap({
   routes: {
+    init: initCommand,
     auth: authRoutes,
     workspace: workspaceRoutes,
     push: pushCommand,

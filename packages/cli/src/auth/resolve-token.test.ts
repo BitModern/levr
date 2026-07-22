@@ -55,4 +55,64 @@ describe('resolveToken', () => {
     expect(result.type).toBe('pat');
     expect(result.token).toBe('tq_priority');
   });
+
+  it('rejects stored credentials when the command targets a different server', async () => {
+    process.env['LEVR_URL'] = 'https://api.levr.now';
+
+    vi.doMock('./credentials.js', () => ({
+      readCredentials: () => ({
+        version: 1,
+        api_url: 'https://api.levr.one',
+        access_token: 'jwt-token',
+        refresh_token: 'refresh',
+        expires_at: new Date(Date.now() + 86400000).toISOString(),
+      }),
+    }));
+
+    const { resolveToken } = await import('./resolve-token.js');
+
+    await expect(resolveToken()).rejects.toThrow(
+      /Stored credentials are for https:\/\/api\.levr\.one.*api\.levr\.now/s,
+    );
+  });
+
+  it('returns stored credentials when they match the active target', async () => {
+    process.env['LEVR_URL'] = 'https://api.levr.now';
+
+    vi.doMock('./credentials.js', () => ({
+      readCredentials: () => ({
+        version: 1,
+        api_url: 'https://api.levr.now',
+        access_token: 'jwt-token',
+        refresh_token: 'refresh',
+        expires_at: new Date(Date.now() + 86400000).toISOString(),
+      }),
+    }));
+
+    const { resolveToken } = await import('./resolve-token.js');
+
+    const result = await resolveToken();
+    expect(result.type).toBe('jwt');
+    expect(result.token).toBe('jwt-token');
+  });
+
+  it('accepts stored credentials when no explicit target is set (stored URL is the target)', async () => {
+    delete process.env['LEVR_URL'];
+
+    vi.doMock('./credentials.js', () => ({
+      readCredentials: () => ({
+        version: 1,
+        api_url: 'https://api.levr.now',
+        access_token: 'jwt-token',
+        refresh_token: 'refresh',
+        expires_at: new Date(Date.now() + 86400000).toISOString(),
+      }),
+    }));
+
+    const { resolveToken } = await import('./resolve-token.js');
+
+    const result = await resolveToken();
+    expect(result.type).toBe('jwt');
+    expect(result.token).toBe('jwt-token');
+  });
 });

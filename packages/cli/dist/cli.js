@@ -53,6 +53,45 @@ function buildContext(process$1) {
 }
 
 //#endregion
+//#region src/commands/init.ts
+const initCommand = buildCommand({
+	docs: {
+		brief: "First-run setup: authenticate and list your workspaces",
+		fullDescription: `Set up the Levr CLI: authenticate (if needed) and list your workspaces.
+
+Reuses an existing session when one is stored — running init again never
+re-opens the browser unnecessarily. For headless environments (SSH,
+containers), use --device-code.
+
+Examples:
+  npx @levr-one/cli init          # First-run onboarding
+  levr init --device-code         # Headless/SSH onboarding
+  levr init --url <api-url>       # Target a non-default API server`
+	},
+	parameters: {
+		flags: {
+			"device-code": {
+				kind: "boolean",
+				default: false,
+				brief: "Use device code flow (for SSH/headless environments)"
+			},
+			url: {
+				kind: "parsed",
+				parse: String,
+				brief: "API base URL (default: https://api.levr.one)",
+				placeholder: "url",
+				optional: true
+			}
+		},
+		aliases: { d: "device-code" }
+	},
+	loader: async () => {
+		const { initHandler } = await import("./initHandler-JN92u8td.js");
+		return initHandler;
+	}
+});
+
+//#endregion
 //#region src/commands/auth/login.ts
 const loginCommand = buildCommand({
 	docs: {
@@ -68,15 +107,24 @@ Examples:
   levr auth login --device-code   # Device flow for SSH/headless`
 	},
 	parameters: {
-		flags: { "device-code": {
-			kind: "boolean",
-			default: false,
-			brief: "Use device code flow (for SSH/headless environments)"
-		} },
+		flags: {
+			"device-code": {
+				kind: "boolean",
+				default: false,
+				brief: "Use device code flow (for SSH/headless environments)"
+			},
+			url: {
+				kind: "parsed",
+				parse: String,
+				brief: "API base URL (default: https://api.levr.one)",
+				placeholder: "url",
+				optional: true
+			}
+		},
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-BnokItPo.js");
+		const { loginHandler } = await import("./loginHandler-uZCrwdcR.js");
 		return loginHandler;
 	}
 });
@@ -95,7 +143,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-C3X9rqLP.js");
+		const { logoutHandler } = await import("./logoutHandler-jWPGhzls.js");
 		return logoutHandler;
 	}
 });
@@ -115,7 +163,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-LfrSN4uh.js");
+		const { statusHandler } = await import("./statusHandler-D6YAxhoN.js");
 		return statusHandler;
 	}
 });
@@ -226,7 +274,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-C3DteESD.js");
+		const { pushHandler } = await import("./pushHandler-DG96IOVd.js");
 		return pushHandler;
 	}
 });
@@ -247,7 +295,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-gfnJbj60.js");
+		const { listHandler } = await import("./listHandler-5L3YE52T.js");
 		return listHandler;
 	}
 });
@@ -280,7 +328,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-BjM4LKYW.js");
+		const { selectHandler } = await import("./selectHandler-CkIbO2qH.js");
 		return selectHandler;
 	}
 });
@@ -297,19 +345,20 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-DpWIqCBm.js");
+		const { currentHandler } = await import("./currentHandler-Dzg819Np.js");
 		return currentHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.1.1";
+var version = "0.2.0";
 
 //#endregion
 //#region src/app.ts
 const routes = buildRouteMap({
 	routes: {
+		init: initCommand,
 		auth: buildRouteMap({
 			routes: {
 				login: loginCommand,

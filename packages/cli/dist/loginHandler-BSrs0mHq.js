@@ -1,7 +1,6 @@
-import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, writeCredentials } from "./credentials-Ciq9mA7N.js";
-import { configureClient } from "./sdk-client-rpUEykDw.js";
-import "./workspace-store-4hfvsEHS.js";
-import { autoSelectWorkspace } from "./resolve-workspace-BPMkU_SK.js";
+import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-hpzB56ay.js";
+import { configureClient } from "./sdk-client-BCOB2qNU.js";
+import { autoSelectWorkspace } from "./resolve-workspace-EpjKI71z.js";
 import chalk from "chalk";
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
@@ -166,14 +165,19 @@ function sleep(ms) {
 */
 async function requestDeviceCode() {
 	const apiUrl = getApiUrl();
-	const res = await fetch(`${apiUrl}/v1/oauth/device/authorize`, {
-		method: "POST",
-		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-		body: new URLSearchParams({
-			client_id: CLI_CLIENT_ID,
-			scope: "read:own write:own"
-		})
-	});
+	let res;
+	try {
+		res = await fetch(`${apiUrl}/v1/oauth/device/authorize`, {
+			method: "POST",
+			headers: { "Content-Type": "application/x-www-form-urlencoded" },
+			body: new URLSearchParams({
+				client_id: CLI_CLIENT_ID,
+				scope: "read:own write:own"
+			})
+		});
+	} catch {
+		throw new Error(`Could not reach ${apiUrl} — check the URL and your network connection.`);
+	}
 	if (!res.ok) {
 		const body = await res.text();
 		throw new Error(`Failed to request device code (${res.status}): ${body}`);
@@ -223,15 +227,31 @@ function formatCountdown(ms) {
 	return `${Math.floor(totalSec / 60)}:${(totalSec % 60).toString().padStart(2, "0")}`;
 }
 async function loginHandler(flags) {
-	if (flags["device-code"]) {
-		await deviceCodeLogin(this);
-		return;
-	}
-	await pkceLogin(this);
+	await performLogin(this, {
+		deviceCode: flags["device-code"],
+		url: flags.url
+	});
+}
+/**
+* Run the login flow (PKCE or device code). Reusable outside the Stricli
+* handler (levr init composes it). Returns true on success; on failure the
+* error has been printed and `exitCode` set.
+*/
+async function performLogin(ctx, options) {
+	if (options.url) setSessionApiUrl(options.url);
+	if (options.deviceCode) return deviceCodeLogin(ctx);
+	return pkceLogin(ctx);
 }
 async function pkceLogin(ctx) {
 	const apiUrl = getApiUrl();
-	const authUrl = getAuthUrl();
+	let authUrl;
+	try {
+		authUrl = getAuthUrl();
+	} catch (err) {
+		ctx.logger.error(err instanceof Error ? err.message : "Invalid auth server configuration.");
+		ctx.process.exitCode = 1;
+		return false;
+	}
 	const codeVerifier = generateCodeVerifier();
 	const codeChallenge = generateCodeChallenge(codeVerifier);
 	const state = randomBytes(16).toString("hex");
@@ -240,7 +260,7 @@ async function pkceLogin(ctx) {
 		expectedState: state
 	});
 	const redirectUri = `http://127.0.0.1:${await portPromise}/callback`;
-	const authorizeUrl = `${authUrl}/auth/oauth/authorize?${new URLSearchParams({
+	const params = new URLSearchParams({
 		response_type: "code",
 		client_id: CLI_CLIENT_ID,
 		redirect_uri: redirectUri,
@@ -248,7 +268,8 @@ async function pkceLogin(ctx) {
 		code_challenge_method: "S256",
 		scope: "read:own write:own",
 		state
-	}).toString()}`;
+	});
+	const authorizeUrl = `${authUrl}/auth/oauth/authorize?${params.toString()}`;
 	ctx.process.stdout.write("Opening browser to authenticate...\n\n");
 	ctx.process.stdout.write(`  If the browser doesn't open, visit:\n  ${chalk.cyan(authorizeUrl)}\n\n`);
 	try {
@@ -270,7 +291,7 @@ async function pkceLogin(ctx) {
 		ctx.process.stdout.write("\n");
 		ctx.logger.error(err instanceof Error ? err.message : "Authentication failed.");
 		ctx.process.exitCode = 1;
-		return;
+		return false;
 	}
 	clearInterval(countdownTimer);
 	try {
@@ -289,11 +310,12 @@ async function pkceLogin(ctx) {
 			const errBody = await tokenRes.text();
 			throw new Error(`Token exchange failed (${tokenRes.status}): ${errBody}`);
 		}
-		await saveTokensAndFinish(ctx, await tokenRes.json());
+		return await saveTokensAndFinish(ctx, await tokenRes.json());
 	} catch (err) {
 		ctx.process.stdout.write("\n");
 		ctx.logger.error(err instanceof Error ? err.message : "Token exchange failed.");
 		ctx.process.exitCode = 1;
+		return false;
 	}
 }
 async function deviceCodeLogin(ctx) {
@@ -319,11 +341,12 @@ async function deviceCodeLogin(ctx) {
 			throw err;
 		}
 		clearInterval(deviceTimer);
-		await saveTokensAndFinish(ctx, tokenData);
+		return await saveTokensAndFinish(ctx, tokenData);
 	} catch (err) {
 		ctx.process.stdout.write("\n");
 		ctx.logger.error(err instanceof Error ? err.message : "Device flow failed.");
 		ctx.process.exitCode = 1;
+		return false;
 	}
 }
 async function saveTokensAndFinish(ctx, tokenData) {
@@ -337,7 +360,7 @@ async function saveTokensAndFinish(ctx, tokenData) {
 		ctx.process.stdout.write("\n");
 		ctx.logger.error("Token response missing user data.");
 		ctx.process.exitCode = 1;
-		return;
+		return false;
 	}
 	writeCredentials({
 		version: 1,
@@ -357,7 +380,8 @@ async function saveTokensAndFinish(ctx, tokenData) {
 	const wsResult = await autoSelectWorkspace();
 	if (wsResult.kind === "single") ctx.process.stdout.write(`Workspace: ${chalk.bold(wsResult.workspaceName)}\n`);
 	else if (wsResult.kind === "multiple") ctx.process.stdout.write(`\n${wsResult.count} workspaces available. Run ${chalk.cyan("'levr workspace list'")} to see them.\n`);
+	return true;
 }
 
 //#endregion
-export { loginHandler };
+export { loginHandler, performLogin };

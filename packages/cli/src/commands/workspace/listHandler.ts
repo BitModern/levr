@@ -10,8 +10,14 @@ export async function listHandler(this: LocalContext): Promise<void> {
   let auth;
   try {
     auth = await resolveToken();
-  } catch {
-    this.logger.error("Not authenticated. Run 'levr auth login' first.");
+  } catch (err) {
+    // Forward resolveToken's message — it distinguishes "no credentials"
+    // from a cross-environment credentials mismatch (internal).
+    this.logger.error(
+      err instanceof Error
+        ? err.message
+        : "Not authenticated. Run 'levr auth login' first.",
+    );
     this.process.exitCode = 1;
     return;
   }
@@ -35,22 +41,31 @@ export async function listHandler(this: LocalContext): Promise<void> {
   }
 
   const data = result.data as SitesResponseDto;
-  const sites = data.sites;
+  printSites(this, data.sites);
+}
 
+/**
+ * Print the workspace list with the current-workspace indicator. Shared
+ * with `levr init` (internal).
+ */
+export function printSites(
+  ctx: LocalContext,
+  sites: SitesResponseDto['sites'],
+): void {
   if (sites.length === 0) {
-    this.logger.info('No workspaces available.');
+    ctx.logger.info('No workspaces available.');
     return;
   }
 
   // Get current workspace for indicator
   const currentWs = loadWorkspace();
 
-  this.process.stdout.write('\nWorkspaces:\n\n');
+  ctx.process.stdout.write('\nWorkspaces:\n\n');
   for (const site of sites) {
     const indicator = site.workspace_id === currentWs ? ' *' : '';
-    this.process.stdout.write(
+    ctx.process.stdout.write(
       `  ${site.workspace_name} (${site.workspace_id}) [${site.role}]${indicator}\n`,
     );
   }
-  this.process.stdout.write('\n');
+  ctx.process.stdout.write('\n');
 }

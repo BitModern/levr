@@ -37,6 +37,17 @@ export async function statusHandler(this: LocalContext): Promise<void> {
     return;
   }
 
+  // Stored credentials for a different server than the active target are
+  // effectively "not authenticated" for this environment (internal).
+  const storedUrl = creds.api_url.replace(/\/+$/, '');
+  if (storedUrl !== apiUrl) {
+    this.process.stdout.write(
+      `${chalk.red('error')} Stored credentials are for ${storedUrl}, but the current target is ${apiUrl}. Run 'levr auth login' to authenticate against this server.\n`,
+    );
+    this.process.exitCode = 1;
+    return;
+  }
+
   if (isTokenExpired(creds)) {
     this.process.stdout.write(
       `${chalk.red('error')} Token expired. Run 'levr auth login' to re-authenticate.\n`,

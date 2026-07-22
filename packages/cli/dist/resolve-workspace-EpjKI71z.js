@@ -1,5 +1,5 @@
-import { authGetSitesV1 } from "./sdk-client-rpUEykDw.js";
-import { clearWorkspace, loadWorkspace, saveWorkspace } from "./workspace-store-4hfvsEHS.js";
+import { authGetSitesV1 } from "./sdk-client-BCOB2qNU.js";
+import { clearWorkspace, loadWorkspace, saveWorkspace } from "./workspace-store-BcyMJAht.js";
 
 //#region src/workspace/resolve-workspace.ts
 async function fetchSites() {

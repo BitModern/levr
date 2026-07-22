@@ -1,6 +1,6 @@
-import { getApiUrl, getPatToken, readCredentials } from "./credentials-Ciq9mA7N.js";
-import { authGetProfileV1, configureClient } from "./sdk-client-rpUEykDw.js";
-import { isTokenExpired } from "./token-refresh-Pl6Adngb.js";
+import { getApiUrl, getPatToken, readCredentials } from "./env-hpzB56ay.js";
+import { authGetProfileV1, configureClient } from "./sdk-client-BCOB2qNU.js";
+import { isTokenExpired } from "./token-refresh-BYu4XO3G.js";
 import chalk from "chalk";
 
 //#region src/commands/auth/statusHandler.ts
@@ -20,6 +20,12 @@ async function statusHandler() {
 	const creds = readCredentials();
 	if (!creds) {
 		this.process.stdout.write(`${chalk.red("error")} Not authenticated. Run 'levr auth login' or set LEVR_TOKEN.\n`);
+		this.process.exitCode = 1;
+		return;
+	}
+	const storedUrl = creds.api_url.replace(/\/+$/, "");
+	if (storedUrl !== apiUrl) {
+		this.process.stdout.write(`${chalk.red("error")} Stored credentials are for ${storedUrl}, but the current target is ${apiUrl}. Run 'levr auth login' to authenticate against this server.\n`);
 		this.process.exitCode = 1;
 		return;
 	}
