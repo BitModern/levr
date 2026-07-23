@@ -19,8 +19,14 @@ const SCRUB: [RegExp, string][] = [
   [/TestQuality/g, 'Levr'],
   [/testquality\.com/g, 'levr.one'],
   [/testquality/g, 'levr'],
-  [/api\.levr\.now/g, 'api.levr.one'],
-  [/auth\.levr\.now/g, 'auth.levr.one'],
+  // NOTE: no `api.levr.now → api.levr.one` (or auth./ai. equivalents) rules.
+  // Earlier revisions had them for SDK describe-string prose (now emptied
+  // wholesale by DESCRIBE_STRIP), but the blanket rewrite corrupted the
+  // KNOWN_AUTH_HOSTS / KNOWN_MCP_URLS derivation maps in the shipped bundle —
+  // both staging entries collapsed onto the production pair, so the published
+  // 0.2.0 binary could not derive staging URLs from LEVR_URL (internal).
+  // Staging hostnames shipping in the public artifact is accepted precedent
+  // (@levr-one/auth PRESETS).
   [/TQ_LLM_EVAL_MCP_ACCESS_TOKEN/g, 'LEVR_TOKEN'],
   [/TQ_WORKSPACE_ID/g, 'LEVR_WORKSPACE_ID'],
   [/TQ_PAT/g, 'LEVR_TOKEN'],
@@ -79,7 +85,10 @@ export default defineConfig({
   // package is self-contained (no @levr/* runtime deps, no dangling .d.ts).
   // Everything else (@stricli/*, chalk, open, ora, zod) stays external and
   // resolves from the public npm registry (D2 decision / D4).
-  noExternal: ['@levr/sdk', '@levr/ci-env'],
+  // Regex, not exact names: mcp-harnesses is imported via its `/node` SUBPATH,
+  // which an exact-string noExternal match misses — the specifier then stays
+  // external and the brand scrub mangles it into an unresolvable runtime dep.
+  noExternal: [/^@testlm\//],
   // Single-file entry, no shared-chunk splitting.
   splitting: false,
   outdir: 'dist',

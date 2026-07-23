@@ -53,41 +53,64 @@ function buildContext(process$1) {
 }
 
 //#endregion
-//#region src/commands/init.ts
-const initCommand = buildCommand({
+//#region src/commands/mcp/add.ts
+const mcpAddCommand = buildCommand({
 	docs: {
-		brief: "First-run setup: authenticate and list your workspaces",
-		fullDescription: `Set up the Levr CLI: authenticate (if needed) and list your workspaces.
+		brief: "Add the Levr MCP server to installed AI clients",
+		fullDescription: `Detect MCP-capable clients on this machine (Claude Desktop,
+Claude Code, Cursor, Windsurf, Zed) and write the Levr MCP server into each
+one's config. The entry is credential-free — the client opens a browser to
+authorize with Levr the first time it connects.
 
-Reuses an existing session when one is stored — running init again never
-re-opens the browser unnecessarily. For headless environments (SSH,
-containers), use --device-code.
+Interactive by default; non-interactive when --all/--client/--yes is passed
+or when not running in a terminal (CI). Config edits preserve existing
+servers and comments, and re-running is a no-op.
 
 Examples:
-  npx @levr-one/cli init          # First-run onboarding
-  levr init --device-code         # Headless/SSH onboarding
-  levr init --url <api-url>       # Target a non-default API server`
+  npx @levr-one/cli mcp add        # detect clients and pick interactively
+  levr mcp add --all               # set up every detected client
+  levr mcp add --client cursor --yes
+  levr mcp add --dry-run           # preview without writing
+  levr mcp add --url <mcp-url>     # target a non-default MCP server`
 	},
 	parameters: {
 		flags: {
-			"device-code": {
+			client: {
+				kind: "parsed",
+				parse: String,
+				brief: "Set up these client ids (comma-separated or repeated)",
+				placeholder: "id[,id]",
+				variadic: true,
+				optional: true
+			},
+			all: {
 				kind: "boolean",
 				default: false,
-				brief: "Use device code flow (for SSH/headless environments)"
+				brief: "Set up every detected, installable client"
+			},
+			yes: {
+				kind: "boolean",
+				default: false,
+				brief: "Non-interactive; auto-select detected clients"
+			},
+			"dry-run": {
+				kind: "boolean",
+				default: false,
+				brief: "Show changes without writing"
 			},
 			url: {
 				kind: "parsed",
 				parse: String,
-				brief: "API base URL (default: https://api.levr.one)",
+				brief: "MCP server URL (default derived from the API server)",
 				placeholder: "url",
 				optional: true
 			}
 		},
-		aliases: { d: "device-code" }
+		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { initHandler } = await import("./initHandler-JN92u8td.js");
-		return initHandler;
+		const { mcpAddHandler } = await import("./addHandler-boWTd9yY.js");
+		return mcpAddHandler;
 	}
 });
 
@@ -124,7 +147,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-uZCrwdcR.js");
+		const { loginHandler } = await import("./loginHandler-BfIUQJrC.js");
 		return loginHandler;
 	}
 });
@@ -143,7 +166,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-jWPGhzls.js");
+		const { logoutHandler } = await import("./logoutHandler-BC8laIAB.js");
 		return logoutHandler;
 	}
 });
@@ -163,7 +186,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-D6YAxhoN.js");
+		const { statusHandler } = await import("./statusHandler-BaQB40t7.js");
 		return statusHandler;
 	}
 });
@@ -274,7 +297,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-DG96IOVd.js");
+		const { pushHandler } = await import("./pushHandler-DBBa6hKz.js");
 		return pushHandler;
 	}
 });
@@ -295,7 +318,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-5L3YE52T.js");
+		const { listHandler } = await import("./listHandler-EsB3AeOB.js");
 		return listHandler;
 	}
 });
@@ -328,7 +351,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-CkIbO2qH.js");
+		const { selectHandler } = await import("./selectHandler-XOUHdyea.js");
 		return selectHandler;
 	}
 });
@@ -345,36 +368,41 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-Dzg819Np.js");
+		const { currentHandler } = await import("./currentHandler-Bm7GFMkj.js");
 		return currentHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.2.0";
+var version = "0.3.0";
 
 //#endregion
 //#region src/app.ts
+const authRoutes = buildRouteMap({
+	routes: {
+		login: loginCommand,
+		logout: logoutCommand,
+		status: statusCommand
+	},
+	docs: { brief: "Manage authentication" }
+});
+const workspaceRoutes = buildRouteMap({
+	routes: {
+		list: listCommand,
+		select: selectCommand,
+		current: currentCommand
+	},
+	docs: { brief: "Manage workspace selection" }
+});
 const routes = buildRouteMap({
 	routes: {
-		init: initCommand,
-		auth: buildRouteMap({
-			routes: {
-				login: loginCommand,
-				logout: logoutCommand,
-				status: statusCommand
-			},
-			docs: { brief: "Manage authentication" }
+		mcp: buildRouteMap({
+			routes: { add: mcpAddCommand },
+			docs: { brief: "Wire the Levr MCP server into installed AI clients" }
 		}),
-		workspace: buildRouteMap({
-			routes: {
-				list: listCommand,
-				select: selectCommand,
-				current: currentCommand
-			},
-			docs: { brief: "Manage workspace selection" }
-		}),
+		auth: authRoutes,
+		workspace: workspaceRoutes,
 		push: pushCommand,
 		install: buildInstallCommand("levr", { bash: "levr __complete" }),
 		uninstall: buildUninstallCommand("levr", { bash: true })

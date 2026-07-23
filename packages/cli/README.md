@@ -17,14 +17,25 @@ replaces the `levr` bin from the deprecated `@levr-one/setup` package.
 
 ## Get started
 
+Pushing test results needs authentication and nothing else — log in once
+(or set `LEVR_TOKEN` in CI):
+
 ```bash
-npx @levr-one/cli init    # authenticate and list your workspaces
+levr auth login              # browser PKCE (or --device-code for SSH/headless)
+levr push ./results.xml
 ```
 
-`levr init` is the first-run onboarding command: it logs you in (browser
-PKCE by default, `--device-code` for SSH/headless) and lists the workspaces
-you can push to. Re-running it reuses your stored session — it never
-re-opens the browser unnecessarily.
+Using an AI client (Claude Desktop/Code, Cursor, Windsurf, Zed)? Wire the
+Levr MCP server into it with one command — no login needed; the client opens
+a browser to authorize the first time it connects:
+
+```bash
+npx @levr-one/cli mcp add    # detect installed clients and pick interactively
+```
+
+Config edits preserve your existing MCP servers and comments, and re-running
+is a no-op. Use `--all`, `--client <id>`, or `--yes` for non-interactive
+runs and `--dry-run` to preview.
 
 ### Shell completion (optional)
 
@@ -166,6 +177,7 @@ All configuration is via environment variables. Flags take precedence.
 | `LEVR_TOKEN`    | Personal Access Token (for CI / headless)                                               |                        |
 | `LEVR_URL`      | API base URL (`--url` flag > `LEVR_URL` > URL stored at login > default)                | `https://api.levr.one` |
 | `LEVR_AUTH_URL` | Auth server URL for the browser login page (derived from the API URL when unset)        | derived                |
+| `LEVR_MCP_URL`  | MCP server URL written by `levr mcp add` (derived from the API URL when unset)          | derived                |
 | `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default) |                        |
 | `LEVR_SOURCE`   | Automation source name override (groups imports, remembers team)                        |                        |
 

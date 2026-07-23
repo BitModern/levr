@@ -3,7 +3,7 @@ import {
   buildInstallCommand,
   buildUninstallCommand,
 } from '@stricli/auto-complete';
-import { initCommand } from './commands/init.js';
+import { mcpAddCommand } from './commands/mcp/add.js';
 import { loginCommand } from './commands/auth/login.js';
 import { logoutCommand } from './commands/auth/logout.js';
 import { statusCommand } from './commands/auth/status.js';
@@ -35,9 +35,18 @@ const workspaceRoutes = buildRouteMap({
   },
 });
 
+const mcpRoutes = buildRouteMap({
+  routes: {
+    add: mcpAddCommand,
+  },
+  docs: {
+    brief: 'Wire the Levr MCP server into installed AI clients',
+  },
+});
+
 const routes = buildRouteMap({
   routes: {
-    init: initCommand,
+    mcp: mcpRoutes,
     auth: authRoutes,
     workspace: workspaceRoutes,
     push: pushCommand,

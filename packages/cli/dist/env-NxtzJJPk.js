@@ -30,7 +30,7 @@ function deleteCredentials() {
 const DEFAULT_API_URL = "https://api.levr.one";
 const KNOWN_AUTH_HOSTS = {
 	"api.levr.one": "auth.levr.one",
-	"api.levr.one": "auth.levr.one"
+	"api.levr.now": "auth.levr.now"
 };
 /** OAuth client ID for the CLI (seeded in oauth_clients table) */
 const CLI_CLIENT_ID = "3";
