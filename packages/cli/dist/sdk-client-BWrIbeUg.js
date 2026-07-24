@@ -14060,6 +14060,11 @@ const zCreateGithubIssueLinkDto = z.object({
 	sync_direction: z.string().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	role: z.string().optional().describe(""),
+	last_synced_fingerprint: z.string().nullable().optional().describe(""),
+	last_synced_origin: z.string().nullable().optional().describe(""),
+	last_synced_snapshot: z.unknown().optional().describe(""),
+	sync_status: z.string().optional().describe(""),
+	conflict_id: z.string().nullable().optional().describe(""),
 	tq_issue_id: z.string(),
 	github_repository_id: z.string(),
 	team_id: z.string()
@@ -14071,6 +14076,11 @@ const zResponseGithubIssueLinkDto = z.object({
 	sync_direction: z.string().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	role: z.string().optional().describe(""),
+	last_synced_fingerprint: z.string().nullable().optional().describe(""),
+	last_synced_origin: z.string().nullable().optional().describe(""),
+	last_synced_snapshot: z.unknown().optional().describe(""),
+	sync_status: z.string().optional().describe(""),
+	conflict_id: z.string().nullable().optional().describe(""),
 	tq_issue_id: z.string(),
 	github_repository_id: z.string(),
 	team_id: z.string(),
@@ -14090,6 +14100,11 @@ const zUpdateGithubIssueLinkDto = z.object({
 	sync_direction: z.string().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	role: z.string().optional().describe(""),
+	last_synced_fingerprint: z.string().nullable().optional().describe(""),
+	last_synced_origin: z.string().nullable().optional().describe(""),
+	last_synced_snapshot: z.unknown().optional().describe(""),
+	sync_status: z.string().optional().describe(""),
+	conflict_id: z.string().nullable().optional().describe(""),
 	tq_issue_id: z.string().optional(),
 	github_repository_id: z.string().optional(),
 	team_id: z.string().optional()
@@ -27227,7 +27242,6 @@ const zIngestRequestDto = z.object({
 	force_upsert: z.boolean().optional()
 });
 const zSyncGetLastSyncIdV1Data = z.object({ url: z.literal("/v1/sync/last-sync-id") });
-const zSyncResetSyncV1Data = z.object({ url: z.literal("/v1/sync/reset") });
 const zSyncBootstrapV1Data = z.object({
 	body: zBootstrapRequestDto,
 	url: z.literal("/v1/sync/bootstrap")
