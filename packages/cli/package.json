@@ -1,6 +1,6 @@
 {
   "name": "@levr-one/cli",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "The command-line interface for Levr",
   "type": "module",
   "license": "MIT",

@@ -1,8 +1,13 @@
 # @levr-one/cli
 
-The command-line interface for [Levr](https://www.levr.one). Push test results
-from any CI pipeline, manage authentication, and select workspaces. The binary
-is `levr`.
+The command-line interface for [Levr](https://www.levr.one). The binary is
+`levr`, and it does two jobs:
+
+- **Connect your AI tools** — `levr mcp add` wires the Levr MCP server into
+  the AI clients on your machine (Claude Desktop, Claude Code, Cursor,
+  Windsurf, Zed) with one command.
+- **Push test results** — `levr push` uploads results from any terminal or CI
+  pipeline.
 
 ## Install
 
@@ -15,82 +20,68 @@ npx @levr-one/cli --help
 The package is self-contained — no peer setup required. A global install
 replaces the `levr` bin from the deprecated `@levr-one/setup` package.
 
-## Get started
+## Quick start
 
-Pushing test results needs authentication and nothing else — log in once
-(or set `LEVR_TOKEN` in CI):
+**Using an AI client?** Wire the Levr MCP server into it — no login needed;
+the client opens a browser to authorize the first time it connects:
+
+```bash
+npx @levr-one/cli mcp add
+```
+
+**Pushing test results?** Authentication is all you need — log in once (or
+set `LEVR_TOKEN` in CI):
 
 ```bash
 levr auth login              # browser PKCE (or --device-code for SSH/headless)
 levr push ./results.xml
 ```
 
-Using an AI client (Claude Desktop/Code, Cursor, Windsurf, Zed)? Wire the
-Levr MCP server into it with one command — no login needed; the client opens
-a browser to authorize the first time it connects:
+## Connect AI clients: `levr mcp add`
+
+Detects the MCP-capable clients installed on your machine, lets you pick
+which to set up, and writes the Levr MCP server into each one's config:
 
 ```bash
-npx @levr-one/cli mcp add    # detect installed clients and pick interactively
+levr mcp add                 # detect clients and pick interactively
+levr mcp add --all           # set up every detected client
+levr mcp add --dry-run       # preview the changes without writing
+levr mcp add --client cursor,zed --yes   # non-interactive selection
 ```
 
-Config edits preserve your existing MCP servers and comments, and re-running
-is a no-op. Use `--all`, `--client <id>`, or `--yes` for non-interactive
-runs and `--dry-run` to preview.
+What it writes is **credential-free** — a `levr` server entry that connects
+via `mcp-remote`. No token or secret is stored; your client opens the browser
+to authorize with Levr on its first connection. After a run, restart the
+client(s) and authorize once.
 
-### Shell completion (optional)
+**Supported clients:**
 
-Tab-completion is an explicit opt-in step (it is not installed automatically):
+| Client         | How it's configured                                                            |
+| -------------- | ------------------------------------------------------------------------------ |
+| Claude Desktop | config file (`claude_desktop_config.json`)                                     |
+| Claude Code    | prints the `claude mcp add --transport http levr <url>` command for you to run |
+| Cursor         | config file (`~/.cursor/mcp.json`)                                             |
+| Windsurf       | config file (`~/.codeium/windsurf/mcp_config.json`)                            |
+| Zed            | config file (`settings.json`, `context_servers`)                               |
+| VS Code, Codex | listed but not yet installable (coming soon)                                   |
 
-```bash
-levr install       # add shell completion for the current shell
-levr uninstall     # remove it
-```
+Config edits are **safe and repeatable**: existing MCP servers and comments
+in your config files are preserved (jsonc-aware merge), and re-running is a
+no-op that reports "already set up".
 
-## Authentication
+**Flags:**
 
-The CLI supports three authentication modes.
+| Flag              | Alias | Description                                           |
+| ----------------- | ----- | ----------------------------------------------------- |
+| `--client <id,…>` |       | Set up these client ids (comma-separated or repeated) |
+| `--all`           |       | Set up every detected, installable client             |
+| `--yes`           | `-y`  | Non-interactive; auto-select detected clients         |
+| `--dry-run`       |       | Show the changes without writing                      |
+| `--url <url>`     |       | MCP server URL (default derived from the API server)  |
 
-### Interactive (browser) — default
-
-```bash
-levr auth login
-```
-
-Opens a browser for PKCE-based OAuth login.
-
-### Device code (SSH / headless)
-
-```bash
-levr auth login --device-code
-```
-
-A code is displayed in the terminal. Open the provided URL on any device, enter
-the code, and approve.
-
-### Personal Access Token (CI/CD)
-
-Set the `LEVR_TOKEN` environment variable and the CLI uses it automatically —
-no interactive login:
-
-```bash
-export LEVR_TOKEN=<your-personal-access-token>
-levr push ./results.xml
-```
-
-### Other auth commands
-
-```bash
-levr auth status     # show current authentication state
-levr auth logout     # clear stored credentials
-```
-
-## Workspaces
-
-```bash
-levr workspace list       # list the workspaces you belong to
-levr workspace select     # choose the active workspace
-levr workspace current    # show the active workspace
-```
+Runs non-interactively whenever `--all`, `--client`, or `--yes` is passed —
+or automatically when not attached to a terminal (CI). Unknown client ids and
+failed writes exit non-zero.
 
 ## Push test results
 
@@ -168,6 +159,61 @@ withEnv(["LEVR_TOKEN=${LEVR_TOKEN}"]) {
 }
 ```
 
+## Authentication
+
+Needed for `push` and `workspace` commands (`mcp add` needs none). Three modes:
+
+### Interactive (browser) — default
+
+```bash
+levr auth login
+```
+
+Opens a browser for PKCE-based OAuth login.
+
+### Device code (SSH / headless)
+
+```bash
+levr auth login --device-code
+```
+
+A code is displayed in the terminal. Open the provided URL on any device, enter
+the code, and approve.
+
+### Personal Access Token (CI/CD)
+
+Set the `LEVR_TOKEN` environment variable and the CLI uses it automatically —
+no interactive login:
+
+```bash
+export LEVR_TOKEN=<your-personal-access-token>
+levr push ./results.xml
+```
+
+### Other auth commands
+
+```bash
+levr auth status     # show current authentication state
+levr auth logout     # clear stored credentials
+```
+
+## Workspaces
+
+```bash
+levr workspace list       # list the workspaces you belong to
+levr workspace select     # choose the active workspace
+levr workspace current    # show the active workspace
+```
+
+## Shell completion (optional)
+
+Tab-completion is an explicit opt-in step (it is not installed automatically):
+
+```bash
+levr install       # add shell completion for the current shell
+levr uninstall     # remove it
+```
+
 ## Configuration
 
 All configuration is via environment variables. Flags take precedence.
@@ -182,6 +228,14 @@ All configuration is via environment variables. Flags take precedence.
 | `LEVR_SOURCE`   | Automation source name override (groups imports, remembers team)                        |                        |
 
 ## Troubleshooting
+
+**The `levr` server doesn't appear in my AI client after `mcp add`** — Restart
+the client; MCP servers are read at startup. Verify the entry with
+`levr mcp add --dry-run` (it reports "already set up" when the config is in
+place).
+
+**My client asks me to authorize Levr** — Expected on the first connection:
+the config is credential-free, so each client authorizes once in the browser.
 
 **`Authentication required. Run: levr auth login`** — No valid credentials
 found. Run `levr auth login` or set `LEVR_TOKEN`.
