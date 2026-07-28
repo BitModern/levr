@@ -11504,7 +11504,6 @@ const zExplorationFindAllV1Data = z.object({
 		"filter.name": z.array(z.string()).optional(),
 		"filter.key": z.array(z.string()).optional(),
 		"filter.is_complete": z.array(z.string()).optional(),
-		"filter.milestone_id": z.array(z.string()).optional(),
 		"filter.status_id": z.array(z.string()).optional(),
 		"filter.project_id": z.array(z.string()).optional(),
 		"filter.team_id": z.array(z.string()).optional(),
@@ -12757,7 +12756,7 @@ const zFolderWithChildrenDto = z.object({
 	epoch: z.number(),
 	virtual: z.unknown().optional(),
 	is_root: z.boolean().optional(),
-	assigned_to_tester: z.string().optional(),
+	assignee_id: z.string().optional(),
 	folder_path: z.string().optional(),
 	children: z.array(z.union([
 		z.object({
@@ -12774,7 +12773,7 @@ const zFolderWithChildrenDto = z.object({
 			epoch: z.number(),
 			virtual: z.unknown().optional(),
 			is_root: z.boolean().optional(),
-			assigned_to_tester: z.string().optional(),
+			assignee_id: z.string().optional(),
 			folder_path: z.string().optional()
 		}),
 		z.object({
@@ -12793,7 +12792,7 @@ const zFolderWithChildrenDto = z.object({
 			updated_by: z.string(),
 			epoch: z.number(),
 			key: z.number(),
-			assigned_to_tester: z.string().optional(),
+			assignee_id: z.string().optional(),
 			estimate: z.number().optional(),
 			test_type: z.enum([
 				"manual",
@@ -12853,7 +12852,7 @@ const zFolderNodeDto = z.object({
 	epoch: z.number(),
 	virtual: z.unknown(),
 	is_root: z.boolean().nullable(),
-	assigned_to_tester: z.string().nullable(),
+	assignee_id: z.string().nullable(),
 	folder_path: z.string().optional()
 });
 const zFolderChildrenResponseDto = z.object({
@@ -12872,7 +12871,7 @@ const zFolderChildrenResponseDto = z.object({
 			epoch: z.number(),
 			virtual: z.unknown(),
 			is_root: z.boolean().nullable(),
-			assigned_to_tester: z.string().nullable(),
+			assignee_id: z.string().nullable(),
 			folder_path: z.string().optional()
 		}),
 		z.object({
@@ -12891,7 +12890,7 @@ const zFolderChildrenResponseDto = z.object({
 			updated_by: z.string(),
 			epoch: z.number(),
 			key: z.number(),
-			assigned_to_tester: z.string().optional(),
+			assignee_id: z.string().optional(),
 			estimate: z.number().optional(),
 			test_type: z.enum([
 				"manual",
@@ -12959,7 +12958,7 @@ const zBulkFolderOperationDto = z.object({
 		name: z.string(),
 		description: z.string().optional(),
 		virtual: z.unknown().optional(),
-		assigned_to_tester: z.string().optional(),
+		assignee_id: z.string().optional(),
 		parent_id: z.string().optional(),
 		sequence: z.string().optional(),
 		labels: z.array(z.string()).optional(),
@@ -12969,7 +12968,7 @@ const zBulkFolderOperationDto = z.object({
 		name: z.string().optional(),
 		description: z.string().optional(),
 		virtual: z.unknown().optional(),
-		assigned_to_tester: z.string().optional(),
+		assignee_id: z.string().optional(),
 		parent_id: z.string().optional(),
 		sequence: z.string().optional(),
 		add_labels: z.array(z.string()).optional(),
@@ -12995,7 +12994,7 @@ const zBulkFolderResponseDto = z.object({
 			epoch: z.number(),
 			virtual: z.unknown(),
 			is_root: z.boolean().nullable(),
-			assigned_to_tester: z.string().nullable(),
+			assignee_id: z.string().nullable(),
 			folder_path: z.string().optional()
 		}).optional(),
 		error: z.string().optional(),
@@ -13012,7 +13011,7 @@ const zCreateFolderDto = z.object({
 	name: z.string(),
 	description: z.string().optional(),
 	virtual: z.unknown().optional(),
-	assigned_to_tester: z.string().optional(),
+	assignee_id: z.string().optional(),
 	parent_id: z.string().optional(),
 	sequence: z.string().optional(),
 	labels: z.array(z.string()).optional(),
@@ -13023,7 +13022,7 @@ const zUpdateFolderDto = z.object({
 	name: z.string().optional(),
 	description: z.string().optional(),
 	virtual: z.unknown().optional(),
-	assigned_to_tester: z.string().optional(),
+	assignee_id: z.string().optional(),
 	parent_id: z.string().optional(),
 	sequence: z.string().optional(),
 	add_labels: z.array(z.string()).optional(),
@@ -13042,7 +13041,7 @@ const zFolderFindAllV1Data = z.object({
 		"filter.updated_at": z.array(z.string()).optional(),
 		"filter.updated_by": z.array(z.string()).optional(),
 		"filter.is_root": z.array(z.string()).optional(),
-		"filter.assigned_to_tester": z.array(z.string()).optional(),
+		"filter.assignee_id": z.array(z.string()).optional(),
 		"filter.folder_path": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
@@ -13918,6 +13917,7 @@ const zGitHubAppClientCreateTeamAndMapV1Data = z.object({
 
 //#endregion
 //#region ../sdk/dist/gen/git-hub-sync-bridge/zod.js
+const zGitHubSyncBridgeOutboundAckV1Data = z.object({ url: z.literal("/v1/internal/github/outbound-ack") });
 const zGitHubSyncBridgeTransitionIssueV1Data = z.object({ url: z.literal("/v1/internal/github/issue/transition") });
 const zGitHubSyncBridgeSyncIssueV1Data = z.object({ url: z.literal("/v1/internal/github/issue/sync") });
 const zGitHubSyncBridgeSyncIssueCommentV1Data = z.object({ url: z.literal("/v1/internal/github/issue-comment/sync") });
@@ -14060,11 +14060,6 @@ const zCreateGithubIssueLinkDto = z.object({
 	sync_direction: z.string().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	role: z.string().optional().describe(""),
-	last_synced_fingerprint: z.string().nullable().optional().describe(""),
-	last_synced_origin: z.string().nullable().optional().describe(""),
-	last_synced_snapshot: z.unknown().optional().describe(""),
-	sync_status: z.string().optional().describe(""),
-	conflict_id: z.string().nullable().optional().describe(""),
 	tq_issue_id: z.string(),
 	github_repository_id: z.string(),
 	team_id: z.string()
@@ -14100,11 +14095,6 @@ const zUpdateGithubIssueLinkDto = z.object({
 	sync_direction: z.string().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	role: z.string().optional().describe(""),
-	last_synced_fingerprint: z.string().nullable().optional().describe(""),
-	last_synced_origin: z.string().nullable().optional().describe(""),
-	last_synced_snapshot: z.unknown().optional().describe(""),
-	sync_status: z.string().optional().describe(""),
-	conflict_id: z.string().nullable().optional().describe(""),
 	tq_issue_id: z.string().optional(),
 	github_repository_id: z.string().optional(),
 	team_id: z.string().optional()
@@ -14155,6 +14145,7 @@ const zGithubIssueLinkFindAllV1Data = z.object({
 		"filter.sync_direction": z.array(z.string()).optional(),
 		"filter.origin": z.array(z.string()).optional(),
 		"filter.role": z.array(z.string()).optional(),
+		"filter.sync_status": z.array(z.string()).optional(),
 		"filter.tq_issue_id": z.array(z.string()).optional(),
 		"filter.github_repository_id": z.array(z.string()).optional(),
 		"filter.team_id": z.array(z.string()).optional(),
@@ -14174,6 +14165,8 @@ const zGithubIssueLinkFindAllV1Data = z.object({
 			"origin:DESC",
 			"role:ASC",
 			"role:DESC",
+			"sync_status:ASC",
+			"sync_status:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
@@ -17189,6 +17182,7 @@ const zIssueViewRestoreV1Data = z.object({
 
 //#endregion
 //#region ../sdk/dist/gen/jira/zod.js
+const zJiraStatusV1Data = z.object({ url: z.literal("/v1/jira/status") });
 const zJiraLinkV1Data = z.object({ url: z.literal("/v1/jira/link") });
 const zJiraInstallationsV1Data = z.object({
 	query: z.object({ "panelNonce": z.string().optional() }).optional(),
@@ -23859,6 +23853,7 @@ const zRunNodeDto = z.object({
 	test_scope_id: z.string().nullable(),
 	cycle_id: z.string().nullable(),
 	parent_run_id: z.string().nullable(),
+	original_parent_run_id: z.string().nullable(),
 	name: z.string(),
 	key: z.number().optional(),
 	run_type: z.enum([
@@ -23968,6 +23963,7 @@ const zRunWithContentDto = z.object({
 	test_scope_id: z.string().nullable(),
 	cycle_id: z.string().nullable(),
 	parent_run_id: z.string().nullable(),
+	original_parent_run_id: z.string().nullable(),
 	name: z.string(),
 	key: z.number().optional(),
 	run_type: z.enum([
@@ -27618,7 +27614,7 @@ const zTestResponseDto = z.object({
 	priority: z.number().optional(),
 	estimate: z.number().nullable().optional().describe(""),
 	data: z.unknown().optional().describe(""),
-	assigned_to_tester: z.string().nullable().optional().describe(""),
+	assignee_id: z.string().nullable().optional().describe(""),
 	is_automated: z.boolean().optional().describe(""),
 	key: z.number().optional().describe(""),
 	identifier: z.string().optional().describe(""),
@@ -27687,7 +27683,7 @@ const zCreateTestDto = z.object({
 	priority: z.number().optional().describe(""),
 	estimate: z.number().nullable().optional().describe(""),
 	data: z.unknown().optional().describe(""),
-	assigned_to_tester: z.string().nullable().optional().describe(""),
+	assignee_id: z.string().nullable().optional().describe(""),
 	is_automated: z.boolean().optional().describe(""),
 	key: z.number().optional().describe(""),
 	identifier: z.string().optional().describe(""),
@@ -27724,7 +27720,7 @@ const zUpdateTestDto = z.object({
 	is_automated: z.boolean().optional(),
 	to_automate: z.boolean().optional(),
 	state_mask: z.number().optional(),
-	assigned_to_tester: z.string().optional(),
+	assignee_id: z.string().optional(),
 	data: z.object({
 		description: z.string().optional(),
 		shared_precondition_id: z.string().nullable().optional(),
@@ -27784,7 +27780,6 @@ const zUpdateTestDto = z.object({
 	add_labels: z.array(z.string()).optional(),
 	remove_labels: z.array(z.string()).optional()
 });
-const zExportTestsDto = z.object({ ids: z.array(z.string()).describe("") });
 const zTestBulkOperationDto = z.object({
 	op: z.enum([
 		"create",
@@ -27815,6 +27810,7 @@ const zBulkTestResponseDto = z.object({
 		savepoints_used: z.number().describe("")
 	}).describe("")
 });
+const zExportTestsDto = z.object({ ids: z.array(z.string()).describe("") });
 const zTestFindAllV1Data = z.object({
 	query: z.object({
 		"page": z.number().optional(),
@@ -27824,10 +27820,11 @@ const zTestFindAllV1Data = z.object({
 		"filter.name": z.array(z.string()).optional(),
 		"filter.priority": z.array(z.string()).optional(),
 		"filter.test_type": z.array(z.string()).optional(),
+		"filter.case_type_id": z.array(z.string()).optional(),
 		"filter.is_automated": z.array(z.string()).optional(),
 		"filter.to_automate": z.array(z.string()).optional(),
 		"filter.state_mask": z.array(z.string()).optional(),
-		"filter.assigned_to_tester": z.array(z.string()).optional(),
+		"filter.assignee_id": z.array(z.string()).optional(),
 		"filter.estimate": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.created_by": z.array(z.string()).optional(),
@@ -27884,13 +27881,13 @@ const zTestRemoveV1Data = z.object({
 	path: z.object({ "testId": z.string() }),
 	url: z.literal("/v1/test/{testId}")
 });
-const zTestExportTestsV1Data = z.object({
-	body: zExportTestsDto,
-	url: z.literal("/v1/test/export")
-});
 const zTestBulkOperationV1Data = z.object({
 	body: zBulkTestRequestDto,
 	url: z.literal("/v1/test/bulk")
+});
+const zTestExportTestsV1Data = z.object({
+	body: zExportTestsDto,
+	url: z.literal("/v1/test/export")
 });
 
 //#endregion
@@ -27998,6 +27995,311 @@ const zTestAttachmentRemoveV1Data = z.object({
 		"attachmentId": z.string()
 	}),
 	url: z.literal("/v1/test/{testId}/attachment/{attachmentId}")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/test-case-import/functions.js
+/**
+* Uploads (or references) a CSV/Excel/JSON file or a public Google Sheets URL, proposes a column mapping to the test-case schema with per-column confidence, and stages the source for a later commit. Writes NO tests/folders — the returned token is presented to POST /v1/test-case-import/commit after the user reviews and confirms the mapping. Sample rows are capped at 20; row_count reports the full source total. Staged previews expire after 1 hour.
+*/
+const testCaseImportPreviewV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/test-case-import/preview",
+		bodySerializer: (body) => {
+			const fd = new FormData();
+			if (body && typeof body === "object") for (const [k, v] of Object.entries(body)) {
+				if (v == null) continue;
+				fd.append(k, v instanceof Blob ? v : String(v));
+			}
+			return fd;
+		},
+		...options
+	});
+};
+/**
+* Re-parses the staged source through the user-confirmed column mapping and writes folders (auto-created as needed), tests, steps, and preconditions in bulk chunks. Malformed rows are reported as warnings/errors — the batch never aborts. Rejects: 403 cross-workspace token, 409 concurrent or repeated commit / expired preview, 422 when a required target field is unmapped.
+*/
+const testCaseImportCommitV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/test-case-import/commit",
+		...options
+	});
+};
+
+//#endregion
+//#region ../sdk/dist/gen/test-case-import/zod.js
+const zPreviewImportDto = z.object({
+	team_id: z.string().describe(""),
+	format: z.enum([
+		"csv",
+		"xlsx",
+		"sheets",
+		"json"
+	]).optional().describe(""),
+	file_id: z.string().optional().describe(""),
+	sheets_url: z.string().optional().describe("")
+});
+const zPreviewImportResponseDto = z.object({
+	token: z.string(),
+	filename: z.string(),
+	format: z.enum([
+		"csv",
+		"xlsx",
+		"sheets",
+		"json"
+	]),
+	proposed_mapping: z.array(z.object({
+		originalName: z.string(),
+		targetProperty: z.enum([
+			"row_type",
+			"test_id",
+			"test_key",
+			"folder_id",
+			"folder_path",
+			"folder_name",
+			"test_name",
+			"test_description",
+			"test_type",
+			"case_type_id",
+			"case_type_name",
+			"test_priority",
+			"estimate",
+			"is_automated",
+			"assignee_email",
+			"labels",
+			"attachment_filenames",
+			"data_set_names",
+			"sequence",
+			"item_id",
+			"method",
+			"expected_result",
+			"keyword",
+			"shared_step_id",
+			"shared_precondition_id",
+			"data_table",
+			"steps",
+			"preconditions"
+		]).nullable(),
+		matchType: z.enum([
+			"exact",
+			"prefix",
+			"fuzzy",
+			"llm",
+			"unmapped",
+			"manual",
+			"preset"
+		]),
+		confidence: z.number(),
+		fieldType: z.enum([
+			"string",
+			"number",
+			"boolean",
+			"unknown"
+		]).optional(),
+		labelPrefix: z.string().optional().describe(""),
+		descriptionHeading: z.string().optional().describe("")
+	})),
+	missing_required: z.array(z.string()),
+	sample_rows: z.array(z.record(z.string(), z.unknown())),
+	row_count: z.number(),
+	expires_at: z.unknown(),
+	advisories: z.array(z.object({
+		column: z.string(),
+		target: z.enum([
+			"row_type",
+			"test_id",
+			"test_key",
+			"folder_id",
+			"folder_path",
+			"folder_name",
+			"test_name",
+			"test_description",
+			"test_type",
+			"case_type_id",
+			"case_type_name",
+			"test_priority",
+			"estimate",
+			"is_automated",
+			"assignee_email",
+			"labels",
+			"attachment_filenames",
+			"data_set_names",
+			"sequence",
+			"item_id",
+			"method",
+			"expected_result",
+			"keyword",
+			"shared_step_id",
+			"shared_precondition_id",
+			"data_table",
+			"steps",
+			"preconditions"
+		]),
+		message: z.string(),
+		count: z.number(),
+		values: z.array(z.object({
+			value: z.string(),
+			count: z.number()
+		}))
+	})),
+	detected_vendor: z.string().nullable(),
+	assignee_resolution: z.object({
+		column: z.string(),
+		entries: z.array(z.object({
+			sourceValue: z.string(),
+			count: z.number(),
+			kind: z.enum([
+				"existing",
+				"new_email",
+				"unresolved"
+			]),
+			userId: z.string().optional(),
+			userName: z.string().optional(),
+			suggestedEmail: z.string().optional()
+		}))
+	}).nullable()
+});
+const zCommitImportDto = z.object({
+	token: z.string().describe(""),
+	confirmed_mapping: z.array(z.object({
+		originalName: z.string(),
+		targetProperty: z.enum([
+			"row_type",
+			"test_id",
+			"test_key",
+			"folder_id",
+			"folder_path",
+			"folder_name",
+			"test_name",
+			"test_description",
+			"test_type",
+			"case_type_id",
+			"case_type_name",
+			"test_priority",
+			"estimate",
+			"is_automated",
+			"assignee_email",
+			"labels",
+			"attachment_filenames",
+			"data_set_names",
+			"sequence",
+			"item_id",
+			"method",
+			"expected_result",
+			"keyword",
+			"shared_step_id",
+			"shared_precondition_id",
+			"data_table",
+			"steps",
+			"preconditions"
+		]).nullable(),
+		matchType: z.enum([
+			"exact",
+			"prefix",
+			"fuzzy",
+			"llm",
+			"unmapped",
+			"manual",
+			"preset"
+		]),
+		confidence: z.number(),
+		fieldType: z.enum([
+			"string",
+			"number",
+			"boolean",
+			"unknown"
+		]).optional(),
+		labelPrefix: z.string().optional().describe(""),
+		descriptionHeading: z.string().optional().describe("")
+	})).optional().describe(""),
+	assignee_plan: z.object({
+		role: z.enum([
+			"owner",
+			"admin",
+			"member",
+			"guest"
+		]).optional(),
+		teamIds: z.array(z.string()).optional(),
+		entries: z.array(z.object({
+			sourceValue: z.string(),
+			action: z.enum([
+				"assign",
+				"create",
+				"skip"
+			]),
+			userId: z.string().optional(),
+			email: z.string().optional()
+		}))
+	}).optional().describe(""),
+	team_ids: z.array(z.string()).optional()
+});
+const zTestCaseImportResultDto = z.object({
+	status: z.enum([
+		"completed",
+		"completed_with_warnings",
+		"failed"
+	]),
+	created_tests: z.array(z.object({
+		id: z.string(),
+		name: z.string()
+	})),
+	stats: z.object({
+		rows_processed: z.number(),
+		tests_created: z.number(),
+		folders_created: z.number(),
+		steps_created: z.number(),
+		preconditions_created: z.number(),
+		rows_failed: z.number(),
+		members_provisioned: z.number().optional()
+	}),
+	warnings: z.array(z.object({
+		type: z.enum([
+			"skipped",
+			"invalid",
+			"unresolved",
+			"write_failed"
+		]),
+		message: z.string(),
+		row_index: z.number().optional(),
+		column: z.string().optional(),
+		count: z.number().optional(),
+		values: z.array(z.object({
+			value: z.string(),
+			count: z.number()
+		})).optional()
+	})),
+	errors: z.array(z.object({
+		type: z.enum([
+			"skipped",
+			"invalid",
+			"unresolved",
+			"write_failed"
+		]),
+		message: z.string(),
+		row_index: z.number().optional(),
+		column: z.string().optional(),
+		count: z.number().optional(),
+		values: z.array(z.object({
+			value: z.string(),
+			count: z.number()
+		})).optional()
+	}))
+});
+const zTestCaseImportPreviewV1Data = z.object({
+	body: zPreviewImportDto,
+	url: z.literal("/v1/test-case-import/preview")
+});
+const zTestCaseImportCommitV1Data = z.object({
+	body: zCommitImportDto,
+	url: z.literal("/v1/test-case-import/commit")
 });
 
 //#endregion
@@ -30312,7 +30614,10 @@ const zInviteMultiUserDto = z.object({
 	workspace_ids: z.array(z.string()).describe(""),
 	team_ids_by_workspace: z.record(z.string(), z.array(z.string())).optional().describe("")
 });
-const zAcceptByTokenDto = z.object({ token: z.string().describe("") });
+const zAcceptByTokenDto = z.object({
+	token: z.string().describe(""),
+	password: z.string().optional().describe("")
+});
 const zAcceptByTokenResponseDto = z.object({
 	access_token: z.string().describe(""),
 	user: z.object({
@@ -30746,4 +31051,4 @@ function tryReadMessage(err) {
 }
 
 //#endregion
-export { authGetProfileV1, authGetSitesV1, client, configureClient, uploadAutomationIngest, uploadImport };
+export { authGetProfileV1, authGetSitesV1, client, configureClient, testCaseImportCommitV1, testCaseImportPreviewV1, uploadAutomationIngest, uploadImport };

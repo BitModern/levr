@@ -8,6 +8,7 @@ import { loginCommand } from './commands/auth/login.js';
 import { logoutCommand } from './commands/auth/logout.js';
 import { statusCommand } from './commands/auth/status.js';
 import { pushCommand } from './commands/push.js';
+import { importCommand } from './commands/import.js';
 import { listCommand } from './commands/workspace/list.js';
 import { selectCommand } from './commands/workspace/select.js';
 import { currentCommand } from './commands/workspace/current.js';
@@ -50,6 +51,7 @@ const routes = buildRouteMap({
     auth: authRoutes,
     workspace: workspaceRoutes,
     push: pushCommand,
+    import: importCommand,
     install: buildInstallCommand('levr', {
       // Route completion through the single `levr` bin's hidden `__complete`
       // handler (see src/bin/cli.ts) rather than a separate completion binary,
