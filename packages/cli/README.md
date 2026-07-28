@@ -1,13 +1,15 @@
 # @levr-one/cli
 
 The command-line interface for [Levr](https://www.levr.one). The binary is
-`levr`, and it does two jobs:
+`levr`, and it does three jobs:
 
 - **Connect your AI tools** — `levr mcp add` wires the Levr MCP server into
   the AI clients on your machine (Claude Desktop, Claude Code, Cursor,
   Windsurf, Zed) with one command.
 - **Push test results** — `levr push` uploads results from any terminal or CI
   pipeline.
+- **Import test cases** — `levr import` brings existing cases in from CSV,
+  Excel, JSON, or Google Sheets.
 
 ## Install
 
@@ -128,6 +130,69 @@ remembers which team it belongs to. On the first push, omit `--team-id` to link
 the source to the workspace's default team, or pass `--team-id` to link it to a
 specific team. Subsequent pushes with the same `--source` route to that team
 automatically. Source names are normalized (lowercased, trimmed).
+
+## Import test cases
+
+```bash
+levr import <file> --team-id <uuid> [options]
+```
+
+Brings existing test cases into Levr from CSV, Excel (`.xlsx`), JSON, or a
+public Google Sheet. It runs in two phases: **preview** proposes a mapping from
+your columns onto the Levr test-case schema (exact and fuzzy matching, with an
+LLM assist for whatever is left over), you review and adjust it, then **commit**
+writes the folders, tests, steps, and preconditions.
+
+In a terminal, unmapped and low-confidence columns are walked with a picker. For
+scripts and CI, pass `--yes` — and `--map` or `--mapping-file` to pin the
+mapping so a replay can't drift.
+
+**One column must map to `test_name`.** Interactive runs ask for it;
+non-interactive runs exit 1 rather than import unnamed cases.
+
+**Examples:**
+
+```bash
+# Interactive import from a CSV export
+levr import ./testrail-export.csv --team-id <uuid>
+
+# Excel, with one column pinned up front
+levr import ./cases.xlsx --team-id <uuid> --map "Title=test_name"
+
+# A public Google Sheet, no prompts
+levr import --sheets-url "https://docs.google.com/spreadsheets/d/..." --team-id <uuid> --yes
+
+# Save the confirmed mapping once, then replay it in CI
+levr import ./cases.csv --team-id <uuid> --save-mapping mapping.json
+levr import ./cases.csv --team-id <uuid> --mapping-file mapping.json --yes
+```
+
+**Flags:**
+
+| Flag                    | Alias | Description                                                                       |
+| ----------------------- | ----- | --------------------------------------------------------------------------------- |
+| `--team-id <uuid>`      | `-t`  | Team the imported test cases belong to (required)                                 |
+| `--workspace-id <uuid>` | `-w`  | Workspace ID (required for multi-workspace JWT auth)                              |
+| `--sheets-url <url>`    |       | Public Google Sheets URL, used instead of a file argument                         |
+| `--format <type>`       | `-f`  | Source format: `csv`, `xlsx`, `json` (auto-detected from the filename if omitted) |
+| `--map <pair>`          | `-m`  | Column override, repeatable — three forms, below                                  |
+| `--mapping-file <path>` |       | JSON file holding a saved confirmed mapping (from `--save-mapping`)               |
+| `--save-mapping <path>` |       | Write the confirmed mapping to this JSON file for CI replay                       |
+| `--yes`                 | `-y`  | Accept the mapping without prompts (required for non-TTY runs)                    |
+| `--verbose`             | `-v`  | Show detailed output                                                              |
+
+`--map` accepts three forms:
+
+| Form                            | Effect                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| `"Source Column=target_field"`  | Map the column onto that Levr field                                            |
+| `"Source Column="`              | Drop the column (empty target)                                                 |
+| `"Source Column=labels:prefix"` | Import each value as the label `prefix:value`, keeping the column's provenance |
+
+```bash
+# Keep a TestRail "State" column as state:Draft / state:Approved labels
+levr import ./cases.csv --team-id <uuid> --map "State=labels:state"
+```
 
 ## CI/CD integration
 

@@ -369,7 +369,7 @@ Examples:
 			map: {
 				kind: "parsed",
 				parse: String,
-				brief: "Column override \"Source Column=target_field\" (repeatable; \"=\" alone drops)",
+				brief: "Column override (repeatable): \"Column=target_field\", \"Column=\" to drop, or \"Column=labels:prefix\"",
 				placeholder: "pair",
 				variadic: true,
 				optional: true
@@ -487,7 +487,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.3.1";
+var version = "0.4.0";
 
 //#endregion
 //#region src/app.ts

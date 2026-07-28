@@ -64,7 +64,7 @@ Examples:
         kind: 'parsed',
         parse: String,
         brief:
-          'Column override "Source Column=target_field" (repeatable; "=" alone drops)',
+          'Column override (repeatable): "Column=target_field", "Column=" to drop, or "Column=labels:prefix"',
         placeholder: 'pair',
         variadic: true,
         optional: true,
