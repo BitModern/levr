@@ -14,13 +14,44 @@ The command-line interface for [Levr](https://www.levr.one). The binary is
 ## Install
 
 ```bash
-npm install -g @levr-one/cli    # global install for daily use
-# or run once, no install:
-npx @levr-one/cli --help
+npm install -g @levr-one/cli    # gives you a persistent `levr` command
 ```
 
 The package is self-contained — no peer setup required. A global install
 replaces the `levr` bin from the deprecated `@levr-one/setup` package.
+
+### Or run it without a global install
+
+```bash
+npx @levr-one/cli --help
+```
+
+`npx` is right for one-shot use (`mcp add`, trying a command). Two things to
+expect:
+
+- **`levr` will not be on your PATH afterwards.** npx puts the command on PATH
+  only for the duration of that one invocation. Shell completion also assumes a
+  global install, since the generated script wires up the `levr` command.
+- **It does download the package** — roughly 8 MB into npm's `~/.npm/_npx`
+  cache, kept indefinitely. The first run asks `Ok to proceed?`; later runs are
+  silent until a new version is published.
+
+In scripts and CI, pass `--yes` — **in a terminal the prompt blocks until it is
+answered**, so an unattended run with a TTY hangs rather than failing:
+
+```bash
+npx --yes @levr-one/cli push ./test-results.xml
+```
+
+Two things to get right:
+
+- **Always `npx @levr-one/cli`, never `npx levr`.** npx treats the first
+  positional as a _package_ name, so `npx levr` would fetch and run whatever
+  package is published under the unscoped name `levr` — which is not ours.
+- **npm's flags go before the package name.** `npx @levr-one/cli --yes` passes
+  `--yes` to `levr`, not to npm.
+
+For reproducible CI, pin `@levr-one/cli` to a version you have validated.
 
 ## Quick start
 
@@ -203,7 +234,7 @@ levr import ./cases.csv --team-id <uuid> --map "State=labels:state"
   env:
     LEVR_TOKEN: ${{ secrets.LEVR_TOKEN }}
     # LEVR_TEAM_ID is optional — server resolves from automation source or workspace default
-  run: npx @levr-one/cli push ./test-results.xml
+  run: npx --yes @levr-one/cli push ./test-results.xml
 ```
 
 ### GitLab CI
@@ -211,7 +242,7 @@ levr import ./cases.csv --team-id <uuid> --map "State=labels:state"
 ```yaml
 push-results:
   script:
-    - npx @levr-one/cli push ./test-results.xml
+    - npx --yes @levr-one/cli push ./test-results.xml
   variables:
     LEVR_TOKEN: $LEVR_TOKEN
 ```
@@ -220,7 +251,7 @@ push-results:
 
 ```groovy
 withEnv(["LEVR_TOKEN=${LEVR_TOKEN}"]) {
-  sh 'npx @levr-one/cli push ./test-results.xml'
+  sh 'npx --yes @levr-one/cli push ./test-results.xml'
 }
 ```
 
@@ -271,6 +302,10 @@ levr workspace current    # show the active workspace
 ```
 
 ## Shell completion (optional)
+
+Completion needs a global install: the generated script wires up the `levr`
+command, so it does nothing if `levr` is not on your PATH (which it is not when
+you run via `npx`).
 
 `levr completion` prints a completion script to **stdout**. It never edits your
 shell config — you choose where the script goes:
