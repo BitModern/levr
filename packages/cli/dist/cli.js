@@ -1,10 +1,7 @@
 #!/usr/bin/env node
+import { COMPLETION_SHELLS } from "./completionHandler-O2G_WZLf.js";
 import { buildApplication, buildCommand, buildRouteMap, proposeCompletions, run, text_en } from "@stricli/core";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import chalk from "chalk";
-import { buildInstallCommand, buildUninstallCommand } from "@stricli/auto-complete";
 
 //#region src/utils/logger.ts
 var Logger = class {
@@ -41,9 +38,6 @@ var Logger = class {
 function buildContext(process$1) {
 	return {
 		process: process$1,
-		os,
-		fs,
-		path,
 		logger: new Logger({
 			verbose: false,
 			stdout: process$1.stdout,
@@ -51,6 +45,45 @@ function buildContext(process$1) {
 		})
 	};
 }
+
+//#endregion
+//#region src/commands/completion.ts
+const completionCommand = buildCommand({
+	docs: {
+		brief: "Print the shell completion script for bash or zsh",
+		fullDescription: `Prints a shell completion script to stdout. You decide where it goes —
+this command never edits your shell config.
+
+Load it for the current session:
+  eval "$(levr completion bash)"
+  eval "$(levr completion zsh)"
+
+Or persist it:
+  levr completion bash >> ~/.bashrc
+  levr completion zsh  >> ~/.zshrc
+  levr completion bash > /etc/bash_completion.d/levr   # system-wide
+
+The shell is detected from $SHELL when omitted; pass it explicitly in scripts
+or when generating a script for a shell other than the one you are running.`
+	},
+	parameters: {
+		positional: {
+			kind: "tuple",
+			parameters: [{
+				parse: String,
+				proposeCompletions: (partial) => COMPLETION_SHELLS.filter((shell) => shell.startsWith(partial)),
+				brief: `Shell to emit (${COMPLETION_SHELLS.join("|")}); detected from $SHELL if omitted`,
+				placeholder: "shell",
+				optional: true
+			}]
+		},
+		flags: {}
+	},
+	loader: async () => {
+		const { completionHandler } = await import("./completionHandler-DtG_CsK0.js");
+		return completionHandler;
+	}
+});
 
 //#endregion
 //#region src/commands/mcp/add.ts
@@ -109,7 +142,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-DFtvzTci.js");
+		const { mcpAddHandler } = await import("./addHandler-K2a4rVv8.js");
 		return mcpAddHandler;
 	}
 });
@@ -147,7 +180,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-D9k-tQLX.js");
+		const { loginHandler } = await import("./loginHandler-BhvCWTd8.js");
 		return loginHandler;
 	}
 });
@@ -166,7 +199,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-BC8laIAB.js");
+		const { logoutHandler } = await import("./logoutHandler-BFutKash.js");
 		return logoutHandler;
 	}
 });
@@ -186,7 +219,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-DuVZJMtw.js");
+		const { statusHandler } = await import("./statusHandler-B6XRPg4k.js");
 		return statusHandler;
 	}
 });
@@ -297,7 +330,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-COg5WbGS.js");
+		const { pushHandler } = await import("./pushHandler-v4-lHK6A.js");
 		return pushHandler;
 	}
 });
@@ -409,7 +442,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-ChywPYeL.js");
+		const { importHandler } = await import("./importHandler-D27Xrx73.js");
 		return importHandler;
 	}
 });
@@ -430,7 +463,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-fK9Mapr3.js");
+		const { listHandler } = await import("./listHandler-8uqFClxw.js");
 		return listHandler;
 	}
 });
@@ -463,7 +496,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-BzQRF8E7.js");
+		const { selectHandler } = await import("./selectHandler-DeEZe6PU.js");
 		return selectHandler;
 	}
 });
@@ -480,14 +513,14 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-BD-h0j-S.js");
+		const { currentHandler } = await import("./currentHandler-CHydiFui.js");
 		return currentHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.4.0";
+var version = "0.5.0";
 
 //#endregion
 //#region src/app.ts
@@ -517,16 +550,9 @@ const routes = buildRouteMap({
 		workspace: workspaceRoutes,
 		push: pushCommand,
 		import: importCommand,
-		install: buildInstallCommand("levr", { bash: "levr __complete" }),
-		uninstall: buildUninstallCommand("levr", { bash: true })
+		completion: completionCommand
 	},
-	docs: {
-		brief: "The command-line interface for Levr",
-		hideRoute: {
-			install: true,
-			uninstall: true
-		}
-	}
+	docs: { brief: "The command-line interface for Levr" }
 });
 const app = buildApplication(routes, {
 	name: "levr",
@@ -545,10 +571,13 @@ const app = buildApplication(routes, {
 //#region src/completion.ts
 /**
 * Compute shell tab-completion suggestions for the hidden `__complete` entrypoint
-* (see src/bin/cli.ts). `levr install` registers a bash function that invokes
-* `levr __complete <COMP_LINE>` on each TAB, so `rawArgs` (process.argv.slice(2))
-* is `['__complete', <targetCommandName>, ...wordsBeingCompleted]`. A COMP_LINE
-* ending in a space means the cursor is on a fresh (empty) word to complete.
+* (see src/bin/cli.ts). The scripts emitted by `levr completion bash|zsh`
+* register a shell function that invokes `levr __complete <words…>` on each TAB,
+* so `rawArgs` (process.argv.slice(2)) is
+* `['__complete', <targetCommandName>, ...wordsBeingCompleted]` — note the
+* command name is passed through and dropped here, which is why the shell
+* scripts pass their FULL word array. A COMP_LINE ending in a space means the
+* cursor is on a fresh (empty) word to complete.
 *
 * Never throws — completion must not surface an error to the user's shell.
 */

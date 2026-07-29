@@ -6,10 +6,6 @@ import type { StoredCredentials } from '../types/auth-types.js';
 const CREDENTIALS_DIR = join(homedir(), '.config', 'levr');
 const CREDENTIALS_PATH = join(CREDENTIALS_DIR, 'credentials.json');
 
-export function getCredentialsPath(): string {
-  return CREDENTIALS_PATH;
-}
-
 export function readCredentials(): StoredCredentials | null {
   try {
     const raw = readFileSync(CREDENTIALS_PATH, 'utf8');

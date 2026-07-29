@@ -1,4 +1,4 @@
-import { getApiUrl } from "./env-NxtzJJPk.js";
+import { getApiUrl } from "./env-CHeKHu5S.js";
 import { z } from "zod/v3";
 
 //#region ../sdk/dist/gen/_common/zod.js
@@ -2426,17 +2426,80 @@ const zAppGetHelloV1Data = z.object({ url: z.literal("/v1") });
 
 //#endregion
 //#region ../sdk/dist/gen/archive/zod.js
+const zArchiveListResponseDto = z.object({
+	data: z.array(z.object({
+		id: z.string(),
+		entity_type: z.string(),
+		display_name: z.string(),
+		archived_at: z.string().nullable().optional(),
+		deleted_at: z.string().nullable().optional(),
+		created_at: z.string(),
+		created_by: z.string(),
+		deleted_by: z.string().nullable().optional()
+	})),
+	meta: z.object({
+		itemsPerPage: z.number(),
+		totalItems: z.number(),
+		currentPage: z.number(),
+		totalPages: z.number()
+	})
+});
+const zArchiveFacetsResponseDto = z.object({
+	entityTypes: z.array(z.object({
+		value: z.string(),
+		count: z.number()
+	})),
+	owners: z.array(z.object({
+		value: z.string(),
+		count: z.number()
+	})),
+	deleters: z.array(z.object({
+		value: z.string(),
+		count: z.number()
+	}))
+});
 const zArchiveActionDto = z.object({
 	id: z.string(),
 	entity_type: z.string()
+});
+const zArchiveBulkActionDto = z.object({ items: z.array(z.object({
+	id: z.string(),
+	entity_type: z.string()
+})) });
+const zArchiveBulkResultDto = z.object({
+	results: z.array(z.object({
+		id: z.string(),
+		entity_type: z.string(),
+		ok: z.boolean(),
+		error: z.string().optional()
+	})),
+	succeeded: z.number(),
+	failed: z.number()
 });
 const zArchiveFindAllV1Data = z.object({
 	query: z.object({
 		"mode": z.enum(["archived", "deleted"]),
 		"page": z.number().optional(),
-		"limit": z.number().optional()
+		"limit": z.number().optional(),
+		"sortBy": z.enum([
+			"entity_type",
+			"display_name",
+			"archived_at",
+			"deleted_at",
+			"created_at",
+			"created_by",
+			"deleted_by"
+		]).optional(),
+		"sortDir": z.enum(["asc", "desc"]).optional(),
+		"entityType": z.array(z.string()).optional(),
+		"ownerId": z.array(z.string()).optional(),
+		"deletedById": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/archives")
+});
+const zArchiveFacetsV1Data = z.object({
+	query: z.object({ "mode": z.enum(["archived", "deleted"]) }).optional(),
+	url: z.literal("/v1/archives/facets")
 });
 const zArchiveArchiveV1Data = z.object({
 	body: zArchiveActionDto,
@@ -2449,6 +2512,14 @@ const zArchiveRestoreV1Data = z.object({
 const zArchiveUnarchiveV1Data = z.object({
 	body: zArchiveActionDto,
 	url: z.literal("/v1/archives/unarchive")
+});
+const zArchiveRestoreBulkV1Data = z.object({
+	body: zArchiveBulkActionDto,
+	url: z.literal("/v1/archives/restore-bulk")
+});
+const zArchiveUnarchiveBulkV1Data = z.object({
+	body: zArchiveBulkActionDto,
+	url: z.literal("/v1/archives/unarchive-bulk")
 });
 
 //#endregion

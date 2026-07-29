@@ -272,12 +272,38 @@ levr workspace current    # show the active workspace
 
 ## Shell completion (optional)
 
-Tab-completion is an explicit opt-in step (it is not installed automatically):
+`levr completion` prints a completion script to **stdout**. It never edits your
+shell config — you choose where the script goes:
 
 ```bash
-levr install       # add shell completion for the current shell
-levr uninstall     # remove it
+# This session only
+eval "$(levr completion bash)"
+eval "$(levr completion zsh)"
+
+# Persist it
+levr completion bash >> ~/.bashrc
+levr completion zsh  >> ~/.zshrc
+
+# Or system-wide (bash)
+levr completion bash > /etc/bash_completion.d/levr
 ```
+
+**zsh:** load it _after_ `compinit`, which is what defines `compdef`:
+
+```zsh
+autoload -Uz compinit && compinit
+eval "$(levr completion zsh)"
+```
+
+If `compinit` has not run, the script says so on stderr instead of failing with
+a bare `command not found: compdef`.
+
+Supported shells: **bash** and **zsh**. The shell is detected from `$SHELL` when
+you omit the argument — pass it explicitly in scripts, or to generate a script
+for a shell other than the one you are running. An unsupported or undetectable
+shell writes an error to stderr and exits non-zero.
+
+Nothing is installed automatically: the package ships no `postinstall` hook.
 
 ## Configuration
 

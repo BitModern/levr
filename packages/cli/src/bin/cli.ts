@@ -6,9 +6,10 @@ import { proposeCompletionLines } from '../completion.js';
 
 const argv = process.argv.slice(2);
 
-// Shell tab-completion entrypoint. `levr install` registers a bash function that
-// invokes `levr __complete <COMP_LINE>` on each TAB. We handle it HERE, on the
-// single `levr` bin, instead of shipping a separate completion binary — a second
+// Shell tab-completion entrypoint. The scripts printed by
+// `levr completion bash|zsh` register a shell function that invokes
+// `levr __complete <words…>` on each TAB. We handle it HERE, on the single
+// `levr` bin, instead of shipping a separate completion binary — a second
 // bin would make `npx @levr-one/cli …` unable to auto-resolve an executable.
 // It's intercepted before Stricli's run() so an incomplete `--flag` in the line
 // being completed is never parsed as a real argument.

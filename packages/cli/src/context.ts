@@ -1,13 +1,7 @@
 import type { CommandContext } from '@stricli/core';
-import type { StricliAutoCompleteContext } from '@stricli/auto-complete';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { Logger } from './utils/logger.js';
 
-export interface LocalContext
-  extends CommandContext,
-    StricliAutoCompleteContext {
+export interface LocalContext extends CommandContext {
   readonly process: NodeJS.Process;
   readonly logger: Logger;
 }
@@ -15,9 +9,6 @@ export interface LocalContext
 export function buildContext(process: NodeJS.Process): LocalContext {
   return {
     process,
-    os,
-    fs,
-    path,
     logger: new Logger({
       verbose: false,
       stdout: process.stdout,

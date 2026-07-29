@@ -1,8 +1,5 @@
 import { buildApplication, buildRouteMap, text_en } from '@stricli/core';
-import {
-  buildInstallCommand,
-  buildUninstallCommand,
-} from '@stricli/auto-complete';
+import { completionCommand } from './commands/completion.js';
 import { mcpAddCommand } from './commands/mcp/add.js';
 import { loginCommand } from './commands/auth/login.js';
 import { logoutCommand } from './commands/auth/logout.js';
@@ -52,20 +49,14 @@ const routes = buildRouteMap({
     workspace: workspaceRoutes,
     push: pushCommand,
     import: importCommand,
-    install: buildInstallCommand('levr', {
-      // Route completion through the single `levr` bin's hidden `__complete`
-      // handler (see src/bin/cli.ts) rather than a separate completion binary,
-      // so the published package has one bin and `npx @levr-one/cli …` resolves.
-      bash: 'levr __complete',
-    }),
-    uninstall: buildUninstallCommand('levr', { bash: true }),
+    // Visible on purpose (internal). This replaced hidden `install`/`uninstall`
+    // commands that rewrote the user's ~/.bashrc — a shape with almost no
+    // precedent (19 of 25 surveyed CLIs print to stdout instead) and one that
+    // silently no-opped on any non-bash shell.
+    completion: completionCommand,
   },
   docs: {
     brief: 'The command-line interface for Levr',
-    hideRoute: {
-      install: true,
-      uninstall: true,
-    },
   },
 });
 

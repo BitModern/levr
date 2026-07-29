@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 
 //#region src/auth/credentials.ts
 const CREDENTIALS_PATH = join(join(homedir(), ".config", "levr"), "credentials.json");

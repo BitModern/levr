@@ -1,5 +1,5 @@
-import { deleteCredentials, getPatToken } from "./env-NxtzJJPk.js";
-import { clearWorkspace } from "./workspace-store-4hfvsEHS.js";
+import { deleteCredentials, getPatToken } from "./env-CHeKHu5S.js";
+import { clearWorkspace } from "./workspace-store-DDOxnut1.js";
 
 //#region src/commands/auth/logoutHandler.ts
 function logoutHandler() {

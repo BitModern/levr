@@ -1,7 +1,7 @@
-import { getApiUrl } from "./env-NxtzJJPk.js";
+import { getApiUrl } from "./env-CHeKHu5S.js";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
+import { homedir } from "node:os";
 import { applyEdits, modify, parse } from "jsonc-parser";
 
 //#region ../mcp-harnesses/dist/catalog.js
@@ -356,17 +356,17 @@ function signalMatches(signal, env) {
 	return existsSync(signal.startsWith("~") ? expandTilde(signal, env.homedir) : signal);
 }
 /** Read a text file, or `null` if it doesn't exist / can't be read. */
-function readTextOrNull(path$1) {
+function readTextOrNull(path) {
 	try {
-		return readFileSync(path$1, "utf8");
+		return readFileSync(path, "utf8");
 	} catch {
 		return null;
 	}
 }
 /** Safe nested lookup over an unknown-typed parsed JSON value. */
-function getAtPath(obj, path$1) {
+function getAtPath(obj, path) {
 	let cur = obj;
-	for (const key of path$1) {
+	for (const key of path) {
 		if (cur === null || typeof cur !== "object") return void 0;
 		cur = cur[key];
 	}
@@ -430,8 +430,8 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		alreadyConfigured: false,
 		dryRun
 	};
-	const path$1 = resolveConfigPath(harness, env);
-	if (!path$1) return {
+	const path = resolveConfigPath(harness, env);
+	if (!path) return {
 		ok: false,
 		wrote: false,
 		path: "",
@@ -440,7 +440,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 	};
 	const entryValue = buildServerEntry(harness, mcpUrl)[SERVER_NAME];
 	const modPath = [harness.serverPropertyName, SERVER_NAME];
-	const existing = readTextOrNull(path$1);
+	const existing = readTextOrNull(path);
 	const baseText = existing && existing.trim() ? existing : "{}";
 	const current = getAtPath(parse(baseText), modPath);
 	const alreadyConfigured = current !== void 0 && sameValue(current, entryValue);
@@ -448,7 +448,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 	if (alreadyConfigured) return {
 		ok: true,
 		wrote: false,
-		path: path$1,
+		path,
 		alreadyConfigured: true,
 		dryRun,
 		preview: nextText
@@ -456,18 +456,18 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 	if (dryRun) return {
 		ok: true,
 		wrote: false,
-		path: path$1,
+		path,
 		alreadyConfigured: false,
 		dryRun: true,
 		preview: nextText
 	};
-	mkdirSync(dirname(path$1), { recursive: true });
+	mkdirSync(dirname(path), { recursive: true });
 	const finalText = nextText.endsWith("\n") ? nextText : `${nextText}\n`;
-	writeFileSync(path$1, finalText, "utf8");
+	writeFileSync(path, finalText, "utf8");
 	return {
 		ok: true,
 		wrote: true,
-		path: path$1,
+		path,
 		alreadyConfigured: false,
 		dryRun: false,
 		preview: finalText

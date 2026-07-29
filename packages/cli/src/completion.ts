@@ -4,10 +4,13 @@ import type { LocalContext } from './context.js';
 
 /**
  * Compute shell tab-completion suggestions for the hidden `__complete` entrypoint
- * (see src/bin/cli.ts). `levr install` registers a bash function that invokes
- * `levr __complete <COMP_LINE>` on each TAB, so `rawArgs` (process.argv.slice(2))
- * is `['__complete', <targetCommandName>, ...wordsBeingCompleted]`. A COMP_LINE
- * ending in a space means the cursor is on a fresh (empty) word to complete.
+ * (see src/bin/cli.ts). The scripts emitted by `levr completion bash|zsh`
+ * register a shell function that invokes `levr __complete <words…>` on each TAB,
+ * so `rawArgs` (process.argv.slice(2)) is
+ * `['__complete', <targetCommandName>, ...wordsBeingCompleted]` — note the
+ * command name is passed through and dropped here, which is why the shell
+ * scripts pass their FULL word array. A COMP_LINE ending in a space means the
+ * cursor is on a fresh (empty) word to complete.
  *
  * Never throws — completion must not surface an error to the user's shell.
  */

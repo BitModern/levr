@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 
 //#region src/workspace/workspace-store.ts
 const WORKSPACE_PATH = join(join(homedir(), ".config", "levr"), "workspace.json");
