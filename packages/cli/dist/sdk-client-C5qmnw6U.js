@@ -2594,7 +2594,8 @@ const zAuthCreateWorkspaceDto = z.object({
 	email: z.string(),
 	password: z.string(),
 	recaptchaToken: z.string().optional(),
-	invitation_token: z.string().optional()
+	invitation_token: z.string().optional(),
+	recreate_token: z.string().optional()
 });
 const zLoginUserDto = z.object({
 	id: z.string().describe(""),
@@ -10581,6 +10582,10 @@ const zDataSetTestBulkOperationV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/deactivate-account/zod.js
+const zDeactivateAccountData = z.object({ url: z.literal("/v1/auth/account/deactivate") });
+
+//#endregion
 //#region ../sdk/dist/gen/dedup-exclusion/zod.js
 const zCreateDedupExclusionDto = z.object({
 	id: z.string().optional().describe(""),
@@ -10836,6 +10841,10 @@ const zDedupVerdictFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/dedup-verdict/{id}")
 });
+
+//#endregion
+//#region ../sdk/dist/gen/delete-account/zod.js
+const zDeleteAccountData = z.object({ url: z.literal("/v1/auth/account") });
 
 //#endregion
 //#region ../sdk/dist/gen/deliverable-gate/zod.js
@@ -11114,7 +11123,7 @@ const zEmailChangeRequestRequestEmailChangeV1Data = z.object({
 const zEmailVerifyDto = z.object({
 	email: z.string(),
 	token: z.string(),
-	type: z.enum(["change"]).optional()
+	type: z.enum(["change", "reactivate"]).optional()
 });
 const zResendVerificationDto = z.object({ email: z.string() });
 const zEmailVerificationVerifyEmailV1Data = z.object({
@@ -13908,6 +13917,19 @@ const zGateSetDefinitionRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/gate-set-definition/{id}/restore")
 });
+
+//#endregion
+//#region ../sdk/dist/gen/get-account-deletion-blockers/zod.js
+const zAccountDeletionBlockersResponseDto = z.object({ blockers: z.array(z.object({
+	workspace_id: z.string(),
+	workspace_name: z.string().nullable(),
+	members: z.array(z.object({
+		id: z.string(),
+		name: z.string().nullable(),
+		email: z.string().nullable()
+	}))
+})) });
+const zGetAccountDeletionBlockersData = z.object({ url: z.literal("/v1/auth/account/deletion-blockers") });
 
 //#endregion
 //#region ../sdk/dist/gen/git-content/zod.js
@@ -17968,7 +17990,9 @@ const zResponseLabelAssignedFolderDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateLabelAssignedFolderDto = z.object({
 	id: z.string().optional().describe(""),
@@ -18020,19 +18044,23 @@ const zLabelAssignedFolderFindAllV1Data = z.object({
 		"filter.folder_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/label-assigned-folder")
 });
+const zLabelAssignedFolderFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/label-assigned-folder/recently-deleted") });
 const zLabelAssignedFolderFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/label-assigned-folder/{id}")
@@ -18049,6 +18077,10 @@ const zLabelAssignedFolderRemoveV1Data = z.object({
 const zLabelAssignedFolderBulkOperationV1Data = z.object({
 	body: zBulkLabelAssignedFolderRequestDto,
 	url: z.literal("/v1/label-assigned-folder/bulk")
+});
+const zLabelAssignedFolderRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/label-assigned-folder/{id}/restore")
 });
 
 //#endregion
@@ -29838,6 +29870,7 @@ const zResponseUserAccountDto = z.object({
 	locked_until: z.unknown().optional().describe(""),
 	old_password: z.string().nullable().optional().describe(""),
 	pending_email: z.string().nullable().optional().describe(""),
+	recreated_at: z.unknown().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -30889,6 +30922,16 @@ const zWorkspaceSubscriptionUpdateV1Data = z.object({
 const zWorkspaceSubscriptionBulkOperationV1Data = z.object({
 	body: zBulkWorkspaceSubscriptionRequestDto,
 	url: z.literal("/v1/workspace-subscription/bulk")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/workspace-transfer-ownership/zod.js
+const zTransferOwnershipBodyDto = z.object({ new_owner_user_id: z.string().describe("") });
+const zTransferOwnershipResponseDto = z.object({ success: z.boolean() });
+const zWorkspaceTransferOwnershipData = z.object({
+	body: zTransferOwnershipBodyDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/workspace/{id}/transfer-ownership")
 });
 
 //#endregion

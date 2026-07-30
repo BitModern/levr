@@ -15,6 +15,7 @@
 import { OAuthClient } from './oauth-client.js';
 import { loadTokens } from './token-store.js';
 import { loadConfig } from './config.js';
+import { joinApiPath } from './url.js';
 
 /**
  * A workspace (site) the authenticated user has access to.
@@ -125,7 +126,7 @@ export async function listWorkspaces(): Promise<WorkspaceSite[]> {
     );
   }
 
-  const url = new URL('/v1/auth/sites', authServerUrl);
+  const url = joinApiPath(authServerUrl, '/v1/auth/sites');
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
   });

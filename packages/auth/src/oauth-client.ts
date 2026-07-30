@@ -15,6 +15,7 @@ import {
 import { acquireFileLock, getLockPath } from './file-lock.js';
 import { saveWorkspace, clearWorkspace } from './workspace-store.js';
 import { loadConfig } from './config.js';
+import { joinApiPath } from './url.js';
 import type {
   TokenResponse,
   OAuthConfig,
@@ -206,7 +207,10 @@ export class OAuthClient {
     const redirectUri = `http://localhost:${this.config.redirectPort}/oauth/callback`;
 
     // Build authorization URL (uses versioned API route)
-    const authUrl = new URL('/v1/oauth/authorize', this.config.authServerUrl);
+    const authUrl = joinApiPath(
+      this.config.authServerUrl,
+      '/v1/oauth/authorize',
+    );
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', this.config.clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
@@ -245,9 +249,9 @@ export class OAuthClient {
    */
   async authorizeDevice(): Promise<void> {
     // 1. Request device code
-    const deviceUrl = new URL(
-      '/v1/oauth/device/authorize',
+    const deviceUrl = joinApiPath(
       this.config.authServerUrl,
+      '/v1/oauth/device/authorize',
     );
 
     const deviceRes = await fetch(deviceUrl.toString(), {
@@ -275,7 +279,7 @@ export class OAuthClient {
     // 3. Poll for token
     let interval = device.interval;
     const deadline = Date.now() + device.expires_in * 1000;
-    const tokenUrl = new URL('/v1/oauth/token', this.config.authServerUrl);
+    const tokenUrl = joinApiPath(this.config.authServerUrl, '/v1/oauth/token');
 
     while (Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, interval * 1000));
@@ -333,7 +337,7 @@ export class OAuthClient {
     codeVerifier: string,
     redirectUri: string,
   ): Promise<void> {
-    const tokenUrl = new URL('/v1/oauth/token', this.config.authServerUrl);
+    const tokenUrl = joinApiPath(this.config.authServerUrl, '/v1/oauth/token');
 
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -466,7 +470,7 @@ export class OAuthClient {
    * All concurrent callers share the same promise via refresh().
    */
   private async refreshInternal(): Promise<void> {
-    const tokenUrl = new URL('/v1/oauth/token', this.config.authServerUrl);
+    const tokenUrl = joinApiPath(this.config.authServerUrl, '/v1/oauth/token');
 
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
