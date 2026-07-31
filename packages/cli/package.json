@@ -26,6 +26,7 @@
     "@types/node": "^20.10.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-import-x": "^4.17.1",
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^16.0.0",
     "prettier": "^3.4.2",
