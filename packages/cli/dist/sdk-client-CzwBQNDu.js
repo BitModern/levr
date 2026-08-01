@@ -17301,6 +17301,7 @@ const zCreateJiraProjectTeamDto = z.object({
 	id: z.string().optional().describe(""),
 	is_primary: z.boolean().optional().describe(""),
 	link_source: z.string().optional().describe(""),
+	inbound_type_label_id: z.string().nullable().optional().describe(""),
 	jira_project_id: z.string(),
 	team_id: z.string()
 });
@@ -17308,6 +17309,7 @@ const zResponseJiraProjectTeamDto = z.object({
 	id: z.string().describe(""),
 	is_primary: z.boolean().optional().describe(""),
 	link_source: z.string().optional().describe(""),
+	inbound_type_label_id: z.string().nullable().optional().describe(""),
 	jira_project_id: z.string(),
 	team_id: z.string(),
 	created_at: z.unknown().describe(""),
@@ -17321,6 +17323,7 @@ const zUpdateJiraProjectTeamDto = z.object({
 	id: z.string().optional().describe(""),
 	is_primary: z.boolean().optional().describe(""),
 	link_source: z.string().optional().describe(""),
+	inbound_type_label_id: z.string().nullable().optional().describe(""),
 	jira_project_id: z.string().optional(),
 	team_id: z.string().optional()
 });
@@ -17367,6 +17370,7 @@ const zJiraProjectTeamFindAllV1Data = z.object({
 		"filter.id": z.array(z.string()).optional(),
 		"filter.is_primary": z.array(z.string()).optional(),
 		"filter.link_source": z.array(z.string()).optional(),
+		"filter.inbound_type_label_id": z.array(z.string()).optional(),
 		"filter.jira_project_id": z.array(z.string()).optional(),
 		"filter.team_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
@@ -17376,6 +17380,8 @@ const zJiraProjectTeamFindAllV1Data = z.object({
 			"id:DESC",
 			"link_source:ASC",
 			"link_source:DESC",
+			"inbound_type_label_id:ASC",
+			"inbound_type_label_id:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
