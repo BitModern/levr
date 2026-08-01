@@ -9,8 +9,23 @@ on:
       - 'auth-v*'
       - 'cli-v*'
 
+# ENG-2797: keyed on the PACKAGE, not the ref and not the scope.
+#
+# `publish-${{ github.ref }}` was one group per TAG, so re-running a tag or
+# re-pushing it could publish the same package twice at once. A scope-wide
+# group fixes that but overshoots: GitHub keeps only ONE pending run per group
+# (`cancel-in-progress: false` governs the RUNNING one, not the queue), so a
+# second release landing while the first is mid-flight would silently cancel a
+# queued publish — converting an impossible failure into a routine one.
+#
+# Per-package serialises what can actually collide. npm packuments are
+# per-package, so `@levr-one/auth` and `@levr-one/cli` do not contend for the
+# same document; the `E409 Conflict - Failed to save packument` that dropped
+# auth@1.0.2 on 2026-07-31 was therefore probably registry-side rather than a
+# write race between the two. The retry below and the export's verify-poll are
+# what actually cover that; this group's job is narrower and provable.
 concurrency:
-  group: publish-${{ github.ref }}
+  group: publish-${{ startsWith(github.ref_name, 'auth-v') && 'auth' || 'cli' }}
   cancel-in-progress: false
 
 jobs:
@@ -53,7 +68,63 @@ jobs:
             yarn workspace @levr-one/${PKG} build
           fi
 
+      # ENG-2797: retry transient registry failures. E409 "Failed to save
+      # packument" is npm-side and retry-safe — the 2026-07-31 auth@1.0.2 loss
+      # succeeded on a manual re-run with no other change. The concurrency
+      # group above makes it far less likely; this is the backstop for the
+      # rest (5xx, ETIMEDOUT, a same-scope publish from anywhere else).
+      #
+      # Only retries when the version is genuinely absent: a publish that
+      # actually succeeded and then hit a network blip would otherwise retry
+      # into E403 "cannot publish over previously published version", turning
+      # a success into a red run. Checked BEFORE each attempt, so the loop
+      # also exits cleanly if a concurrent run beat us to it.
       - name: Publish to npm
-        run: npm publish -w @levr-one/${{ steps.pkg.outputs.pkg }} --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PKG: ${{ steps.pkg.outputs.pkg }}
+        run: |
+          set -uo pipefail
+          NAME="@levr-one/${PKG}"
+          VERSION="$(node -p "require('./packages/${PKG}/package.json').version")"
+          echo "Publishing ${NAME}@${VERSION}"
+
+          for attempt in 1 2 3; do
+            # --prefer-online: `npm view` is CDN-cached, and a stale MISS here
+            # would send us into a republish of something already live.
+            if npm view --prefer-online "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+              echo "${NAME}@${VERSION} is already on npm — nothing to do."
+              exit 0
+            fi
+
+            OUT="$(npm publish -w "${NAME}" --access public 2>&1)" && {
+              echo "${OUT}"
+              echo "Published ${NAME}@${VERSION} on attempt ${attempt}."
+              exit 0
+            }
+            echo "${OUT}"
+
+            # A publish that landed and then lost the response leaves the
+            # registry holding the version while npm reports E403 "cannot
+            # publish over previously published version". That is a SUCCESS
+            # mis-reported as a failure — the exact outcome the pre-check is
+            # meant to avoid, reachable whenever CDN caching hides a version
+            # for longer than the backoff window.
+            case "${OUT}" in
+              *EPUBLISHCONFLICT*|*"cannot publish over"*|*"You cannot publish over"*)
+                if npm view --prefer-online "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+                  echo "${NAME}@${VERSION} is on npm — an earlier attempt succeeded. Treating as published."
+                  exit 0
+                fi
+                ;;
+            esac
+
+            if [ "${attempt}" -lt 3 ]; then
+              BACKOFF=$((attempt * 20))
+              echo "::warning::publish attempt ${attempt} for ${NAME}@${VERSION} failed — retrying in ${BACKOFF}s."
+              sleep "${BACKOFF}"
+            fi
+          done
+
+          echo "::error::${NAME}@${VERSION} failed to publish after 3 attempts." >&2
+          exit 1
