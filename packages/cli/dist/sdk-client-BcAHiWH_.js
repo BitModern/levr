@@ -11292,6 +11292,7 @@ const zEventsGetHistoryV1Data = z.object({
 	query: z.object({
 		"since": z.string().optional(),
 		"limit": z.number().optional(),
+		"cursor": z.string(),
 		"sources": z.array(z.string()).optional(),
 		"severities": z.array(z.string()).optional(),
 		"types": z.array(z.string()).optional()
