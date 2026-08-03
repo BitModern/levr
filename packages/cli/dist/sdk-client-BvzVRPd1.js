@@ -11292,13 +11292,13 @@ const zEventsGetHistoryV1Data = z.object({
 	query: z.object({
 		"since": z.string().optional(),
 		"limit": z.number().optional(),
-		"includeFiles": z.boolean().optional(),
 		"sources": z.array(z.string()).optional(),
 		"severities": z.array(z.string()).optional(),
 		"types": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/events")
 });
+const zEventsReportV1Data = z.object({ url: z.literal("/v1/events/report") });
 const zEventsStreamData = z.object({ url: z.literal("/events/stream") });
 const zEventsGetStatusV1Data = z.object({ url: z.literal("/v1/events/status") });
 const zEventsGetJudgmentStatusV1Data = z.object({ url: z.literal("/v1/events/judgment/status") });
