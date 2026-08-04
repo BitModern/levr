@@ -1,6 +1,6 @@
 {
   "name": "@levr-one/cli",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "The command-line interface for Levr",
   "type": "module",
   "license": "MIT",
@@ -12,6 +12,17 @@
     "dist",
     "README.md"
   ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "clean": "rimraf dist",
+    "lint": "eslint src/**/*.ts --no-warn-ignored",
+    "format": "prettier --write src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
     "@stricli/core": "^1.2.0",
