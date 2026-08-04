@@ -13172,6 +13172,175 @@ const zFolderBulkOperationV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/forecast/zod.js
+const zForecastResultDto = z.object({
+	targetKind: z.enum([
+		"project",
+		"initiative",
+		"issue",
+		"team"
+	]),
+	targetId: z.string(),
+	remainingItems: z.number(),
+	source: z.enum([
+		"scope",
+		"reference",
+		"none"
+	]),
+	referenceClassSize: z.number(),
+	p50: z.string().nullable(),
+	p75: z.string().nullable(),
+	p85: z.string().nullable(),
+	p95: z.string().nullable(),
+	weeksToP50: z.number().nullable(),
+	weeksToP75: z.number().nullable(),
+	weeksToP85: z.number().nullable(),
+	weeksToP95: z.number().nullable(),
+	completionRatePerWeek: z.number(),
+	arrivalRatePerWeek: z.number(),
+	netFlowPerWeek: z.number(),
+	scopeTrend: z.enum([
+		"shrinking",
+		"flat",
+		"growing"
+	]),
+	converges: z.boolean(),
+	convergedFraction: z.number(),
+	inflowP50: z.string().nullable(),
+	inflowP75: z.string().nullable(),
+	inflowP85: z.string().nullable(),
+	inflowP95: z.string().nullable(),
+	inflowWeeksToP50: z.number().nullable(),
+	inflowWeeksToP75: z.number().nullable(),
+	inflowWeeksToP85: z.number().nullable(),
+	inflowWeeksToP95: z.number().nullable(),
+	confidence: z.enum([
+		"High",
+		"Medium",
+		"Low"
+	]),
+	totalCompleted: z.number(),
+	totalItems: z.number(),
+	completedItems: z.number(),
+	startedItems: z.number(),
+	windowWeeks: z.number(),
+	explanation: z.string(),
+	computedAt: z.string(),
+	weekStarts: z.array(z.string()),
+	weeklyThroughput: z.array(z.number()),
+	weeklyArrivals: z.array(z.number())
+});
+const zForecastBatchDto = z.object({
+	targets: z.array(z.object({
+		target_type: z.enum([
+			"project",
+			"initiative",
+			"issue",
+			"team"
+		]),
+		target_id: z.string()
+	})),
+	window_weeks: z.union([
+		z.number(),
+		z.number(),
+		z.number(),
+		z.number()
+	]).optional().describe("")
+});
+const zForecastBatchResponseDto = z.object({ results: z.array(z.object({
+	target_type: z.enum([
+		"project",
+		"initiative",
+		"issue",
+		"team"
+	]),
+	target_id: z.string(),
+	result: z.object({
+		targetKind: z.enum([
+			"project",
+			"initiative",
+			"issue",
+			"team"
+		]),
+		targetId: z.string(),
+		remainingItems: z.number(),
+		source: z.enum([
+			"scope",
+			"reference",
+			"none"
+		]),
+		referenceClassSize: z.number(),
+		p50: z.string().nullable(),
+		p75: z.string().nullable(),
+		p85: z.string().nullable(),
+		p95: z.string().nullable(),
+		weeksToP50: z.number().nullable(),
+		weeksToP75: z.number().nullable(),
+		weeksToP85: z.number().nullable(),
+		weeksToP95: z.number().nullable(),
+		completionRatePerWeek: z.number(),
+		arrivalRatePerWeek: z.number(),
+		netFlowPerWeek: z.number(),
+		scopeTrend: z.enum([
+			"shrinking",
+			"flat",
+			"growing"
+		]),
+		converges: z.boolean(),
+		convergedFraction: z.number(),
+		inflowP50: z.string().nullable(),
+		inflowP75: z.string().nullable(),
+		inflowP85: z.string().nullable(),
+		inflowP95: z.string().nullable(),
+		inflowWeeksToP50: z.number().nullable(),
+		inflowWeeksToP75: z.number().nullable(),
+		inflowWeeksToP85: z.number().nullable(),
+		inflowWeeksToP95: z.number().nullable(),
+		confidence: z.enum([
+			"High",
+			"Medium",
+			"Low"
+		]),
+		totalCompleted: z.number(),
+		totalItems: z.number(),
+		completedItems: z.number(),
+		startedItems: z.number(),
+		windowWeeks: z.number(),
+		explanation: z.string(),
+		computedAt: z.string(),
+		weekStarts: z.array(z.string()),
+		weeklyThroughput: z.array(z.number()),
+		weeklyArrivals: z.array(z.number())
+	}).nullable(),
+	error: z.object({
+		status: z.number(),
+		message: z.string()
+	}).nullable()
+})) });
+const zForecastGetForecastV1Data = z.object({
+	query: z.object({
+		"target_type": z.enum([
+			"project",
+			"initiative",
+			"issue",
+			"team"
+		]),
+		"target_id": z.string(),
+		"window_weeks": z.union([
+			z.number(),
+			z.number(),
+			z.number(),
+			z.number()
+		]).optional()
+	}).optional(),
+	url: z.literal("/v1/forecast")
+});
+const zForecastGetForecastBatchV1Data = z.object({
+	body: zForecastBatchDto,
+	url: z.literal("/v1/forecast/batch")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/gate/zod.js
 const zGateResolveGateSetV1Data = z.object({
 	path: z.object({ "issueId": z.string() }),
