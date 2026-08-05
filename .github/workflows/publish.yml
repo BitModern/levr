@@ -46,8 +46,16 @@ jobs:
   publish:
     needs: resolve
     runs-on: ubuntu-latest
+    # ENG-2868: `id-token: write` is what lets `npm publish` mint the OIDC
+    # token for npm TRUSTED PUBLISHING — the registry trusts this repo +
+    # workflow-file identity directly, so no long-lived token secret exists
+    # to steal, and provenance attestations are generated for free. The npm-side
+    # binding (package -> BitModern/levr + publish.yml) is configured on
+    # npmjs.com per package; a publish from any other repo or workflow file
+    # is refused by the registry.
     permissions:
       contents: read
+      id-token: write
     strategy:
       matrix:
         pkg: ${{ fromJson(needs.resolve.outputs.pkgs) }}
@@ -82,6 +90,13 @@ jobs:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
 
+      # ENG-2868: OIDC trusted publishing needs npm >= 11.5.1; Node 22 bundles
+      # npm 10.x, which would silently fall back to token auth (absent here)
+      # and fail with a misleading E401. Pin the major so a future npm 12
+      # behaviour change is a deliberate bump, not a surprise.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.5.1
+
       - name: Install
         run: yarn install --no-immutable
 
@@ -110,9 +125,12 @@ jobs:
       # into E403 "cannot publish over previously published version", turning
       # a success into a red run. Checked BEFORE each attempt, so the loop
       # also exits cleanly if a concurrent run beat us to it.
+      # ENG-2868: no token env var — auth is the OIDC exchange npm performs
+      # itself under trusted publishing (id-token: write above). A token here
+      # would take precedence and silently reintroduce the long-lived-secret
+      # path this change exists to delete.
       - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           PKG: ${{ matrix.pkg }}
         run: |
           set -uo pipefail
