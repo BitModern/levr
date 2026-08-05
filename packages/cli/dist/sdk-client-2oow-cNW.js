@@ -2435,7 +2435,8 @@ const zArchiveListResponseDto = z.object({
 		deleted_at: z.string().nullable().optional(),
 		created_at: z.string(),
 		created_by: z.string(),
-		deleted_by: z.string().nullable().optional()
+		deleted_by: z.string().nullable().optional(),
+		archived_by: z.string().nullable().optional()
 	})),
 	meta: z.object({
 		itemsPerPage: z.number(),
