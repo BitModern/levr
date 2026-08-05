@@ -520,7 +520,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.5.7";
+var version = "0.5.8";
 
 //#endregion
 //#region src/app.ts
