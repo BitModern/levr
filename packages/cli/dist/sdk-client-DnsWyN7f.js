@@ -10110,6 +10110,13 @@ const zCycleGenerationGenerateV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/cycle-lifecycle/zod.js
+const zCycleLifecycleStartCycleV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/cycles/{id}/start")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/cycle-schedule/zod.js
 const zCreateCycleScheduleDto = z.object({
 	id: z.string().optional().describe(""),
@@ -10118,6 +10125,10 @@ const zCreateCycleScheduleDto = z.object({
 	upcoming_count: z.number().optional().describe(""),
 	enabled: z.boolean().optional().describe(""),
 	timezone: z.string().optional().describe(""),
+	auto_add_started: z.boolean().optional().describe(""),
+	auto_add_completed: z.boolean().optional().describe(""),
+	auto_add_active: z.boolean().optional().describe(""),
+	auto_add_active_target: z.string().optional().describe(""),
 	team_id: z.string()
 });
 const zResponseCycleScheduleDto = z.object({
@@ -10127,6 +10138,10 @@ const zResponseCycleScheduleDto = z.object({
 	upcoming_count: z.number().optional().describe(""),
 	enabled: z.boolean().optional().describe(""),
 	timezone: z.string().optional().describe(""),
+	auto_add_started: z.boolean().optional().describe(""),
+	auto_add_completed: z.boolean().optional().describe(""),
+	auto_add_active: z.boolean().optional().describe(""),
+	auto_add_active_target: z.string().optional().describe(""),
 	team_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -10142,6 +10157,10 @@ const zUpdateCycleScheduleDto = z.object({
 	upcoming_count: z.number().optional().describe(""),
 	enabled: z.boolean().optional().describe(""),
 	timezone: z.string().optional().describe(""),
+	auto_add_started: z.boolean().optional().describe(""),
+	auto_add_completed: z.boolean().optional().describe(""),
+	auto_add_active: z.boolean().optional().describe(""),
+	auto_add_active_target: z.string().optional().describe(""),
 	team_id: z.string().optional()
 });
 const zCycleScheduleBulkOperationDto = z.object({
@@ -10190,6 +10209,10 @@ const zCycleScheduleFindAllV1Data = z.object({
 		"filter.upcoming_count": z.array(z.string()).optional(),
 		"filter.enabled": z.array(z.string()).optional(),
 		"filter.timezone": z.array(z.string()).optional(),
+		"filter.auto_add_started": z.array(z.string()).optional(),
+		"filter.auto_add_completed": z.array(z.string()).optional(),
+		"filter.auto_add_active": z.array(z.string()).optional(),
+		"filter.auto_add_active_target": z.array(z.string()).optional(),
 		"filter.team_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
@@ -10204,6 +10227,8 @@ const zCycleScheduleFindAllV1Data = z.object({
 			"upcoming_count:DESC",
 			"timezone:ASC",
 			"timezone:DESC",
+			"auto_add_active_target:ASC",
+			"auto_add_active_target:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
@@ -10230,13 +10255,6 @@ const zCycleScheduleRemoveV1Data = z.object({
 const zCycleScheduleBulkOperationV1Data = z.object({
 	body: zBulkCycleScheduleRequestDto,
 	url: z.literal("/v1/cycle-schedule/bulk")
-});
-
-//#endregion
-//#region ../sdk/dist/gen/cycle-velocity/zod.js
-const zCycleVelocityGetVelocityV1Data = z.object({
-	query: z.object({ "team_id": z.string() }).optional(),
-	url: z.literal("/v1/cycle-velocity")
 });
 
 //#endregion
@@ -27573,9 +27591,6 @@ const zCreateTeamDto = z.object({
 	is_private: z.boolean().optional().describe(""),
 	issue_count: z.number().optional().describe(""),
 	settings: z.unknown().optional().describe(""),
-	cycle_duration: z.number().optional().describe(""),
-	cycle_start_day: z.number().optional().describe(""),
-	cycles_enabled: z.boolean().optional().describe(""),
 	estimation_scale: z.enum([
 		"none",
 		"fibonacci",
@@ -27596,9 +27611,6 @@ const zResponseTeamDto = z.object({
 	is_private: z.boolean().optional().describe(""),
 	issue_count: z.number().optional().describe(""),
 	settings: z.unknown().optional().describe(""),
-	cycle_duration: z.number().optional().describe(""),
-	cycle_start_day: z.number().optional().describe(""),
-	cycles_enabled: z.boolean().optional().describe(""),
 	estimation_scale: z.enum([
 		"none",
 		"fibonacci",
@@ -27629,9 +27641,6 @@ const zUpdateTeamDto = z.object({
 	is_private: z.boolean().optional().describe(""),
 	issue_count: z.number().optional().describe(""),
 	settings: z.unknown().optional().describe(""),
-	cycle_duration: z.number().optional().describe(""),
-	cycle_start_day: z.number().optional().describe(""),
-	cycles_enabled: z.boolean().optional().describe(""),
 	estimation_scale: z.enum([
 		"none",
 		"fibonacci",
@@ -27691,9 +27700,6 @@ const zTeamFindAllV1Data = z.object({
 		"filter.color": z.array(z.string()).optional(),
 		"filter.is_private": z.array(z.string()).optional(),
 		"filter.issue_count": z.array(z.string()).optional(),
-		"filter.cycle_duration": z.array(z.string()).optional(),
-		"filter.cycle_start_day": z.array(z.string()).optional(),
-		"filter.cycles_enabled": z.array(z.string()).optional(),
 		"filter.estimation_allow_zero": z.array(z.string()).optional(),
 		"filter.estimation_unestimated_value": z.array(z.string()).optional(),
 		"filter.is_system": z.array(z.string()).optional(),
@@ -27716,10 +27722,6 @@ const zTeamFindAllV1Data = z.object({
 			"color:DESC",
 			"issue_count:ASC",
 			"issue_count:DESC",
-			"cycle_duration:ASC",
-			"cycle_duration:DESC",
-			"cycle_start_day:ASC",
-			"cycle_start_day:DESC",
 			"estimation_unestimated_value:ASC",
 			"estimation_unestimated_value:DESC",
 			"created_at:ASC",
@@ -27885,6 +27887,13 @@ const zTeamMemberBulkOperationV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/team-member-custom/zod.js
 const zTeamMemberCustomGetMyPrivateTeamsV1Data = z.object({ url: z.literal("/v1/team-members/my-private-teams") });
+
+//#endregion
+//#region ../sdk/dist/gen/team-velocity/zod.js
+const zTeamVelocityGetVelocityV1Data = z.object({
+	query: z.object({ "team_id": z.string() }).optional(),
+	url: z.literal("/v1/team-velocity")
+});
 
 //#endregion
 //#region ../sdk/dist/gen/test/zod.js
