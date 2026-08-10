@@ -9913,6 +9913,7 @@ const zCreateCycleDto = z.object({
 	completed_scope: z.number().optional().describe(""),
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
+	status: z.string().optional().describe(""),
 	rollover_processed_at: z.unknown().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
 	team_id: z.string(),
@@ -9931,6 +9932,7 @@ const zResponseCycleDto = z.object({
 	completed_scope: z.number().optional().describe(""),
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
+	status: z.string().optional().describe(""),
 	rollover_processed_at: z.unknown().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
 	team_id: z.string(),
@@ -9942,10 +9944,7 @@ const zResponseCycleDto = z.object({
 	updated_by: z.string().describe(""),
 	workspace_id: z.string().describe(""),
 	deleted_at: z.unknown().describe(""),
-	deleted_by: z.string().nullable().describe(""),
-	archived_at: z.unknown().describe(""),
-	archived_by: z.string().nullable().describe(""),
-	auto_archived_at: z.unknown().describe("")
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateCycleDto = z.object({
 	id: z.string().optional().describe(""),
@@ -9960,11 +9959,11 @@ const zUpdateCycleDto = z.object({
 	completed_scope: z.number().optional().describe(""),
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
+	status: z.string().optional().describe(""),
 	rollover_processed_at: z.unknown().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
 	team_id: z.string().optional(),
-	inherited_from_id: z.string().nullable().optional(),
-	archived_at: z.unknown().optional().describe("")
+	inherited_from_id: z.string().nullable().optional()
 });
 const zCycleBulkOperationDto = z.object({
 	op: z.enum([
@@ -10018,6 +10017,7 @@ const zCycleFindAllV1Data = z.object({
 		"filter.completed_scope": z.array(z.string()).optional(),
 		"filter.scope_is_mixed_unit": z.array(z.string()).optional(),
 		"filter.completed_at": z.array(z.string()).optional(),
+		"filter.status": z.array(z.string()).optional(),
 		"filter.rollover_processed_at": z.array(z.string()).optional(),
 		"filter.spoke_key": z.array(z.string()).optional(),
 		"filter.team_id": z.array(z.string()).optional(),
@@ -10025,7 +10025,6 @@ const zCycleFindAllV1Data = z.object({
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
 		"filter.deleted_at": z.array(z.string()).optional(),
-		"filter.archived_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -10049,6 +10048,8 @@ const zCycleFindAllV1Data = z.object({
 			"completed_scope:DESC",
 			"completed_at:ASC",
 			"completed_at:DESC",
+			"status:ASC",
+			"status:DESC",
 			"rollover_processed_at:ASC",
 			"rollover_processed_at:DESC",
 			"spoke_key:ASC",
@@ -10060,9 +10061,7 @@ const zCycleFindAllV1Data = z.object({
 			"updated_at:ASC",
 			"updated_at:DESC",
 			"deleted_at:ASC",
-			"deleted_at:DESC",
-			"archived_at:ASC",
-			"archived_at:DESC"
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
@@ -10070,7 +10069,6 @@ const zCycleFindAllV1Data = z.object({
 	url: z.literal("/v1/cycle")
 });
 const zCycleFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/cycle/recently-deleted") });
-const zCycleFindArchivedV1Data = z.object({ url: z.literal("/v1/cycle/archived") });
 const zCycleFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/cycle/{id}")
@@ -10092,14 +10090,6 @@ const zCycleRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/cycle/{id}/restore")
 });
-const zCycleArchiveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/cycle/{id}/archive")
-});
-const zCycleUnarchiveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/cycle/{id}/unarchive")
-});
 
 //#endregion
 //#region ../sdk/dist/gen/cycle-generation/zod.js
@@ -10111,9 +10101,15 @@ const zCycleGenerationGenerateV1Data = z.object({
 
 //#endregion
 //#region ../sdk/dist/gen/cycle-lifecycle/zod.js
+const zShiftCadenceDto = z.object({ start_date: z.string().describe("") });
 const zCycleLifecycleStartCycleV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/cycles/{id}/start")
+});
+const zCycleLifecycleShiftCadenceV1Data = z.object({
+	body: zShiftCadenceDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/cycles/{id}/shift-cadence")
 });
 
 //#endregion
