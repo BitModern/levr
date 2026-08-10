@@ -1,7 +1,7 @@
 import { getApiUrl } from "./env-CHeKHu5S.js";
-import { configureClient, testCaseImportCommitV1, testCaseImportPreviewV1 } from "./sdk-client-BR0CQRyt.js";
+import { configureClient, testCaseImportCommitV1, testCaseImportPreviewV1 } from "./sdk-client-853JZ0H8.js";
 import "./workspace-store-DDOxnut1.js";
-import { resolveWorkspace } from "./resolve-workspace-CUHT7WeM.js";
+import { resolveWorkspace } from "./resolve-workspace-D3cyw4NZ.js";
 import "./token-refresh-Cu5RpkLJ.js";
 import { resolveToken } from "./resolve-token-DbQsmn03.js";
 import chalk from "chalk";

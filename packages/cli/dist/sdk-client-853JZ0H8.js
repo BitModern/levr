@@ -2494,7 +2494,8 @@ const zArchiveFindAllV1Data = z.object({
 		"sortDir": z.enum(["asc", "desc"]).optional(),
 		"entityType": z.array(z.string()).optional(),
 		"ownerId": z.array(z.string()).optional(),
-		"deletedById": z.array(z.string()).optional()
+		"deletedById": z.array(z.string()).optional(),
+		"entityId": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/archives")
 });
