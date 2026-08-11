@@ -2,100 +2,6 @@ import { getApiUrl } from "./env-CHeKHu5S.js";
 import { z } from "zod/v3";
 
 //#region ../sdk/dist/gen/_common/zod.js
-const zProfileResponseDto = z.object({
-	id: z.string(),
-	profileName: z.string(),
-	providerType: z.number(),
-	providerName: z.string(),
-	modelName: z.string(),
-	temperature: z.number().optional(),
-	baseUrl: z.string().optional(),
-	isSystem: z.boolean(),
-	llmProviderId: z.string(),
-	createdAt: z.unknown(),
-	updatedAt: z.unknown()
-});
-const zUpdateProfileDto = z.object({
-	profileName: z.string().optional(),
-	providerType: z.number().optional(),
-	apiKey: z.string().optional(),
-	baseUrl: z.string().nullable().optional(),
-	modelName: z.string().optional(),
-	temperature: z.number().nullable().optional()
-});
-const zSuccessResponseDto = z.object({ success: z.boolean() });
-const zResponseWorkspaceDto = z.object({
-	id: z.string().describe(""),
-	name: z.string().describe(""),
-	database_name: z.string().nullable().optional().describe(""),
-	company_name: z.string().nullable().optional().describe(""),
-	company_url: z.string().nullable().optional().describe(""),
-	description: z.string().nullable().optional().describe(""),
-	company_email: z.string().nullable().optional().describe(""),
-	company_phone: z.string().nullable().optional().describe(""),
-	total_run_rows: z.number().optional().describe(""),
-	total_run_result_rows: z.number().optional().describe(""),
-	total_run_result_step_rows: z.number().optional().describe(""),
-	space_limit_per_user: z.number().optional().describe(""),
-	openid_url: z.string().nullable().optional().describe(""),
-	openid_client_id: z.string().nullable().optional().describe(""),
-	type: z.number().nullable().optional().describe(""),
-	parent_workspace_id: z.string().nullable().optional().describe(""),
-	url_key: z.string().describe(""),
-	ai_budget_daily_usd: z.number().nullable().optional().describe(""),
-	ai_budget_monthly_usd: z.number().nullable().optional().describe(""),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe("")
-});
-const zPaginatedMetaDocumented = z.object({
-	itemsPerPage: z.number(),
-	totalItems: z.number(),
-	currentPage: z.number(),
-	totalPages: z.number(),
-	sortBy: z.array(z.array(z.union([z.string(), z.enum(["ASC", "DESC"])]))).optional(),
-	searchBy: z.array(z.string()).optional(),
-	search: z.string().optional(),
-	select: z.array(z.string()).optional(),
-	filter: z.record(z.string(), z.unknown()).optional()
-});
-const zPaginatedLinksDocumented = z.object({
-	first: z.string().optional(),
-	previous: z.string().optional(),
-	current: z.string().optional(),
-	next: z.string().optional(),
-	last: z.string().optional()
-});
-const zPaginatedDocumented = z.object({
-	data: z.array(z.record(z.string(), z.unknown())),
-	meta: zPaginatedMetaDocumented,
-	links: zPaginatedLinksDocumented
-});
-const zResponseLabelDto = z.object({
-	id: z.string().describe(""),
-	name: z.string().describe(""),
-	description: z.string().nullable().optional().describe(""),
-	color: z.string().optional().describe(""),
-	is_group: z.boolean().optional().describe(""),
-	label_type: z.string().optional().describe(""),
-	icon: z.string().nullable().optional().describe(""),
-	team_id: z.string().nullable().optional(),
-	creator_id: z.string().nullable().optional(),
-	parent_id: z.string().nullable().optional(),
-	inverse_label_id: z.string().nullable().optional(),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe(""),
-	deleted_at: z.unknown().describe(""),
-	deleted_by: z.string().nullable().describe(""),
-	archived_at: z.unknown().describe(""),
-	archived_by: z.string().nullable().describe("")
-});
 const zResponseIssueDto = z.object({
 	id: z.string().describe(""),
 	identifier: z.string().optional().describe(""),
@@ -143,6 +49,100 @@ const zResponseIssueDto = z.object({
 	archived_at: z.unknown().describe(""),
 	archived_by: z.string().nullable().describe(""),
 	auto_archived_at: z.unknown().describe("")
+});
+const zPaginatedMetaDocumented = z.object({
+	itemsPerPage: z.number(),
+	totalItems: z.number(),
+	currentPage: z.number(),
+	totalPages: z.number(),
+	sortBy: z.array(z.array(z.union([z.string(), z.enum(["ASC", "DESC"])]))).optional(),
+	searchBy: z.array(z.string()).optional(),
+	search: z.string().optional(),
+	select: z.array(z.string()).optional(),
+	filter: z.record(z.string(), z.unknown()).optional()
+});
+const zPaginatedLinksDocumented = z.object({
+	first: z.string().optional(),
+	previous: z.string().optional(),
+	current: z.string().optional(),
+	next: z.string().optional(),
+	last: z.string().optional()
+});
+const zPaginatedDocumented = z.object({
+	data: z.array(z.record(z.string(), z.unknown())),
+	meta: zPaginatedMetaDocumented,
+	links: zPaginatedLinksDocumented
+});
+const zResponseLabelDto = z.object({
+	id: z.string().describe(""),
+	name: z.string().describe(""),
+	description: z.string().nullable().optional().describe(""),
+	color: z.string().optional().describe(""),
+	is_group: z.boolean().optional().describe(""),
+	label_type: z.string().optional().describe(""),
+	icon: z.string().nullable().optional().describe(""),
+	team_id: z.string().nullable().optional(),
+	creator_id: z.string().nullable().optional(),
+	parent_id: z.string().nullable().optional(),
+	inverse_label_id: z.string().nullable().optional(),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe(""),
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe(""),
+	archived_at: z.unknown().describe(""),
+	archived_by: z.string().nullable().describe("")
+});
+const zProfileResponseDto = z.object({
+	id: z.string(),
+	profileName: z.string(),
+	providerType: z.number(),
+	providerName: z.string(),
+	modelName: z.string(),
+	temperature: z.number().optional(),
+	baseUrl: z.string().optional(),
+	isSystem: z.boolean(),
+	llmProviderId: z.string(),
+	createdAt: z.unknown(),
+	updatedAt: z.unknown()
+});
+const zUpdateProfileDto = z.object({
+	profileName: z.string().optional(),
+	providerType: z.number().optional(),
+	apiKey: z.string().optional(),
+	baseUrl: z.string().nullable().optional(),
+	modelName: z.string().optional(),
+	temperature: z.number().nullable().optional()
+});
+const zSuccessResponseDto = z.object({ success: z.boolean() });
+const zResponseWorkspaceDto = z.object({
+	id: z.string().describe(""),
+	name: z.string().describe(""),
+	database_name: z.string().nullable().optional().describe(""),
+	company_name: z.string().nullable().optional().describe(""),
+	company_url: z.string().nullable().optional().describe(""),
+	description: z.string().nullable().optional().describe(""),
+	company_email: z.string().nullable().optional().describe(""),
+	company_phone: z.string().nullable().optional().describe(""),
+	total_run_rows: z.number().optional().describe(""),
+	total_run_result_rows: z.number().optional().describe(""),
+	total_run_result_step_rows: z.number().optional().describe(""),
+	space_limit_per_user: z.number().optional().describe(""),
+	openid_url: z.string().nullable().optional().describe(""),
+	openid_client_id: z.string().nullable().optional().describe(""),
+	type: z.number().nullable().optional().describe(""),
+	parent_workspace_id: z.string().nullable().optional().describe(""),
+	url_key: z.string().describe(""),
+	ai_budget_daily_usd: z.number().nullable().optional().describe(""),
+	ai_budget_monthly_usd: z.number().nullable().optional().describe(""),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe("")
 });
 const zResponseCommentTestDto = z.object({
 	id: z.string().describe(""),
@@ -211,6 +211,15 @@ const zResponseRoleDto = z.object({
 	workspace_id: z.string().describe(""),
 	deleted_at: z.unknown().describe(""),
 	deleted_by: z.string().nullable().describe("")
+});
+const zCascadeIssueRefDto = z.object({
+	id: z.string(),
+	identifier: z.record(z.string(), z.unknown()).nullable(),
+	title: z.record(z.string(), z.unknown()).nullable()
+});
+const zCascadeSkipDto = z.object({
+	issue: zCascadeIssueRefDto,
+	reason: z.string()
 });
 
 //#endregion
@@ -16578,6 +16587,23 @@ const zIssueTestLinkRemoveV1Data = z.object({
 const zIssueTestLinkBulkOperationV1Data = z.object({
 	body: zBulkIssueTestLinkRequestDto,
 	url: z.literal("/v1/issue-test-link/bulk")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/issue-transition/zod.js
+const zTransitionIssueDto = z.object({
+	workflow_state_id: z.string().describe(""),
+	child_completion: z.enum([
+		"require_children",
+		"leave_children",
+		"cascade_children"
+	]).optional().describe(""),
+	batch_scope: z.array(z.string()).optional().describe("")
+});
+const zIssueTransitionTransitionV1Data = z.object({
+	body: zTransitionIssueDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/issue/{id}/transition")
 });
 
 //#endregion
