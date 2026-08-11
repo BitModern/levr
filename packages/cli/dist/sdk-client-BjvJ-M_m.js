@@ -124,7 +124,6 @@ const zResponseIssueDto = z.object({
 	team_id: z.string().describe(""),
 	workflow_state_id: z.string().optional().describe(""),
 	creator_id: z.string().optional().describe(""),
-	initiative_id: z.string().nullable().optional().describe(""),
 	gate_set_id: z.string().nullable().optional().describe(""),
 	milestone_id: z.string().nullable().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
@@ -14941,18 +14940,25 @@ const zCreateInitiativeDto = z.object({
 		"at_risk",
 		"off_track"
 	]).nullable().optional().describe(""),
-	target_date: z.unknown().optional().describe(""),
+	due_date: z.unknown().optional().describe(""),
+	due_date_precision: z.enum([
+		"day",
+		"month",
+		"quarter",
+		"half_year",
+		"year"
+	]).optional().describe(""),
 	update_schedule_days: z.number().nullable().optional().describe(""),
 	sequence: z.string().optional().describe(""),
 	started_at: z.unknown().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
 	canceled_at: z.unknown().optional().describe(""),
-	requirement_progress: z.number().nullable().optional().describe(""),
-	issue_progress: z.number().nullable().optional().describe(""),
-	total_requirements: z.number().optional().describe(""),
-	completed_requirements: z.number().optional().describe(""),
-	total_linked_issues: z.number().optional().describe(""),
-	closed_linked_issues: z.number().optional().describe(""),
+	scope: z.number().optional().describe(""),
+	completed_scope: z.number().optional().describe(""),
+	progress: z.number().optional().describe(""),
+	scope_is_mixed_unit: z.boolean().optional().describe(""),
+	project_count: z.number().optional().describe(""),
+	completed_project_count: z.number().optional().describe(""),
 	owner_id: z.string().nullable().optional(),
 	creator_id: z.string(),
 	parent_id: z.string().nullable().optional()
@@ -14976,18 +14982,25 @@ const zResponseInitiativeDto = z.object({
 		"at_risk",
 		"off_track"
 	]).nullable().optional().describe(""),
-	target_date: z.unknown().optional().describe(""),
+	due_date: z.unknown().optional().describe(""),
+	due_date_precision: z.enum([
+		"day",
+		"month",
+		"quarter",
+		"half_year",
+		"year"
+	]).optional().describe(""),
 	update_schedule_days: z.number().nullable().optional().describe(""),
 	sequence: z.string().optional().describe(""),
 	started_at: z.unknown().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
 	canceled_at: z.unknown().optional().describe(""),
-	requirement_progress: z.number().nullable().optional().describe(""),
-	issue_progress: z.number().nullable().optional().describe(""),
-	total_requirements: z.number().optional().describe(""),
-	completed_requirements: z.number().optional().describe(""),
-	total_linked_issues: z.number().optional().describe(""),
-	closed_linked_issues: z.number().optional().describe(""),
+	scope: z.number().optional().describe(""),
+	completed_scope: z.number().optional().describe(""),
+	progress: z.number().optional().describe(""),
+	scope_is_mixed_unit: z.boolean().optional().describe(""),
+	project_count: z.number().optional().describe(""),
+	completed_project_count: z.number().optional().describe(""),
 	owner_id: z.string().nullable().optional(),
 	creator_id: z.string(),
 	parent_id: z.string().nullable().optional(),
@@ -15021,18 +15034,25 @@ const zUpdateInitiativeDto = z.object({
 		"at_risk",
 		"off_track"
 	]).nullable().optional().describe(""),
-	target_date: z.unknown().optional().describe(""),
+	due_date: z.unknown().optional().describe(""),
+	due_date_precision: z.enum([
+		"day",
+		"month",
+		"quarter",
+		"half_year",
+		"year"
+	]).optional().describe(""),
 	update_schedule_days: z.number().nullable().optional().describe(""),
 	sequence: z.string().optional().describe(""),
 	started_at: z.unknown().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
 	canceled_at: z.unknown().optional().describe(""),
-	requirement_progress: z.number().nullable().optional().describe(""),
-	issue_progress: z.number().nullable().optional().describe(""),
-	total_requirements: z.number().optional().describe(""),
-	completed_requirements: z.number().optional().describe(""),
-	total_linked_issues: z.number().optional().describe(""),
-	closed_linked_issues: z.number().optional().describe(""),
+	scope: z.number().optional().describe(""),
+	completed_scope: z.number().optional().describe(""),
+	progress: z.number().optional().describe(""),
+	scope_is_mixed_unit: z.boolean().optional().describe(""),
+	project_count: z.number().optional().describe(""),
+	completed_project_count: z.number().optional().describe(""),
 	owner_id: z.string().nullable().optional(),
 	creator_id: z.string().optional(),
 	parent_id: z.string().nullable().optional(),
@@ -15085,18 +15105,18 @@ const zInitiativeFindAllV1Data = z.object({
 		"filter.content": z.array(z.string()).optional(),
 		"filter.icon": z.array(z.string()).optional(),
 		"filter.color": z.array(z.string()).optional(),
-		"filter.target_date": z.array(z.string()).optional(),
+		"filter.due_date": z.array(z.string()).optional(),
 		"filter.update_schedule_days": z.array(z.string()).optional(),
 		"filter.sequence": z.array(z.string()).optional(),
 		"filter.started_at": z.array(z.string()).optional(),
 		"filter.completed_at": z.array(z.string()).optional(),
 		"filter.canceled_at": z.array(z.string()).optional(),
-		"filter.requirement_progress": z.array(z.string()).optional(),
-		"filter.issue_progress": z.array(z.string()).optional(),
-		"filter.total_requirements": z.array(z.string()).optional(),
-		"filter.completed_requirements": z.array(z.string()).optional(),
-		"filter.total_linked_issues": z.array(z.string()).optional(),
-		"filter.closed_linked_issues": z.array(z.string()).optional(),
+		"filter.scope": z.array(z.string()).optional(),
+		"filter.completed_scope": z.array(z.string()).optional(),
+		"filter.progress": z.array(z.string()).optional(),
+		"filter.scope_is_mixed_unit": z.array(z.string()).optional(),
+		"filter.project_count": z.array(z.string()).optional(),
+		"filter.completed_project_count": z.array(z.string()).optional(),
 		"filter.owner_id": z.array(z.string()).optional(),
 		"filter.creator_id": z.array(z.string()).optional(),
 		"filter.parent_id": z.array(z.string()).optional(),
@@ -15119,8 +15139,8 @@ const zInitiativeFindAllV1Data = z.object({
 			"icon:DESC",
 			"color:ASC",
 			"color:DESC",
-			"target_date:ASC",
-			"target_date:DESC",
+			"due_date:ASC",
+			"due_date:DESC",
 			"update_schedule_days:ASC",
 			"update_schedule_days:DESC",
 			"sequence:ASC",
@@ -15131,18 +15151,16 @@ const zInitiativeFindAllV1Data = z.object({
 			"completed_at:DESC",
 			"canceled_at:ASC",
 			"canceled_at:DESC",
-			"requirement_progress:ASC",
-			"requirement_progress:DESC",
-			"issue_progress:ASC",
-			"issue_progress:DESC",
-			"total_requirements:ASC",
-			"total_requirements:DESC",
-			"completed_requirements:ASC",
-			"completed_requirements:DESC",
-			"total_linked_issues:ASC",
-			"total_linked_issues:DESC",
-			"closed_linked_issues:ASC",
-			"closed_linked_issues:DESC",
+			"scope:ASC",
+			"scope:DESC",
+			"completed_scope:ASC",
+			"completed_scope:DESC",
+			"progress:ASC",
+			"progress:DESC",
+			"project_count:ASC",
+			"project_count:DESC",
+			"completed_project_count:ASC",
+			"completed_project_count:DESC",
 			"owner_id:ASC",
 			"owner_id:DESC",
 			"parent_id:ASC",
@@ -15191,329 +15209,6 @@ const zInitiativeArchiveV1Data = z.object({
 const zInitiativeUnarchiveV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/initiative/{id}/unarchive")
-});
-
-//#endregion
-//#region ../sdk/dist/gen/initiative-grid/zod.js
-const zCreateInitiativeGridDto = z.object({
-	id: z.string().optional().describe(""),
-	name: z.string().describe(""),
-	definition: z.string().nullable().optional().describe(""),
-	column_config: z.unknown().optional().describe(""),
-	sync_stats: z.unknown().optional().describe(""),
-	last_synced_at: z.unknown().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	initiative_id: z.string().nullable().optional(),
-	team_id: z.string(),
-	project_id: z.string().nullable().optional(),
-	creator_id: z.string()
-});
-const zResponseInitiativeGridDto = z.object({
-	id: z.string().describe(""),
-	name: z.string().describe(""),
-	definition: z.string().nullable().optional().describe(""),
-	column_config: z.unknown().optional().describe(""),
-	sync_stats: z.unknown().optional().describe(""),
-	last_synced_at: z.unknown().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	initiative_id: z.string().nullable().optional(),
-	team_id: z.string(),
-	project_id: z.string().nullable().optional(),
-	creator_id: z.string(),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe(""),
-	deleted_at: z.unknown().describe(""),
-	deleted_by: z.string().nullable().describe(""),
-	archived_at: z.unknown().describe(""),
-	archived_by: z.string().nullable().describe("")
-});
-const zUpdateInitiativeGridDto = z.object({
-	id: z.string().optional().describe(""),
-	name: z.string().optional().describe(""),
-	definition: z.string().nullable().optional().describe(""),
-	column_config: z.unknown().optional().describe(""),
-	sync_stats: z.unknown().optional().describe(""),
-	last_synced_at: z.unknown().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	initiative_id: z.string().nullable().optional(),
-	team_id: z.string().optional(),
-	project_id: z.string().nullable().optional(),
-	creator_id: z.string().optional(),
-	archived_at: z.unknown().optional().describe("")
-});
-const zInitiativeGridBulkOperationDto = z.object({
-	op: z.enum([
-		"create",
-		"update",
-		"delete"
-	]).describe(""),
-	id: z.string().optional().describe(""),
-	data: z.union([zCreateInitiativeGridDto, zUpdateInitiativeGridDto]).optional().describe(""),
-	tx_id: z.string().describe("")
-});
-const zBulkInitiativeGridRequestDto = z.object({ operations: z.array(zInitiativeGridBulkOperationDto).describe("") });
-const zBulkInitiativeGridOperationResultDto = z.object({
-	index: z.number().describe(""),
-	tx_id: z.string().describe(""),
-	status: z.number().describe(""),
-	error: z.object({
-		message: z.string().optional(),
-		code: z.string().optional(),
-		details: z.unknown().optional()
-	}).optional().describe(""),
-	response: zResponseInitiativeGridDto.optional().describe("")
-});
-const zBulkInitiativeGridResponseDto = z.object({
-	results: z.array(zBulkInitiativeGridOperationResultDto).describe(""),
-	summary: z.object({
-		total: z.number().describe(""),
-		successful: z.number().describe(""),
-		failed: z.number().describe(""),
-		savepoints_used: z.number().describe("")
-	}).describe("")
-});
-const zInitiativeGridCreateV1Data = z.object({
-	body: zCreateInitiativeGridDto,
-	url: z.literal("/v1/initiative-grid")
-});
-const zInitiativeGridFindAllV1Data = z.object({
-	query: z.object({
-		"_with": z.string().optional(),
-		"page": z.number().optional(),
-		"limit": z.number().optional(),
-		"filter.id": z.array(z.string()).optional(),
-		"filter.name": z.array(z.string()).optional(),
-		"filter.definition": z.array(z.string()).optional(),
-		"filter.last_synced_at": z.array(z.string()).optional(),
-		"filter.sequence": z.array(z.string()).optional(),
-		"filter.initiative_id": z.array(z.string()).optional(),
-		"filter.team_id": z.array(z.string()).optional(),
-		"filter.creator_id": z.array(z.string()).optional(),
-		"filter.created_at": z.array(z.string()).optional(),
-		"filter.updated_at": z.array(z.string()).optional(),
-		"filter.project_id": z.array(z.string()).optional(),
-		"filter.deleted_at": z.array(z.string()).optional(),
-		"filter.archived_at": z.array(z.string()).optional(),
-		"sortBy": z.array(z.enum([
-			"id:ASC",
-			"id:DESC",
-			"name:ASC",
-			"name:DESC",
-			"definition:ASC",
-			"definition:DESC",
-			"last_synced_at:ASC",
-			"last_synced_at:DESC",
-			"sequence:ASC",
-			"sequence:DESC",
-			"initiative_id:ASC",
-			"initiative_id:DESC",
-			"project_id:ASC",
-			"project_id:DESC",
-			"created_at:ASC",
-			"created_at:DESC",
-			"updated_at:ASC",
-			"updated_at:DESC",
-			"deleted_at:ASC",
-			"deleted_at:DESC",
-			"archived_at:ASC",
-			"archived_at:DESC"
-		])).optional(),
-		"search": z.string().optional(),
-		"searchBy": z.array(z.string()).optional()
-	}).optional(),
-	url: z.literal("/v1/initiative-grid")
-});
-const zInitiativeGridFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/initiative-grid/recently-deleted") });
-const zInitiativeGridFindArchivedV1Data = z.object({ url: z.literal("/v1/initiative-grid/archived") });
-const zInitiativeGridFindOneV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid/{id}")
-});
-const zInitiativeGridUpdateV1Data = z.object({
-	body: zUpdateInitiativeGridDto,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid/{id}")
-});
-const zInitiativeGridRemoveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid/{id}")
-});
-const zInitiativeGridBulkOperationV1Data = z.object({
-	body: zBulkInitiativeGridRequestDto,
-	url: z.literal("/v1/initiative-grid/bulk")
-});
-const zInitiativeGridRestoreV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid/{id}/restore")
-});
-const zInitiativeGridArchiveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid/{id}/archive")
-});
-const zInitiativeGridUnarchiveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid/{id}/unarchive")
-});
-
-//#endregion
-//#region ../sdk/dist/gen/initiative-grid-row/zod.js
-const zCreateInitiativeGridRowDto = z.object({
-	id: z.string().optional().describe(""),
-	depth: z.number().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	cells: z.unknown().optional().describe(""),
-	last_synced_cells: z.unknown().optional().describe(""),
-	grid_id: z.string(),
-	issue_id: z.string().nullable().optional(),
-	creator_id: z.string()
-});
-const zResponseInitiativeGridRowDto = z.object({
-	id: z.string().describe(""),
-	depth: z.number().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	cells: z.unknown().optional().describe(""),
-	last_synced_cells: z.unknown().optional().describe(""),
-	grid_id: z.string(),
-	issue_id: z.string().nullable().optional(),
-	creator_id: z.string(),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe(""),
-	deleted_at: z.unknown().describe(""),
-	deleted_by: z.string().nullable().describe("")
-});
-const zUpdateInitiativeGridRowDto = z.object({
-	id: z.string().optional().describe(""),
-	depth: z.number().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	cells: z.unknown().optional().describe(""),
-	last_synced_cells: z.unknown().optional().describe(""),
-	grid_id: z.string().optional(),
-	issue_id: z.string().nullable().optional(),
-	creator_id: z.string().optional()
-});
-const zInitiativeGridRowBulkOperationDto = z.object({
-	op: z.enum([
-		"create",
-		"update",
-		"delete"
-	]).describe(""),
-	id: z.string().optional().describe(""),
-	data: z.union([zCreateInitiativeGridRowDto, zUpdateInitiativeGridRowDto]).optional().describe(""),
-	tx_id: z.string().describe("")
-});
-const zBulkInitiativeGridRowRequestDto = z.object({ operations: z.array(zInitiativeGridRowBulkOperationDto).describe("") });
-const zBulkInitiativeGridRowOperationResultDto = z.object({
-	index: z.number().describe(""),
-	tx_id: z.string().describe(""),
-	status: z.number().describe(""),
-	error: z.object({
-		message: z.string().optional(),
-		code: z.string().optional(),
-		details: z.unknown().optional()
-	}).optional().describe(""),
-	response: zResponseInitiativeGridRowDto.optional().describe("")
-});
-const zBulkInitiativeGridRowResponseDto = z.object({
-	results: z.array(zBulkInitiativeGridRowOperationResultDto).describe(""),
-	summary: z.object({
-		total: z.number().describe(""),
-		successful: z.number().describe(""),
-		failed: z.number().describe(""),
-		savepoints_used: z.number().describe("")
-	}).describe("")
-});
-const zInitiativeGridRowCreateV1Data = z.object({
-	body: zCreateInitiativeGridRowDto,
-	url: z.literal("/v1/initiative-grid-row")
-});
-const zInitiativeGridRowFindAllV1Data = z.object({
-	query: z.object({
-		"_with": z.string().optional(),
-		"page": z.number().optional(),
-		"limit": z.number().optional(),
-		"filter.id": z.array(z.string()).optional(),
-		"filter.depth": z.array(z.string()).optional(),
-		"filter.sequence": z.array(z.string()).optional(),
-		"filter.grid_id": z.array(z.string()).optional(),
-		"filter.issue_id": z.array(z.string()).optional(),
-		"filter.creator_id": z.array(z.string()).optional(),
-		"filter.created_at": z.array(z.string()).optional(),
-		"filter.updated_at": z.array(z.string()).optional(),
-		"filter.deleted_at": z.array(z.string()).optional(),
-		"sortBy": z.array(z.enum([
-			"id:ASC",
-			"id:DESC",
-			"depth:ASC",
-			"depth:DESC",
-			"sequence:ASC",
-			"sequence:DESC",
-			"issue_id:ASC",
-			"issue_id:DESC",
-			"created_at:ASC",
-			"created_at:DESC",
-			"updated_at:ASC",
-			"updated_at:DESC",
-			"deleted_at:ASC",
-			"deleted_at:DESC"
-		])).optional(),
-		"search": z.string().optional(),
-		"searchBy": z.array(z.string()).optional()
-	}).optional(),
-	url: z.literal("/v1/initiative-grid-row")
-});
-const zInitiativeGridRowFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/initiative-grid-row/recently-deleted") });
-const zInitiativeGridRowFindOneV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid-row/{id}")
-});
-const zInitiativeGridRowUpdateV1Data = z.object({
-	body: zUpdateInitiativeGridRowDto,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid-row/{id}")
-});
-const zInitiativeGridRowRemoveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid-row/{id}")
-});
-const zInitiativeGridRowBulkOperationV1Data = z.object({
-	body: zBulkInitiativeGridRowRequestDto,
-	url: z.literal("/v1/initiative-grid-row/bulk")
-});
-const zInitiativeGridRowRestoreV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid-row/{id}/restore")
-});
-
-//#endregion
-//#region ../sdk/dist/gen/initiative-grid-sync/zod.js
-const zSyncRowConflictDto = z.object({
-	row_id: z.string().describe(""),
-	issue_id: z.string().describe(""),
-	fields: z.array(z.string()).describe("")
-});
-const zSyncRowErrorDto = z.object({
-	row_id: z.string().describe(""),
-	message: z.string().describe("")
-});
-const zSyncInitiativeGridResponseDto = z.object({
-	project_id: z.record(z.string(), z.unknown()).nullable().describe(""),
-	created: z.number().describe(""),
-	updated: z.number().describe(""),
-	skipped: z.number().describe(""),
-	conflicts: z.array(zSyncRowConflictDto).describe(""),
-	errors: z.array(zSyncRowErrorDto).describe("")
-});
-const zInitiativeGridSyncSyncV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-grid/{id}/sync")
 });
 
 //#endregion
@@ -15622,162 +15317,6 @@ const zInitiativeProjectBulkOperationV1Data = z.object({
 });
 
 //#endregion
-//#region ../sdk/dist/gen/initiative-proposal/zod.js
-const zCreateInitiativeProposalDto = z.object({
-	id: z.string().optional().describe(""),
-	status: z.enum([
-		"pending",
-		"partial",
-		"applied",
-		"dismissed"
-	]).optional().describe(""),
-	summary: z.string().describe(""),
-	rationale: z.string().nullable().optional().describe(""),
-	stats: z.unknown().optional().describe(""),
-	applied_at: z.unknown().optional().describe(""),
-	dismissed_at: z.unknown().optional().describe(""),
-	initiative_id: z.string(),
-	creator_id: z.string().nullable().optional()
-});
-const zResponseInitiativeProposalDto = z.object({
-	id: z.string().describe(""),
-	status: z.enum([
-		"pending",
-		"partial",
-		"applied",
-		"dismissed"
-	]).optional().describe(""),
-	summary: z.string().describe(""),
-	rationale: z.string().nullable().optional().describe(""),
-	stats: z.unknown().optional().describe(""),
-	applied_at: z.unknown().optional().describe(""),
-	dismissed_at: z.unknown().optional().describe(""),
-	initiative_id: z.string(),
-	creator_id: z.string().nullable().optional(),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe(""),
-	deleted_at: z.unknown().describe(""),
-	deleted_by: z.string().nullable().describe("")
-});
-const zUpdateInitiativeProposalDto = z.object({
-	id: z.string().optional().describe(""),
-	status: z.enum([
-		"pending",
-		"partial",
-		"applied",
-		"dismissed"
-	]).optional().describe(""),
-	summary: z.string().optional().describe(""),
-	rationale: z.string().nullable().optional().describe(""),
-	stats: z.unknown().optional().describe(""),
-	applied_at: z.unknown().optional().describe(""),
-	dismissed_at: z.unknown().optional().describe(""),
-	initiative_id: z.string().optional(),
-	creator_id: z.string().nullable().optional()
-});
-const zInitiativeProposalBulkOperationDto = z.object({
-	op: z.enum([
-		"create",
-		"update",
-		"delete"
-	]).describe(""),
-	id: z.string().optional().describe(""),
-	data: z.union([zCreateInitiativeProposalDto, zUpdateInitiativeProposalDto]).optional().describe(""),
-	tx_id: z.string().describe("")
-});
-const zBulkInitiativeProposalRequestDto = z.object({ operations: z.array(zInitiativeProposalBulkOperationDto).describe("") });
-const zBulkInitiativeProposalOperationResultDto = z.object({
-	index: z.number().describe(""),
-	tx_id: z.string().describe(""),
-	status: z.number().describe(""),
-	error: z.object({
-		message: z.string().optional(),
-		code: z.string().optional(),
-		details: z.unknown().optional()
-	}).optional().describe(""),
-	response: zResponseInitiativeProposalDto.optional().describe("")
-});
-const zBulkInitiativeProposalResponseDto = z.object({
-	results: z.array(zBulkInitiativeProposalOperationResultDto).describe(""),
-	summary: z.object({
-		total: z.number().describe(""),
-		successful: z.number().describe(""),
-		failed: z.number().describe(""),
-		savepoints_used: z.number().describe("")
-	}).describe("")
-});
-const zInitiativeProposalCreateV1Data = z.object({
-	body: zCreateInitiativeProposalDto,
-	url: z.literal("/v1/initiative-proposal")
-});
-const zInitiativeProposalFindAllV1Data = z.object({
-	query: z.object({
-		"_with": z.string().optional(),
-		"page": z.number().optional(),
-		"limit": z.number().optional(),
-		"filter.id": z.array(z.string()).optional(),
-		"filter.summary": z.array(z.string()).optional(),
-		"filter.rationale": z.array(z.string()).optional(),
-		"filter.applied_at": z.array(z.string()).optional(),
-		"filter.dismissed_at": z.array(z.string()).optional(),
-		"filter.initiative_id": z.array(z.string()).optional(),
-		"filter.creator_id": z.array(z.string()).optional(),
-		"filter.created_at": z.array(z.string()).optional(),
-		"filter.updated_at": z.array(z.string()).optional(),
-		"filter.deleted_at": z.array(z.string()).optional(),
-		"sortBy": z.array(z.enum([
-			"id:ASC",
-			"id:DESC",
-			"summary:ASC",
-			"summary:DESC",
-			"rationale:ASC",
-			"rationale:DESC",
-			"applied_at:ASC",
-			"applied_at:DESC",
-			"dismissed_at:ASC",
-			"dismissed_at:DESC",
-			"creator_id:ASC",
-			"creator_id:DESC",
-			"created_at:ASC",
-			"created_at:DESC",
-			"updated_at:ASC",
-			"updated_at:DESC",
-			"deleted_at:ASC",
-			"deleted_at:DESC"
-		])).optional(),
-		"search": z.string().optional(),
-		"searchBy": z.array(z.string()).optional()
-	}).optional(),
-	url: z.literal("/v1/initiative-proposal")
-});
-const zInitiativeProposalFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/initiative-proposal/recently-deleted") });
-const zInitiativeProposalFindOneV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-proposal/{id}")
-});
-const zInitiativeProposalUpdateV1Data = z.object({
-	body: zUpdateInitiativeProposalDto,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-proposal/{id}")
-});
-const zInitiativeProposalRemoveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-proposal/{id}")
-});
-const zInitiativeProposalBulkOperationV1Data = z.object({
-	body: zBulkInitiativeProposalRequestDto,
-	url: z.literal("/v1/initiative-proposal/bulk")
-});
-const zInitiativeProposalRestoreV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/initiative-proposal/{id}/restore")
-});
-
-//#endregion
 //#region ../sdk/dist/gen/integration-token/zod.js
 const zIntegrationTokenGetStatusV1Data = z.object({ url: z.literal("/v1/integrations/status") });
 const zIntegrationTokenDisconnectGithubV1Data = z.object({ url: z.literal("/v1/integrations/github") });
@@ -15813,7 +15352,6 @@ const zCreateIssueDto = z.object({
 	team_id: z.string().describe(""),
 	workflow_state_id: z.string().optional().describe(""),
 	creator_id: z.string().optional().describe(""),
-	initiative_id: z.string().nullable().optional().describe(""),
 	gate_set_id: z.string().nullable().optional().describe(""),
 	milestone_id: z.string().nullable().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
@@ -15851,7 +15389,6 @@ const zUpdateIssueDto = z.object({
 	team_id: z.string().optional().describe(""),
 	workflow_state_id: z.string().optional().describe(""),
 	creator_id: z.string().optional().describe(""),
-	initiative_id: z.string().nullable().optional().describe(""),
 	gate_set_id: z.string().nullable().optional().describe(""),
 	milestone_id: z.string().nullable().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
@@ -15929,7 +15466,6 @@ const zIssueFindAllV1Data = z.object({
 		"filter.team_id": z.array(z.string()).optional(),
 		"filter.workflow_state_id": z.array(z.string()).optional(),
 		"filter.creator_id": z.array(z.string()).optional(),
-		"filter.initiative_id": z.array(z.string()).optional(),
 		"filter.gate_set_id": z.array(z.string()).optional(),
 		"filter.milestone_id": z.array(z.string()).optional(),
 		"filter.spoke_key": z.array(z.string()).optional(),
@@ -16003,8 +15539,6 @@ const zIssueFindAllV1Data = z.object({
 			"cycle_id:DESC",
 			"type_label_id:ASC",
 			"type_label_id:DESC",
-			"initiative_id:ASC",
-			"initiative_id:DESC",
 			"gate_set_id:ASC",
 			"gate_set_id:DESC",
 			"milestone_id:ASC",
@@ -22118,291 +21652,6 @@ const zPromptAgentSubscribeToSessionV1Data = z.object({
 	url: z.literal("/v1/prompt-agent/claude-cli/session/subscribe/{briefId}")
 });
 const zPromptAgentRespawnClaudeCliSessionV1Data = z.object({ url: z.literal("/v1/prompt-agent/claude-cli/session/respawn") });
-
-//#endregion
-//#region ../sdk/dist/gen/proposal-group/zod.js
-const zCreateProposalGroupDto = z.object({
-	id: z.string().optional().describe(""),
-	entity_type: z.enum(["theme", "requirement"]).describe(""),
-	title: z.string().describe(""),
-	narrative: z.string().nullable().optional().describe(""),
-	is_new: z.boolean().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	proposal_id: z.string(),
-	parent_group_id: z.string().nullable().optional(),
-	target_initiative_id: z.string().nullable().optional(),
-	target_issue_id: z.string().nullable().optional()
-});
-const zResponseProposalGroupDto = z.object({
-	id: z.string().describe(""),
-	entity_type: z.enum(["theme", "requirement"]).describe(""),
-	title: z.string().describe(""),
-	narrative: z.string().nullable().optional().describe(""),
-	is_new: z.boolean().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	proposal_id: z.string(),
-	parent_group_id: z.string().nullable().optional(),
-	target_initiative_id: z.string().nullable().optional(),
-	target_issue_id: z.string().nullable().optional(),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
-});
-const zUpdateProposalGroupDto = z.object({
-	id: z.string().optional().describe(""),
-	entity_type: z.enum(["theme", "requirement"]).optional().describe(""),
-	title: z.string().optional().describe(""),
-	narrative: z.string().nullable().optional().describe(""),
-	is_new: z.boolean().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	proposal_id: z.string().optional(),
-	parent_group_id: z.string().nullable().optional(),
-	target_initiative_id: z.string().nullable().optional(),
-	target_issue_id: z.string().nullable().optional()
-});
-const zProposalGroupBulkOperationDto = z.object({
-	op: z.enum([
-		"create",
-		"update",
-		"delete"
-	]).describe(""),
-	id: z.string().optional().describe(""),
-	data: z.union([zCreateProposalGroupDto, zUpdateProposalGroupDto]).optional().describe(""),
-	tx_id: z.string().describe("")
-});
-const zBulkProposalGroupRequestDto = z.object({ operations: z.array(zProposalGroupBulkOperationDto).describe("") });
-const zBulkProposalGroupOperationResultDto = z.object({
-	index: z.number().describe(""),
-	tx_id: z.string().describe(""),
-	status: z.number().describe(""),
-	error: z.object({
-		message: z.string().optional(),
-		code: z.string().optional(),
-		details: z.unknown().optional()
-	}).optional().describe(""),
-	response: zResponseProposalGroupDto.optional().describe("")
-});
-const zBulkProposalGroupResponseDto = z.object({
-	results: z.array(zBulkProposalGroupOperationResultDto).describe(""),
-	summary: z.object({
-		total: z.number().describe(""),
-		successful: z.number().describe(""),
-		failed: z.number().describe(""),
-		savepoints_used: z.number().describe("")
-	}).describe("")
-});
-const zProposalGroupCreateV1Data = z.object({
-	body: zCreateProposalGroupDto,
-	url: z.literal("/v1/proposal-group")
-});
-const zProposalGroupFindAllV1Data = z.object({
-	query: z.object({
-		"_with": z.string().optional(),
-		"page": z.number().optional(),
-		"limit": z.number().optional(),
-		"filter.id": z.array(z.string()).optional(),
-		"filter.title": z.array(z.string()).optional(),
-		"filter.narrative": z.array(z.string()).optional(),
-		"filter.is_new": z.array(z.string()).optional(),
-		"filter.sequence": z.array(z.string()).optional(),
-		"filter.proposal_id": z.array(z.string()).optional(),
-		"filter.parent_group_id": z.array(z.string()).optional(),
-		"filter.target_initiative_id": z.array(z.string()).optional(),
-		"filter.target_issue_id": z.array(z.string()).optional(),
-		"filter.created_at": z.array(z.string()).optional(),
-		"filter.updated_at": z.array(z.string()).optional(),
-		"sortBy": z.array(z.enum([
-			"id:ASC",
-			"id:DESC",
-			"title:ASC",
-			"title:DESC",
-			"narrative:ASC",
-			"narrative:DESC",
-			"sequence:ASC",
-			"sequence:DESC",
-			"parent_group_id:ASC",
-			"parent_group_id:DESC",
-			"target_initiative_id:ASC",
-			"target_initiative_id:DESC",
-			"target_issue_id:ASC",
-			"target_issue_id:DESC",
-			"created_at:ASC",
-			"created_at:DESC",
-			"updated_at:ASC",
-			"updated_at:DESC"
-		])).optional(),
-		"search": z.string().optional(),
-		"searchBy": z.array(z.string()).optional()
-	}).optional(),
-	url: z.literal("/v1/proposal-group")
-});
-const zProposalGroupFindOneV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/proposal-group/{id}")
-});
-const zProposalGroupUpdateV1Data = z.object({
-	body: zUpdateProposalGroupDto,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/proposal-group/{id}")
-});
-const zProposalGroupRemoveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/proposal-group/{id}")
-});
-const zProposalGroupBulkOperationV1Data = z.object({
-	body: zBulkProposalGroupRequestDto,
-	url: z.literal("/v1/proposal-group/bulk")
-});
-
-//#endregion
-//#region ../sdk/dist/gen/proposal-item/zod.js
-const zCreateProposalItemDto = z.object({
-	id: z.string().optional().describe(""),
-	action: z.enum(["link", "promote"]).optional().describe(""),
-	rationale: z.string().nullable().optional().describe(""),
-	state: z.enum([
-		"pending",
-		"accepted",
-		"rejected"
-	]).optional().describe(""),
-	children_count: z.number().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	accepted_at: z.unknown().optional().describe(""),
-	rejected_at: z.unknown().optional().describe(""),
-	group_id: z.string(),
-	issue_id: z.string()
-});
-const zResponseProposalItemDto = z.object({
-	id: z.string().describe(""),
-	action: z.enum(["link", "promote"]).optional().describe(""),
-	rationale: z.string().nullable().optional().describe(""),
-	state: z.enum([
-		"pending",
-		"accepted",
-		"rejected"
-	]).optional().describe(""),
-	children_count: z.number().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	accepted_at: z.unknown().optional().describe(""),
-	rejected_at: z.unknown().optional().describe(""),
-	group_id: z.string(),
-	issue_id: z.string(),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
-});
-const zUpdateProposalItemDto = z.object({
-	id: z.string().optional().describe(""),
-	action: z.enum(["link", "promote"]).optional().describe(""),
-	rationale: z.string().nullable().optional().describe(""),
-	state: z.enum([
-		"pending",
-		"accepted",
-		"rejected"
-	]).optional().describe(""),
-	children_count: z.number().optional().describe(""),
-	sequence: z.string().optional().describe(""),
-	accepted_at: z.unknown().optional().describe(""),
-	rejected_at: z.unknown().optional().describe(""),
-	group_id: z.string().optional(),
-	issue_id: z.string().optional()
-});
-const zProposalItemBulkOperationDto = z.object({
-	op: z.enum([
-		"create",
-		"update",
-		"delete"
-	]).describe(""),
-	id: z.string().optional().describe(""),
-	data: z.union([zCreateProposalItemDto, zUpdateProposalItemDto]).optional().describe(""),
-	tx_id: z.string().describe("")
-});
-const zBulkProposalItemRequestDto = z.object({ operations: z.array(zProposalItemBulkOperationDto).describe("") });
-const zBulkProposalItemOperationResultDto = z.object({
-	index: z.number().describe(""),
-	tx_id: z.string().describe(""),
-	status: z.number().describe(""),
-	error: z.object({
-		message: z.string().optional(),
-		code: z.string().optional(),
-		details: z.unknown().optional()
-	}).optional().describe(""),
-	response: zResponseProposalItemDto.optional().describe("")
-});
-const zBulkProposalItemResponseDto = z.object({
-	results: z.array(zBulkProposalItemOperationResultDto).describe(""),
-	summary: z.object({
-		total: z.number().describe(""),
-		successful: z.number().describe(""),
-		failed: z.number().describe(""),
-		savepoints_used: z.number().describe("")
-	}).describe("")
-});
-const zProposalItemCreateV1Data = z.object({
-	body: zCreateProposalItemDto,
-	url: z.literal("/v1/proposal-item")
-});
-const zProposalItemFindAllV1Data = z.object({
-	query: z.object({
-		"_with": z.string().optional(),
-		"page": z.number().optional(),
-		"limit": z.number().optional(),
-		"filter.id": z.array(z.string()).optional(),
-		"filter.rationale": z.array(z.string()).optional(),
-		"filter.children_count": z.array(z.string()).optional(),
-		"filter.sequence": z.array(z.string()).optional(),
-		"filter.accepted_at": z.array(z.string()).optional(),
-		"filter.rejected_at": z.array(z.string()).optional(),
-		"filter.group_id": z.array(z.string()).optional(),
-		"filter.issue_id": z.array(z.string()).optional(),
-		"filter.created_at": z.array(z.string()).optional(),
-		"filter.updated_at": z.array(z.string()).optional(),
-		"sortBy": z.array(z.enum([
-			"id:ASC",
-			"id:DESC",
-			"rationale:ASC",
-			"rationale:DESC",
-			"children_count:ASC",
-			"children_count:DESC",
-			"sequence:ASC",
-			"sequence:DESC",
-			"accepted_at:ASC",
-			"accepted_at:DESC",
-			"rejected_at:ASC",
-			"rejected_at:DESC",
-			"created_at:ASC",
-			"created_at:DESC",
-			"updated_at:ASC",
-			"updated_at:DESC"
-		])).optional(),
-		"search": z.string().optional(),
-		"searchBy": z.array(z.string()).optional()
-	}).optional(),
-	url: z.literal("/v1/proposal-item")
-});
-const zProposalItemFindOneV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/proposal-item/{id}")
-});
-const zProposalItemUpdateV1Data = z.object({
-	body: zUpdateProposalItemDto,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/proposal-item/{id}")
-});
-const zProposalItemRemoveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/proposal-item/{id}")
-});
-const zProposalItemBulkOperationV1Data = z.object({
-	body: zBulkProposalItemRequestDto,
-	url: z.literal("/v1/proposal-item/bulk")
-});
 
 //#endregion
 //#region ../sdk/dist/gen/provider/zod.js
