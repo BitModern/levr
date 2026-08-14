@@ -69,7 +69,7 @@ Examples:
       },
       format: {
         kind: 'enum',
-        values: ['junit', 'gherkin', 'cucumber-json'] as const,
+        values: ['junit', 'gherkin', 'cucumber-json', 'ctrf-json'] as const,
         brief: 'File format (auto-detected if omitted)',
         optional: true,
       },

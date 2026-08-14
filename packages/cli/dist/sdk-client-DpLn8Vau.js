@@ -3425,8 +3425,6 @@ const zAutomationRunResultFindAllV1Data = z.object({
 		"filter.trace": z.array(z.string()).optional(),
 		"filter.snippet": z.array(z.string()).optional(),
 		"filter.failure_type": z.array(z.string()).optional(),
-		"filter.stdout": z.array(z.string()).optional(),
-		"filter.stderr": z.array(z.string()).optional(),
 		"filter.stdout_truncated": z.array(z.string()).optional(),
 		"filter.stderr_truncated": z.array(z.string()).optional(),
 		"filter.source_locator": z.array(z.string()).optional(),
@@ -3462,10 +3460,6 @@ const zAutomationRunResultFindAllV1Data = z.object({
 			"snippet:DESC",
 			"failure_type:ASC",
 			"failure_type:DESC",
-			"stdout:ASC",
-			"stdout:DESC",
-			"stderr:ASC",
-			"stderr:DESC",
 			"source_locator:ASC",
 			"source_locator:DESC",
 			"automation_suite_id:ASC",
@@ -3518,6 +3512,13 @@ const zAutomationRunResultArchiveV1Data = z.object({
 const zAutomationRunResultUnarchiveV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/automation-run-result/{id}/unarchive")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/automation-run-result-console/zod.js
+const zAutomationRunResultConsoleGetConsoleV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/automation-run-result/{id}/console")
 });
 
 //#endregion
@@ -14827,7 +14828,8 @@ const zImportCreateV1Body = z.object({
 	format: z.enum([
 		"junit",
 		"gherkin",
-		"cucumber-json"
+		"cucumber-json",
+		"ctrf-json"
 	]).optional().describe(""),
 	parent_folder_id: z.string().optional().describe(""),
 	run_name: z.string().optional().describe(""),
@@ -14847,7 +14849,8 @@ const zImportResponseDto = z.object({
 	format: z.enum([
 		"junit",
 		"gherkin",
-		"cucumber-json"
+		"cucumber-json",
+		"ctrf-json"
 	]).describe(""),
 	created_at: z.string().describe(""),
 	completed_at: z.string().describe(""),
@@ -26739,7 +26742,7 @@ const zPushResultsDto = z.object({ results: z.array(z.object({
 		column_number: z.number().optional(),
 		is_assertion: z.boolean().optional()
 	})).optional(),
-	retry_count: z.number().optional(),
+	retry_count: z.unknown().optional(),
 	flaky: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	line: z.number().optional(),

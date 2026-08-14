@@ -198,12 +198,7 @@ export async function pushHandler(
         fileName,
         automationSourceId,
         runName: flags['run-name'],
-        format: flags.format as
-          | 'junit'
-          | 'ctrf-json'
-          | 'gherkin'
-          | 'cucumber-json'
-          | undefined,
+        format: flags.format,
         externalRunKey: ciMeta?.ci_build_id,
         importMetadata: ciMeta as Record<string, unknown> | undefined,
       });

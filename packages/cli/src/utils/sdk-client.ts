@@ -53,7 +53,7 @@ export interface ImportOptions {
   teamId?: string;
   file: Blob;
   fileName: string;
-  format?: 'junit' | 'gherkin' | 'cucumber-json';
+  format?: 'junit' | 'gherkin' | 'cucumber-json' | 'ctrf-json';
   parentFolderId?: string;
   runName?: string;
   // internal R3: createRun option removed. Run creation is driven by the

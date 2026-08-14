@@ -180,7 +180,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-CJK-EvQR.js");
+		const { loginHandler } = await import("./loginHandler-CkgLWdHW.js");
 		return loginHandler;
 	}
 });
@@ -219,7 +219,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-CFwH9bOl.js");
+		const { statusHandler } = await import("./statusHandler-BeJPCp_P.js");
 		return statusHandler;
 	}
 });
@@ -295,7 +295,8 @@ Examples:
 				values: [
 					"junit",
 					"gherkin",
-					"cucumber-json"
+					"cucumber-json",
+					"ctrf-json"
 				],
 				brief: "File format (auto-detected if omitted)",
 				optional: true
@@ -330,7 +331,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-DqwTndrh.js");
+		const { pushHandler } = await import("./pushHandler-A0jjDZFJ.js");
 		return pushHandler;
 	}
 });
@@ -442,7 +443,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-Bnyx-U3z.js");
+		const { importHandler } = await import("./importHandler-wY3tFusK.js");
 		return importHandler;
 	}
 });
@@ -463,7 +464,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-Bsv-WRO5.js");
+		const { listHandler } = await import("./listHandler-CovRX35T.js");
 		return listHandler;
 	}
 });
@@ -496,7 +497,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-sCE63-w3.js");
+		const { selectHandler } = await import("./selectHandler-rPxNjupR.js");
 		return selectHandler;
 	}
 });
@@ -520,7 +521,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.5.12";
+var version = "0.6.0";
 
 //#endregion
 //#region src/app.ts

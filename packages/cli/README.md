@@ -147,7 +147,7 @@ levr push ./results.xml --source "backend-unit-tests" --run-name "nightly"
 | `--team-id <uuid>`          | `-t`  | Team ID (optional; server resolves default if omitted. Or set `LEVR_TEAM_ID`)              |
 | `--source <name>`           | `-s`  | Automation source name — groups recurring imports and remembers team (auto-detected in CI) |
 | `--run-name <name>`         | `-r`  | Name for the test run                                                                      |
-| `--format <type>`           | `-f`  | File format: `junit`, `gherkin`, `cucumber-json` (auto-detected if omitted)                |
+| `--format <type>`           | `-f`  | File format: `junit`, `gherkin`, `cucumber-json`, `ctrf-json` (auto-detected if omitted)   |
 | `--parent-folder-id <uuid>` |       | Destination folder ID                                                                      |
 | `--create-run`              |       | Force run creation for structure-only imports                                              |
 | `--update-mode <mode>`      |       | `update` (default) or `create_new`                                                         |
