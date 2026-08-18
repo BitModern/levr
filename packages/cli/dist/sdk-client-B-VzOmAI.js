@@ -22,6 +22,7 @@ const zResponseIssueDto = z.object({
 	auto_closed_at: z.unknown().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	origin_detail: z.string().nullable().optional().describe(""),
+	origin_model: z.string().nullable().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	verification_status: z.string().optional().describe(""),
 	confidence_score: z.number().nullable().optional().describe(""),
@@ -12847,6 +12848,149 @@ const zFilterRestoreV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/finding-observation/zod.js
+const zCreateFindingObservationDto = z.object({
+	id: z.string().optional().describe(""),
+	source: z.string().describe(""),
+	model_version: z.string().nullable().optional().describe(""),
+	original_confidence: z.number().describe(""),
+	adjusted_confidence: z.number().nullable().optional().describe(""),
+	asserted_severity: z.string().nullable().optional().describe(""),
+	vote: z.string().nullable().optional().describe(""),
+	outcome: z.string().optional().describe(""),
+	outcome_kind: z.string().nullable().optional().describe(""),
+	finding_id: z.string()
+});
+const zResponseFindingObservationDto = z.object({
+	id: z.string().describe(""),
+	source: z.string().describe(""),
+	model_version: z.string().nullable().optional().describe(""),
+	original_confidence: z.number().describe(""),
+	adjusted_confidence: z.number().nullable().optional().describe(""),
+	asserted_severity: z.string().nullable().optional().describe(""),
+	vote: z.string().nullable().optional().describe(""),
+	outcome: z.string().optional().describe(""),
+	outcome_kind: z.string().nullable().optional().describe(""),
+	finding_id: z.string(),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe(""),
+	workspace_id: z.string().describe("")
+});
+const zUpdateFindingObservationDto = z.object({
+	id: z.string().optional().describe(""),
+	source: z.string().optional().describe(""),
+	model_version: z.string().nullable().optional().describe(""),
+	original_confidence: z.number().optional().describe(""),
+	adjusted_confidence: z.number().nullable().optional().describe(""),
+	asserted_severity: z.string().nullable().optional().describe(""),
+	vote: z.string().nullable().optional().describe(""),
+	outcome: z.string().optional().describe(""),
+	outcome_kind: z.string().nullable().optional().describe(""),
+	finding_id: z.string().optional()
+});
+const zFindingObservationBulkOperationDto = z.object({
+	op: z.enum([
+		"create",
+		"update",
+		"delete"
+	]).describe(""),
+	id: z.string().optional().describe(""),
+	data: z.union([zCreateFindingObservationDto, zUpdateFindingObservationDto]).optional().describe(""),
+	tx_id: z.string().describe("")
+});
+const zBulkFindingObservationRequestDto = z.object({ operations: z.array(zFindingObservationBulkOperationDto).describe("") });
+const zBulkFindingObservationOperationResultDto = z.object({
+	index: z.number().describe(""),
+	tx_id: z.string().describe(""),
+	status: z.number().describe(""),
+	error: z.object({
+		message: z.string().optional(),
+		code: z.string().optional(),
+		details: z.unknown().optional()
+	}).optional().describe(""),
+	response: zResponseFindingObservationDto.optional().describe("")
+});
+const zBulkFindingObservationResponseDto = z.object({
+	results: z.array(zBulkFindingObservationOperationResultDto).describe(""),
+	summary: z.object({
+		total: z.number().describe(""),
+		successful: z.number().describe(""),
+		failed: z.number().describe(""),
+		savepoints_used: z.number().describe("")
+	}).describe("")
+});
+const zFindingObservationCreateV1Data = z.object({
+	body: zCreateFindingObservationDto,
+	url: z.literal("/v1/finding-observation")
+});
+const zFindingObservationFindAllV1Data = z.object({
+	query: z.object({
+		"_with": z.string().optional(),
+		"page": z.number().optional(),
+		"limit": z.number().optional(),
+		"filter.id": z.array(z.string()).optional(),
+		"filter.source": z.array(z.string()).optional(),
+		"filter.model_version": z.array(z.string()).optional(),
+		"filter.original_confidence": z.array(z.string()).optional(),
+		"filter.adjusted_confidence": z.array(z.string()).optional(),
+		"filter.asserted_severity": z.array(z.string()).optional(),
+		"filter.vote": z.array(z.string()).optional(),
+		"filter.outcome": z.array(z.string()).optional(),
+		"filter.outcome_kind": z.array(z.string()).optional(),
+		"filter.finding_id": z.array(z.string()).optional(),
+		"filter.created_at": z.array(z.string()).optional(),
+		"filter.updated_at": z.array(z.string()).optional(),
+		"sortBy": z.array(z.enum([
+			"id:ASC",
+			"id:DESC",
+			"source:ASC",
+			"source:DESC",
+			"model_version:ASC",
+			"model_version:DESC",
+			"original_confidence:ASC",
+			"original_confidence:DESC",
+			"adjusted_confidence:ASC",
+			"adjusted_confidence:DESC",
+			"asserted_severity:ASC",
+			"asserted_severity:DESC",
+			"vote:ASC",
+			"vote:DESC",
+			"outcome:ASC",
+			"outcome:DESC",
+			"outcome_kind:ASC",
+			"outcome_kind:DESC",
+			"created_at:ASC",
+			"created_at:DESC",
+			"updated_at:ASC",
+			"updated_at:DESC"
+		])).optional(),
+		"search": z.string().optional(),
+		"searchBy": z.array(z.string()).optional()
+	}).optional(),
+	url: z.literal("/v1/finding-observation")
+});
+const zFindingObservationFindOneV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/finding-observation/{id}")
+});
+const zFindingObservationUpdateV1Data = z.object({
+	body: zUpdateFindingObservationDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/finding-observation/{id}")
+});
+const zFindingObservationRemoveV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/finding-observation/{id}")
+});
+const zFindingObservationBulkOperationV1Data = z.object({
+	body: zBulkFindingObservationRequestDto,
+	url: z.literal("/v1/finding-observation/bulk")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/folder/zod.js
 const zFolderWithChildrenDto = z.object({
 	type: z.enum(["folder"]),
@@ -15356,6 +15500,7 @@ const zCreateIssueDto = z.object({
 	auto_closed_at: z.unknown().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	origin_detail: z.string().nullable().optional().describe(""),
+	origin_model: z.string().nullable().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	verification_status: z.string().optional().describe(""),
 	confidence_score: z.number().nullable().optional().describe(""),
@@ -15393,6 +15538,7 @@ const zUpdateIssueDto = z.object({
 	auto_closed_at: z.unknown().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	origin_detail: z.string().nullable().optional().describe(""),
+	origin_model: z.string().nullable().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	verification_status: z.string().optional().describe(""),
 	confidence_score: z.number().nullable().optional().describe(""),
@@ -15470,6 +15616,7 @@ const zIssueFindAllV1Data = z.object({
 		"filter.auto_closed_at": z.array(z.string()).optional(),
 		"filter.origin": z.array(z.string()).optional(),
 		"filter.origin_detail": z.array(z.string()).optional(),
+		"filter.origin_model": z.array(z.string()).optional(),
 		"filter.origin_run_result_id": z.array(z.string()).optional(),
 		"filter.verification_status": z.array(z.string()).optional(),
 		"filter.confidence_score": z.array(z.string()).optional(),
@@ -15529,6 +15676,8 @@ const zIssueFindAllV1Data = z.object({
 			"origin:DESC",
 			"origin_detail:ASC",
 			"origin_detail:DESC",
+			"origin_model:ASC",
+			"origin_model:DESC",
 			"verification_status:ASC",
 			"verification_status:DESC",
 			"confidence_score:ASC",
@@ -16108,6 +16257,111 @@ const zIssueRelationRemoveV1Data = z.object({
 const zIssueRelationBulkOperationV1Data = z.object({
 	body: zBulkIssueRelationRequestDto,
 	url: z.literal("/v1/issue-relation/bulk")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/issue-repository/zod.js
+const zCreateIssueRepositoryDto = z.object({
+	id: z.string().optional().describe(""),
+	link_source: z.string().optional().describe(""),
+	issue_id: z.string(),
+	github_repository_id: z.string()
+});
+const zResponseIssueRepositoryDto = z.object({
+	id: z.string().describe(""),
+	link_source: z.string().optional().describe(""),
+	issue_id: z.string(),
+	github_repository_id: z.string(),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe(""),
+	workspace_id: z.string().describe("")
+});
+const zUpdateIssueRepositoryDto = z.object({
+	id: z.string().optional().describe(""),
+	link_source: z.string().optional().describe(""),
+	issue_id: z.string().optional(),
+	github_repository_id: z.string().optional()
+});
+const zIssueRepositoryBulkOperationDto = z.object({
+	op: z.enum([
+		"create",
+		"update",
+		"delete"
+	]).describe(""),
+	id: z.string().optional().describe(""),
+	data: z.union([zCreateIssueRepositoryDto, zUpdateIssueRepositoryDto]).optional().describe(""),
+	tx_id: z.string().describe("")
+});
+const zBulkIssueRepositoryRequestDto = z.object({ operations: z.array(zIssueRepositoryBulkOperationDto).describe("") });
+const zBulkIssueRepositoryOperationResultDto = z.object({
+	index: z.number().describe(""),
+	tx_id: z.string().describe(""),
+	status: z.number().describe(""),
+	error: z.object({
+		message: z.string().optional(),
+		code: z.string().optional(),
+		details: z.unknown().optional()
+	}).optional().describe(""),
+	response: zResponseIssueRepositoryDto.optional().describe("")
+});
+const zBulkIssueRepositoryResponseDto = z.object({
+	results: z.array(zBulkIssueRepositoryOperationResultDto).describe(""),
+	summary: z.object({
+		total: z.number().describe(""),
+		successful: z.number().describe(""),
+		failed: z.number().describe(""),
+		savepoints_used: z.number().describe("")
+	}).describe("")
+});
+const zIssueRepositoryCreateV1Data = z.object({
+	body: zCreateIssueRepositoryDto,
+	url: z.literal("/v1/issue-repository")
+});
+const zIssueRepositoryFindAllV1Data = z.object({
+	query: z.object({
+		"_with": z.string().optional(),
+		"page": z.number().optional(),
+		"limit": z.number().optional(),
+		"filter.id": z.array(z.string()).optional(),
+		"filter.link_source": z.array(z.string()).optional(),
+		"filter.issue_id": z.array(z.string()).optional(),
+		"filter.github_repository_id": z.array(z.string()).optional(),
+		"filter.created_at": z.array(z.string()).optional(),
+		"filter.updated_at": z.array(z.string()).optional(),
+		"sortBy": z.array(z.enum([
+			"id:ASC",
+			"id:DESC",
+			"link_source:ASC",
+			"link_source:DESC",
+			"created_at:ASC",
+			"created_at:DESC",
+			"updated_at:ASC",
+			"updated_at:DESC"
+		])).optional(),
+		"search": z.string().optional(),
+		"searchBy": z.array(z.string()).optional()
+	}).optional(),
+	url: z.literal("/v1/issue-repository")
+});
+const zIssueRepositoryFindOneV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/issue-repository/{id}")
+});
+const zIssueRepositoryUpdateV1Data = z.object({
+	body: zUpdateIssueRepositoryDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/issue-repository/{id}")
+});
+const zIssueRepositoryRemoveV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/issue-repository/{id}")
+});
+const zIssueRepositoryBulkOperationV1Data = z.object({
+	body: zBulkIssueRepositoryRequestDto,
+	url: z.literal("/v1/issue-repository/bulk")
 });
 
 //#endregion
