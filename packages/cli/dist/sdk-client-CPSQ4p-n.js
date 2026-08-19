@@ -23953,6 +23953,10 @@ const zBulkAssignRunResultsDto = z.object({
 	run_result_ids: z.array(z.string()),
 	assignee_id: z.string().nullable()
 });
+const zBulkSetRunResultStatusDto = z.object({
+	run_result_ids: z.array(z.string()),
+	status_id: z.string()
+});
 const zRunResultVariantNodeDto = z.object({
 	type: z.enum(["run_result_variant"]),
 	id: z.string(),
@@ -24147,6 +24151,11 @@ const zRunApiBulkAssignRunResultsV1Data = z.object({
 	body: zBulkAssignRunResultsDto,
 	path: z.object({ "runId": z.string() }),
 	url: z.literal("/v1/run/{runId}/run-results/bulk-assign")
+});
+const zRunApiBulkSetRunResultStatusV1Data = z.object({
+	body: zBulkSetRunResultStatusDto,
+	path: z.object({ "runId": z.string() }),
+	url: z.literal("/v1/run/{runId}/run-results/bulk-status")
 });
 const zRunApiFindRunResultVariantsV1Data = z.object({
 	path: z.object({
