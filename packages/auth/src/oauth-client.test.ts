@@ -289,7 +289,10 @@ describe('OAuthClient.setTokens workspace persistence', () => {
     await p;
 
     expect(saveWorkspace).toHaveBeenCalledTimes(1);
-    expect(saveWorkspace).toHaveBeenCalledWith(wsId);
+    // The backend URL is not optional here (internal): workspace.json is keyed
+    // by it, so a grant that persists an id without saying which backend it
+    // came from is exactly how a local workspace ended up pinned to staging.
+    expect(saveWorkspace).toHaveBeenCalledWith(wsId, 'https://api.test.com');
   });
 
   it('does NOT persist workspace when grant omits user.workspace_id (refresh-like)', async () => {

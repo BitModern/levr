@@ -302,7 +302,7 @@ export function getTqDir(): string {
  * Read the current API URL from ~/.tq/config.json without importing
  * config.ts (avoids circular dependency since config.ts imports us).
  */
-function getCurrentApiUrl(): string | undefined {
+export function getCurrentApiUrl(): string | undefined {
   try {
     // Env var takes precedence
     if (process.env.TQ_BACKEND_URL) {

@@ -566,7 +566,10 @@ export class OAuthClient {
 
     if (tokens.user?.workspace_id) {
       try {
-        saveWorkspace(tokens.user.workspace_id);
+        // Key the identity by the SAME backend URL the tokens were just
+        // stored under — the workspace belongs to that backend and nothing
+        // else (internal).
+        saveWorkspace(tokens.user.workspace_id, this.config.authServerUrl);
       } catch (err) {
         console.error('[levr-auth] Failed to persist workspace:', err);
       }
@@ -648,7 +651,9 @@ export class OAuthClient {
     this.refreshToken = null;
     this.expiresAt = 0;
     clearTokens();
-    clearWorkspace();
+    // Only this client's backend loses its workspace pin — other backends'
+    // entries (a worktree, staging) are none of this logout's business.
+    clearWorkspace(this.config.authServerUrl);
   }
 
   /**
