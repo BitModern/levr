@@ -29,7 +29,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { getTqDir } from './token-store.js';
+import { getTqDir, normalizeBackendUrl } from './token-store.js';
 import { loadConfig } from './config.js';
 
 const WORKSPACE_FILE = 'workspace.json';
@@ -79,7 +79,10 @@ function isIdentityKey(key: string): boolean {
  * error anywhere.
  */
 function normalizeKey(url: string | undefined): string | undefined {
-  const trimmed = url?.trim().replace(/\/+$/, '');
+  // Canonical form comes from token-store, so the two files cannot disagree
+  // about what key a given backend has (internal). The http(s) gate on top is
+  // this store's own: it will not write a key that readIdentityMap discards.
+  const trimmed = normalizeBackendUrl(url);
   if (!trimmed || !isIdentityKey(trimmed)) return undefined;
   return trimmed;
 }
@@ -163,7 +166,10 @@ function readIdentityMap(): IdentityMap {
       if (value === null || typeof value !== 'object' || Array.isArray(value)) {
         continue;
       }
-      map[key] = value as Partial<IdentityCache>;
+      // Normalize on read, mirroring readTokenMap: a `.../` entry and a `...`
+      // entry are the same backend, and only the canonical form is ever
+      // looked up, so an un-normalized key would be permanently unreachable.
+      map[normalizeKey(key) ?? key] = value as Partial<IdentityCache>;
     }
 
     // Legacy flat shape — `{ workspace_id, ... }` and NOT ONE url key. The

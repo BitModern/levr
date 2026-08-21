@@ -618,3 +618,85 @@ describe('F-005 — write and read agree on what is a valid key', () => {
     expect(loadWorkspace(STAGING)).toBe('ws-y');
   });
 });
+
+// ---------------------------------------------------------------------------
+// internal — the cross-file key invariant
+// ---------------------------------------------------------------------------
+//
+// Both file headers claim workspace.json and oauth-tokens.json share a key
+// space. Nothing asserted it, and they diverged: saveTokens keyed on
+// apiBaseUrl verbatim while this store stripped trailing slashes, so one
+// authServerUrl could file the token and the identity under different keys —
+// and loadTokens/clearTokens, which resolve through the stripped
+// getCurrentApiUrl(), then missed the token entirely.
+
+describe('workspace.json and oauth-tokens.json agree on the key', () => {
+  const BACKEND = 'http://localhost:9480';
+
+  async function saveBoth(url: string, wsId: string): Promise<void> {
+    const tokens = await import('./token-store.js');
+    tokens.saveTokens({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiresAt: Date.now() + 3_600_000,
+      apiBaseUrl: url,
+    });
+    saveWorkspace(wsId, url);
+  }
+
+  function keysOf(file: string): string[] {
+    const p = path.join(state.tmpDir, '.tq', file);
+    if (!fs.existsSync(p)) return [];
+    return Object.keys(
+      JSON.parse(fs.readFileSync(p, 'utf-8')) as Record<string, unknown>,
+    ).filter((k) => k.startsWith('http'));
+  }
+
+  it('files both under the same key for one authServerUrl', async () => {
+    await saveBoth(BACKEND, 'ws-1');
+    expect(keysOf('oauth-tokens.json')).toEqual([BACKEND]);
+    expect(keysOf('workspace.json')).toEqual([BACKEND]);
+  });
+
+  it('agrees even when the url carries a trailing slash', async () => {
+    // The exact divergence: verbatim on one side, stripped on the other.
+    await saveBoth(`${BACKEND}/`, 'ws-1');
+    expect(keysOf('oauth-tokens.json')).toEqual(keysOf('workspace.json'));
+    expect(keysOf('workspace.json')).toEqual([BACKEND]);
+  });
+
+  it('a slashed and an unslashed write land on ONE entry, not two', async () => {
+    await saveBoth(BACKEND, 'ws-1');
+    await saveBoth(`${BACKEND}/`, 'ws-2');
+    expect(keysOf('oauth-tokens.json')).toHaveLength(1);
+    expect(keysOf('workspace.json')).toHaveLength(1);
+    expect(loadWorkspace(BACKEND)).toBe('ws-2');
+  });
+
+  it('heals a token key written before normalization existed', async () => {
+    const tqDir = path.join(state.tmpDir, '.tq');
+    fs.mkdirSync(tqDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(tqDir, 'oauth-tokens.json'),
+      JSON.stringify({
+        [`${BACKEND}/`]: {
+          accessToken: 'a',
+          refreshToken: 'r',
+          expiresAt: Date.now() + 3_600_000,
+          apiBaseUrl: `${BACKEND}/`,
+        },
+      }),
+    );
+    const tokens = await import('./token-store.js');
+    // Reading through the map normalizes it, so the entry becomes reachable
+    // by the canonical key every consumer actually looks up.
+    expect(tokens.loadTokensForEnv('local')).toBeNull(); // different backend
+    tokens.saveTokens({
+      accessToken: 'b',
+      refreshToken: 'r',
+      expiresAt: Date.now() + 3_600_000,
+      apiBaseUrl: BACKEND,
+    });
+    expect(keysOf('oauth-tokens.json')).toEqual([BACKEND]);
+  });
+});

@@ -61,6 +61,28 @@ export function resolveUrlFromEnv(env: EnvName): string {
   return ENV_URLS[env];
 }
 
+/**
+ * Canonical form of a backend URL, used as the key in BOTH `oauth-tokens.json`
+ * and `workspace.json`.
+ *
+ * Those two files claim to share a key space (see each header), but until
+ * internal only one side normalized: `saveTokens` keyed on `apiBaseUrl`
+ * verbatim while the identity store stripped trailing slashes. An
+ * `authServerUrl` with a trailing slash therefore filed the token under
+ * `https://api.levr.now/` and the identity under `https://api.levr.now` — and
+ * `loadTokens`/`clearTokens`, which resolve through the stripped
+ * `getCurrentApiUrl()`, then missed the token entirely.
+ *
+ * Deliberately NOT re-exported from `index.ts`: this is an internal invariant
+ * between the two stores, not public API.
+ */
+export function normalizeBackendUrl(
+  url: string | undefined,
+): string | undefined {
+  const trimmed = url?.trim().replace(/\/+$/, '');
+  return trimmed || undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Internal: read/write the token map
 // ---------------------------------------------------------------------------
@@ -78,14 +100,23 @@ function readTokenMap(): TokenMap {
     // Detect legacy single-token format (has accessToken at top level)
     if ('accessToken' in parsed && 'refreshToken' in parsed) {
       const legacy = parsed as unknown as StoredTokens;
-      const key = legacy.apiBaseUrl ?? 'https://api.levr.now';
+      const key =
+        normalizeBackendUrl(legacy.apiBaseUrl) ?? 'https://api.levr.now';
       const map: TokenMap = { [key]: legacy };
       // Migrate in place
       writeTokenMap(map);
       return map;
     }
 
-    return parsed as unknown as TokenMap;
+    // Heal keys written before normalization existed: a `.../` entry and a
+    // `...` entry are the same backend, and only the stripped form is ever
+    // looked up. Later keys win on collision — deterministic, and the loser
+    // was unreachable anyway.
+    const map: TokenMap = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      map[normalizeBackendUrl(key) ?? key] = value as StoredTokens;
+    }
+    return map;
   } catch (error) {
     console.error('[levr-auth] Failed to load stored tokens:', error);
     return {};
@@ -179,7 +210,10 @@ export function loadTokensForUrl(url: string): StoredTokens | null {
 export function saveTokens(tokens: StoredTokens): void {
   try {
     const map = readTokenMap();
-    const key = tokens.apiBaseUrl ?? getCurrentApiUrl() ?? ENV_URLS.staging;
+    const key =
+      normalizeBackendUrl(tokens.apiBaseUrl) ??
+      getCurrentApiUrl() ??
+      ENV_URLS.staging;
     map[key] = tokens;
     writeTokenMap(map);
   } catch (error) {
@@ -306,14 +340,14 @@ export function getCurrentApiUrl(): string | undefined {
   try {
     // Env var takes precedence
     if (process.env.TQ_BACKEND_URL) {
-      return process.env.TQ_BACKEND_URL.replace(/\/+$/, '');
+      return normalizeBackendUrl(process.env.TQ_BACKEND_URL);
     }
     const configPath = path.join(TQ_DIR, 'config.json');
     if (fs.existsSync(configPath)) {
       const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
         apiUrl?: string;
       };
-      if (raw.apiUrl) return raw.apiUrl.replace(/\/+$/, '');
+      if (raw.apiUrl) return normalizeBackendUrl(raw.apiUrl);
     }
   } catch {
     // Fall through
