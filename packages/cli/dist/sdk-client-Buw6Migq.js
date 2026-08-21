@@ -2218,15 +2218,6 @@ const zAgentsGetFollowUpSuggestionsV1Data = z.object({
 	path: z.object({ "agent": z.string() }),
 	url: z.literal("/v1/agents/follow-up/{agent}")
 });
-const zAgentsGetAgentStatsV1Data = z.object({
-	query: z.object({ "daysBack": z.number().optional() }).optional(),
-	url: z.literal("/v1/agents/analytics/stats")
-});
-const zAgentsGetMyPatternsV1Data = z.object({
-	query: z.object({ "daysBack": z.number().optional() }).optional(),
-	url: z.literal("/v1/agents/analytics/my-patterns")
-});
-const zAgentsGetTrendingAgentsV1Data = z.object({ url: z.literal("/v1/agents/analytics/trending") });
 const zAgentsGetConfigV1Data = z.object({ url: z.literal("/v1/agents/config") });
 const zAgentsUpdateConfigV1Data = z.object({
 	body: zAgentsUpdateConfigV1Body,
