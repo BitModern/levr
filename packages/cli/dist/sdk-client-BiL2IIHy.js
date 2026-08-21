@@ -15751,6 +15751,35 @@ const zIssueUnarchiveV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/issue-assign/zod.js
+const zAssignIssueDto = z.object({
+	assignee_id: z.string().nullable().describe(""),
+	child_assignment: z.enum(["leave_children", "cascade_children"]).optional().describe("")
+});
+const zAssignCascadeIssueRefDto = z.object({
+	id: z.string(),
+	identifier: z.record(z.string(), z.unknown()).nullable(),
+	title: z.record(z.string(), z.unknown()).nullable()
+});
+const zAssignCascadeSkipDto = z.object({
+	issue: zAssignCascadeIssueRefDto,
+	reason: z.string()
+});
+const zAssignCascadeOutcomeDto = z.object({
+	cascaded: z.array(zAssignCascadeIssueRefDto),
+	skipped: z.array(zAssignCascadeSkipDto)
+});
+const zAssignIssueResponseDto = z.object({
+	issue: zResponseIssueDto,
+	cascade: zAssignCascadeOutcomeDto
+});
+const zIssueAssignAssignV1Data = z.object({
+	body: zAssignIssueDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/issue/{id}/assign")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/issue-automation-test-evidence/zod.js
 const zCreateIssueAutomationTestEvidenceDto = z.object({
 	id: z.string().optional().describe(""),
