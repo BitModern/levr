@@ -19993,6 +19993,27 @@ const zDeviceApproveRequestDto = z.object({
 	user_code: z.string(),
 	workspace_id: z.string().optional()
 });
+const zGrantListItemDto = z.object({
+	id: z.number(),
+	client_id: z.number(),
+	client_name: z.string(),
+	consent_type: z.enum(["workspace", "user"]),
+	scopes: z.string().nullable(),
+	granted_at: z.string().nullable(),
+	granted_by: z.object({
+		account_id: z.string(),
+		name: z.string().nullable(),
+		email: z.string().nullable(),
+		avatar_url: z.string().nullable()
+	}),
+	principal: z.object({
+		account_id: z.string(),
+		name: z.string().nullable(),
+		email: z.string().nullable(),
+		avatar_url: z.string().nullable()
+	}).nullable(),
+	can_revoke: z.boolean()
+});
 const zOAuthGetAuthorizeV1Data = z.object({
 	query: z.object({
 		"response_type": z.string(),
@@ -20043,9 +20064,8 @@ const zOAuthCheckGrantV1Data = z.object({
 });
 const zOAuthListGrantsV1Data = z.object({ url: z.literal("/v1/oauth/grants") });
 const zOAuthRevokeGrantV1Data = z.object({
-	path: z.object({ "client_id": z.string() }),
-	query: z.object({ "consent_type": z.enum(["workspace", "user"]).optional() }).optional(),
-	url: z.literal("/v1/oauth/grants/{client_id}")
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/oauth/grants/{id}")
 });
 
 //#endregion
