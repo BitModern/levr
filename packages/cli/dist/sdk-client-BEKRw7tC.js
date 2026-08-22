@@ -12840,18 +12840,6 @@ const zFilterRestoreV1Data = z.object({
 
 //#endregion
 //#region ../sdk/dist/gen/finding-observation/zod.js
-const zCreateFindingObservationDto = z.object({
-	id: z.string().optional().describe(""),
-	source: z.string().describe(""),
-	model_version: z.string().nullable().optional().describe(""),
-	original_confidence: z.number().describe(""),
-	adjusted_confidence: z.number().nullable().optional().describe(""),
-	asserted_severity: z.string().nullable().optional().describe(""),
-	vote: z.string().nullable().optional().describe(""),
-	outcome: z.string().optional().describe(""),
-	outcome_kind: z.string().nullable().optional().describe(""),
-	finding_id: z.string()
-});
 const zResponseFindingObservationDto = z.object({
 	id: z.string().describe(""),
 	source: z.string().describe(""),
@@ -12862,6 +12850,8 @@ const zResponseFindingObservationDto = z.object({
 	vote: z.string().nullable().optional().describe(""),
 	outcome: z.string().optional().describe(""),
 	outcome_kind: z.string().nullable().optional().describe(""),
+	explicit_provenance: z.string().nullable().optional().describe(""),
+	resolved_at: z.unknown().optional().describe(""),
 	finding_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -12869,6 +12859,20 @@ const zResponseFindingObservationDto = z.object({
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
 	workspace_id: z.string().describe("")
+});
+const zCreateFindingObservationDto = z.object({
+	id: z.string().optional().describe(""),
+	source: z.string().describe(""),
+	model_version: z.string().nullable().optional().describe(""),
+	original_confidence: z.number().describe(""),
+	adjusted_confidence: z.number().nullable().optional().describe(""),
+	asserted_severity: z.string().nullable().optional().describe(""),
+	vote: z.string().nullable().optional().describe(""),
+	outcome: z.string().optional().describe(""),
+	outcome_kind: z.string().nullable().optional().describe(""),
+	explicit_provenance: z.string().nullable().optional().describe(""),
+	resolved_at: z.unknown().optional().describe(""),
+	finding_id: z.string()
 });
 const zUpdateFindingObservationDto = z.object({
 	id: z.string().optional().describe(""),
@@ -12880,6 +12884,8 @@ const zUpdateFindingObservationDto = z.object({
 	vote: z.string().nullable().optional().describe(""),
 	outcome: z.string().optional().describe(""),
 	outcome_kind: z.string().nullable().optional().describe(""),
+	explicit_provenance: z.string().nullable().optional().describe(""),
+	resolved_at: z.unknown().optional().describe(""),
 	finding_id: z.string().optional()
 });
 const zFindingObservationBulkOperationDto = z.object({
@@ -12913,10 +12919,6 @@ const zBulkFindingObservationResponseDto = z.object({
 		savepoints_used: z.number().describe("")
 	}).describe("")
 });
-const zFindingObservationCreateV1Data = z.object({
-	body: zCreateFindingObservationDto,
-	url: z.literal("/v1/finding-observation")
-});
 const zFindingObservationFindAllV1Data = z.object({
 	query: z.object({
 		"_with": z.string().optional(),
@@ -12931,6 +12933,8 @@ const zFindingObservationFindAllV1Data = z.object({
 		"filter.vote": z.array(z.string()).optional(),
 		"filter.outcome": z.array(z.string()).optional(),
 		"filter.outcome_kind": z.array(z.string()).optional(),
+		"filter.explicit_provenance": z.array(z.string()).optional(),
+		"filter.resolved_at": z.array(z.string()).optional(),
 		"filter.finding_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
@@ -12953,6 +12957,10 @@ const zFindingObservationFindAllV1Data = z.object({
 			"outcome:DESC",
 			"outcome_kind:ASC",
 			"outcome_kind:DESC",
+			"explicit_provenance:ASC",
+			"explicit_provenance:DESC",
+			"resolved_at:ASC",
+			"resolved_at:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
@@ -12964,15 +12972,6 @@ const zFindingObservationFindAllV1Data = z.object({
 	url: z.literal("/v1/finding-observation")
 });
 const zFindingObservationFindOneV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/finding-observation/{id}")
-});
-const zFindingObservationUpdateV1Data = z.object({
-	body: zUpdateFindingObservationDto,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/finding-observation/{id}")
-});
-const zFindingObservationRemoveV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/finding-observation/{id}")
 });
@@ -23459,6 +23458,147 @@ const zRetentionPolicyUpdatePolicyV1Data = z.object({
 	body: zUpdateRetentionPolicyDto,
 	query: z.object({ "team_id": z.string().optional() }).optional(),
 	url: z.literal("/v1/retention-policy")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/review-health-snapshot/zod.js
+const zResponseReviewHealthSnapshotDto = z.object({
+	id: z.string().describe(""),
+	period_start: z.unknown().describe(""),
+	scope: z.string().describe(""),
+	sources_silent: z.number().optional().describe(""),
+	tau_stalled_sources: z.number().optional().describe(""),
+	disposition_backlog: z.number().optional().describe(""),
+	disposition_oldest_days: z.number().optional().describe(""),
+	stale_escape_requests: z.number().optional().describe(""),
+	stale_guidance: z.number().optional().describe(""),
+	tripwires_fired: z.number().optional().describe(""),
+	metrics: z.unknown().optional().describe(""),
+	github_repository_id: z.string().nullable().optional(),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe(""),
+	workspace_id: z.string().describe("")
+});
+const zCreateReviewHealthSnapshotDto = z.object({
+	id: z.string().optional().describe(""),
+	period_start: z.unknown().describe(""),
+	scope: z.string().describe(""),
+	sources_silent: z.number().optional().describe(""),
+	tau_stalled_sources: z.number().optional().describe(""),
+	disposition_backlog: z.number().optional().describe(""),
+	disposition_oldest_days: z.number().optional().describe(""),
+	stale_escape_requests: z.number().optional().describe(""),
+	stale_guidance: z.number().optional().describe(""),
+	tripwires_fired: z.number().optional().describe(""),
+	metrics: z.unknown().optional().describe(""),
+	github_repository_id: z.string().nullable().optional()
+});
+const zUpdateReviewHealthSnapshotDto = z.object({
+	id: z.string().optional().describe(""),
+	period_start: z.unknown().optional().describe(""),
+	scope: z.string().optional().describe(""),
+	sources_silent: z.number().optional().describe(""),
+	tau_stalled_sources: z.number().optional().describe(""),
+	disposition_backlog: z.number().optional().describe(""),
+	disposition_oldest_days: z.number().optional().describe(""),
+	stale_escape_requests: z.number().optional().describe(""),
+	stale_guidance: z.number().optional().describe(""),
+	tripwires_fired: z.number().optional().describe(""),
+	metrics: z.unknown().optional().describe(""),
+	github_repository_id: z.string().nullable().optional()
+});
+const zReviewHealthSnapshotBulkOperationDto = z.object({
+	op: z.enum([
+		"create",
+		"update",
+		"delete"
+	]).describe(""),
+	id: z.string().optional().describe(""),
+	data: z.union([zCreateReviewHealthSnapshotDto, zUpdateReviewHealthSnapshotDto]).optional().describe(""),
+	tx_id: z.string().describe("")
+});
+const zBulkReviewHealthSnapshotRequestDto = z.object({ operations: z.array(zReviewHealthSnapshotBulkOperationDto).describe("") });
+const zBulkReviewHealthSnapshotOperationResultDto = z.object({
+	index: z.number().describe(""),
+	tx_id: z.string().describe(""),
+	status: z.number().describe(""),
+	error: z.object({
+		message: z.string().optional(),
+		code: z.string().optional(),
+		details: z.unknown().optional()
+	}).optional().describe(""),
+	response: zResponseReviewHealthSnapshotDto.optional().describe("")
+});
+const zBulkReviewHealthSnapshotResponseDto = z.object({
+	results: z.array(zBulkReviewHealthSnapshotOperationResultDto).describe(""),
+	summary: z.object({
+		total: z.number().describe(""),
+		successful: z.number().describe(""),
+		failed: z.number().describe(""),
+		savepoints_used: z.number().describe("")
+	}).describe("")
+});
+const zReviewHealthSnapshotFindAllV1Data = z.object({
+	query: z.object({
+		"_with": z.string().optional(),
+		"page": z.number().optional(),
+		"limit": z.number().optional(),
+		"filter.id": z.array(z.string()).optional(),
+		"filter.period_start": z.array(z.string()).optional(),
+		"filter.scope": z.array(z.string()).optional(),
+		"filter.sources_silent": z.array(z.string()).optional(),
+		"filter.tau_stalled_sources": z.array(z.string()).optional(),
+		"filter.disposition_backlog": z.array(z.string()).optional(),
+		"filter.disposition_oldest_days": z.array(z.string()).optional(),
+		"filter.stale_escape_requests": z.array(z.string()).optional(),
+		"filter.stale_guidance": z.array(z.string()).optional(),
+		"filter.tripwires_fired": z.array(z.string()).optional(),
+		"filter.github_repository_id": z.array(z.string()).optional(),
+		"filter.created_at": z.array(z.string()).optional(),
+		"filter.updated_at": z.array(z.string()).optional(),
+		"sortBy": z.array(z.enum([
+			"id:ASC",
+			"id:DESC",
+			"period_start:ASC",
+			"period_start:DESC",
+			"scope:ASC",
+			"scope:DESC",
+			"sources_silent:ASC",
+			"sources_silent:DESC",
+			"tau_stalled_sources:ASC",
+			"tau_stalled_sources:DESC",
+			"disposition_backlog:ASC",
+			"disposition_backlog:DESC",
+			"disposition_oldest_days:ASC",
+			"disposition_oldest_days:DESC",
+			"stale_escape_requests:ASC",
+			"stale_escape_requests:DESC",
+			"stale_guidance:ASC",
+			"stale_guidance:DESC",
+			"tripwires_fired:ASC",
+			"tripwires_fired:DESC",
+			"github_repository_id:ASC",
+			"github_repository_id:DESC",
+			"created_at:ASC",
+			"created_at:DESC",
+			"updated_at:ASC",
+			"updated_at:DESC"
+		])).optional(),
+		"search": z.string().optional(),
+		"searchBy": z.array(z.string()).optional()
+	}).optional(),
+	url: z.literal("/v1/review-health-snapshot")
+});
+const zReviewHealthSnapshotFindOneV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/review-health-snapshot/{id}")
+});
+const zReviewHealthSnapshotBulkOperationV1Data = z.object({
+	body: zBulkReviewHealthSnapshotRequestDto,
+	url: z.literal("/v1/review-health-snapshot/bulk")
 });
 
 //#endregion
