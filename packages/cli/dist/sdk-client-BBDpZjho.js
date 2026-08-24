@@ -12995,7 +12995,6 @@ const zFolderWithChildrenDto = z.object({
 	updated_by: z.string(),
 	epoch: z.number(),
 	virtual: z.unknown().optional(),
-	is_root: z.boolean().optional(),
 	assignee_id: z.string().optional(),
 	folder_path: z.string().optional(),
 	children: z.array(z.union([
@@ -13012,7 +13011,6 @@ const zFolderWithChildrenDto = z.object({
 			updated_by: z.string(),
 			epoch: z.number(),
 			virtual: z.unknown().optional(),
-			is_root: z.boolean().optional(),
 			assignee_id: z.string().optional(),
 			folder_path: z.string().optional()
 		}),
@@ -13078,6 +13076,91 @@ const zFolderWithChildrenDto = z.object({
 		})
 	]))
 });
+const zRootLevelResponseDto = z.object({
+	type: z.enum(["root"]),
+	entity_type: z.enum(["test", "run"]),
+	folders: z.array(z.object({
+		type: z.enum(["folder"]),
+		id: z.string(),
+		name: z.string(),
+		description: z.string().optional(),
+		sequence: z.string().optional(),
+		labels: z.array(z.string()),
+		created_at: z.unknown(),
+		updated_at: z.unknown(),
+		created_by: z.string(),
+		updated_by: z.string(),
+		epoch: z.number(),
+		virtual: z.unknown().optional(),
+		assignee_id: z.string().optional(),
+		folder_path: z.string().optional()
+	})),
+	entities: z.array(z.union([z.object({
+		type: z.enum(["test"]),
+		id: z.string(),
+		folder_id: z.string().nullable(),
+		name: z.string(),
+		data: z.record(z.string(), z.unknown()).optional(),
+		sequence: z.string(),
+		labels: z.array(z.string()),
+		is_automated: z.boolean(),
+		priority: z.number(),
+		created_at: z.unknown(),
+		updated_at: z.unknown(),
+		created_by: z.string(),
+		updated_by: z.string(),
+		epoch: z.number(),
+		key: z.number(),
+		assignee_id: z.string().optional(),
+		estimate: z.number().optional(),
+		test_type: z.enum([
+			"manual",
+			"text",
+			"prometheus",
+			"gherkin",
+			"generic_automation",
+			"yaml"
+		]).nullable(),
+		to_automate: z.boolean()
+	}), z.object({
+		type: z.enum(["run"]),
+		id: z.string(),
+		folder_id: z.string().nullable(),
+		name: z.string(),
+		sequence: z.string(),
+		labels: z.array(z.string()),
+		key: z.number(),
+		run_type: z.string(),
+		triggered_by: z.string(),
+		status_type: z.enum([
+			"Unstarted",
+			"Pass",
+			"Fail",
+			"Cancelled"
+		]),
+		total_results: z.number(),
+		pass_count: z.number(),
+		fail_count: z.number(),
+		unstarted_count: z.number(),
+		cancelled_count: z.number(),
+		is_complete: z.boolean(),
+		is_automated: z.boolean(),
+		started_at: z.unknown(),
+		ended_at: z.unknown(),
+		total_duration_ms: z.number().nullable(),
+		created_at: z.unknown(),
+		updated_at: z.unknown(),
+		created_by: z.string(),
+		updated_by: z.string(),
+		epoch: z.number()
+	})])),
+	meta: z.object({
+		total_entities: z.number(),
+		page: z.number(),
+		limit: z.number(),
+		total_pages: z.number()
+	})
+});
 const zFolderNodeDto = z.object({
 	type: z.enum(["folder"]),
 	id: z.string(),
@@ -13091,7 +13174,6 @@ const zFolderNodeDto = z.object({
 	updated_by: z.string(),
 	epoch: z.number(),
 	virtual: z.unknown(),
-	is_root: z.boolean().nullable(),
 	assignee_id: z.string().nullable(),
 	folder_path: z.string().optional()
 });
@@ -13110,7 +13192,6 @@ const zFolderChildrenResponseDto = z.object({
 			updated_by: z.string(),
 			epoch: z.number(),
 			virtual: z.unknown(),
-			is_root: z.boolean().nullable(),
 			assignee_id: z.string().nullable(),
 			folder_path: z.string().optional()
 		}),
@@ -13233,7 +13314,6 @@ const zBulkFolderResponseDto = z.object({
 			updated_by: z.string(),
 			epoch: z.number(),
 			virtual: z.unknown(),
-			is_root: z.boolean().nullable(),
 			assignee_id: z.string().nullable(),
 			folder_path: z.string().optional()
 		}).optional(),
@@ -13280,7 +13360,7 @@ const zFolderFindAllV1Data = z.object({
 		"filter.created_by": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
 		"filter.updated_by": z.array(z.string()).optional(),
-		"filter.is_root": z.array(z.string()).optional(),
+		"filter.parent_id": z.array(z.string()).optional(),
 		"filter.assignee_id": z.array(z.string()).optional(),
 		"filter.folder_path": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
@@ -13304,8 +13384,12 @@ const zFolderFindAllV1Data = z.object({
 	}).optional(),
 	url: z.literal("/v1/folder")
 });
-const zFolderFindRootFolderV1Data = z.object({
-	query: z.object({ "entity_type": z.enum(["test", "run"]).optional() }).optional(),
+const zFolderGetRootLevelV1Data = z.object({
+	query: z.object({
+		"entity_type": z.enum(["test", "run"]).optional(),
+		"page": z.string().optional(),
+		"limit": z.string().optional()
+	}).optional(),
 	url: z.literal("/v1/folder/root")
 });
 const zFolderFindFolderByIdV1Data = z.object({
@@ -23952,7 +24036,7 @@ const zUpdateRunDto = z.object({
 	is_complete: z.boolean().optional(),
 	project_id: z.string().nullable(),
 	cycle_id: z.string().nullable(),
-	folder_id: z.string().nullable(),
+	folder_id: z.string().nullable().optional(),
 	sequence: z.string().optional(),
 	parent_run_id: z.unknown().optional()
 });
@@ -27763,7 +27847,7 @@ const zUpdateTestDto = z.object({
 	}).optional(),
 	priority: z.number().optional(),
 	case_type_id: z.string().nullable().optional(),
-	folder_id: z.string().optional(),
+	folder_id: z.string().nullable().optional(),
 	shared_precondition: z.object({
 		create: z.object({
 			precondition: z.string().optional(),
