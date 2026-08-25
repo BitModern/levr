@@ -139,6 +139,7 @@ const zResponseWorkspaceDto = z.object({
 	url_key: z.string().describe(""),
 	ai_budget_daily_usd: z.number().nullable().optional().describe(""),
 	ai_budget_monthly_usd: z.number().nullable().optional().describe(""),
+	qinetic_enabled: z.boolean().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -13280,7 +13281,7 @@ const zBulkFolderOperationDto = z.object({
 		description: z.string().optional(),
 		virtual: z.unknown().optional(),
 		assignee_id: z.string().optional(),
-		parent_id: z.string().optional(),
+		parent_id: z.string().nullable().optional(),
 		sequence: z.string().optional(),
 		labels: z.array(z.string()).optional(),
 		origin: z.enum(["authored", "automation"]).optional(),
@@ -13290,7 +13291,7 @@ const zBulkFolderOperationDto = z.object({
 		description: z.string().optional(),
 		virtual: z.unknown().optional(),
 		assignee_id: z.string().optional(),
-		parent_id: z.string().optional(),
+		parent_id: z.string().nullable().optional(),
 		sequence: z.string().optional(),
 		add_labels: z.array(z.string()).optional(),
 		remove_labels: z.array(z.string()).optional()
@@ -13332,7 +13333,7 @@ const zCreateFolderDto = z.object({
 	description: z.string().optional(),
 	virtual: z.unknown().optional(),
 	assignee_id: z.string().optional(),
-	parent_id: z.string().optional(),
+	parent_id: z.string().nullable().optional(),
 	sequence: z.string().optional(),
 	labels: z.array(z.string()).optional(),
 	origin: z.enum(["authored", "automation"]).optional(),
@@ -13343,7 +13344,7 @@ const zUpdateFolderDto = z.object({
 	description: z.string().optional(),
 	virtual: z.unknown().optional(),
 	assignee_id: z.string().optional(),
-	parent_id: z.string().optional(),
+	parent_id: z.string().nullable().optional(),
 	sequence: z.string().optional(),
 	add_labels: z.array(z.string()).optional(),
 	remove_labels: z.array(z.string()).optional()
@@ -22219,6 +22220,13 @@ const zInternalPauseAgentV1Data = z.object({
 const zInternalResumeAgentV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/qinetic/coordination/agents/{id}/resume")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/qinetic-provisioning/zod.js
+const zInternalProvisioningEnableV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/workspace/{id}/qinetic/enable")
 });
 
 //#endregion
