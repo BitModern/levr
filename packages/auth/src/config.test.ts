@@ -18,6 +18,7 @@ import {
   resolveFromApiUrl,
   getConfigFilePath,
   PRESETS,
+  parseDevTls,
   type TqConfig,
 } from './config.js';
 
@@ -272,6 +273,61 @@ describe('writeConfig', () => {
 });
 
 // ---------- getConfigFilePath ----------
+
+/**
+ * `parseDevTls` — the DEV_TLS reader, duplicated verbatim from
+ * `apps/sync-server/src/auth.ts`. It had NO coverage here, while this package
+ * is inlined into the published `@levr-one/cli` bundle, so a divergence would
+ * ship to npm.
+ *
+ * These pin PARITY WITH DOTENV, because dotenv is what actually decides the
+ * backender's TLS mode (apps/backender/src/env.ts). Every case below once
+ * diverged and every divergence failed CLOSED — it missed a real
+ * `DEV_TLS=true` and so dialled http:// at a TLS backender, which is this
+ * file's own bug mirrored.
+ *
+ * The surrounding fs walk-up (and `.env.worktree` precedence) is covered in
+ * apps/sync-server/src/__tests__/auth.test.ts: this package imports fs as a
+ * namespace (`import * as fs`), which ESM makes non-spyable, and mocking `fs`
+ * wholesale would break the sibling tests that write real temp files.
+ */
+describe('parseDevTls', () => {
+  it('reads the plain and quoted forms', () => {
+    expect(parseDevTls('DEV_TLS=true')).toBe(true);
+    expect(parseDevTls('DEV_TLS=false')).toBe(false);
+    expect(parseDevTls('DEV_TLS="true"')).toBe(true);
+    expect(parseDevTls("DEV_TLS='true'")).toBe(true);
+    expect(parseDevTls('DEV_TLS=true\r\n')).toBe(true);
+  });
+
+  it('accepts the `export ` prefix — the form dev-tls-setup.md prints', () => {
+    expect(parseDevTls('export DEV_TLS=true')).toBe(true);
+    expect(parseDevTls('export DEV_TLS=false')).toBe(false);
+  });
+
+  it('strips a trailing comment on an unquoted value', () => {
+    expect(parseDevTls('DEV_TLS=true # mkcert on')).toBe(true);
+    expect(parseDevTls('DEV_TLS=false # off')).toBe(false);
+  });
+
+  it('takes the LAST assignment when the key repeats, as dotenv does', () => {
+    expect(parseDevTls('DEV_TLS=false\nDEV_TLS=true')).toBe(true);
+    expect(parseDevTls('DEV_TLS=true\nDEV_TLS=false')).toBe(false);
+  });
+
+  it('returns undefined when the key is absent, so the caller keeps looking', () => {
+    expect(parseDevTls('PORT=8080\n')).toBeUndefined();
+    expect(parseDevTls('# DEV_TLS=true')).toBeUndefined();
+    expect(parseDevTls('MY_DEV_TLS=true')).toBeUndefined();
+    expect(parseDevTls('DEV_TLS_PORT=1')).toBeUndefined();
+  });
+
+  it('is case-sensitive on the value — only exactly `true` enables TLS', () => {
+    expect(parseDevTls('DEV_TLS=TRUE')).toBe(false);
+    expect(parseDevTls('DEV_TLS=1')).toBe(false);
+    expect(parseDevTls('DEV_TLS=yes')).toBe(false);
+  });
+});
 
 describe('getConfigFilePath', () => {
   it('returns path under ~/.tq/', () => {

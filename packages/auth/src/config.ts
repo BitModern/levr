@@ -36,22 +36,79 @@ function isTestEnv(): boolean {
  * Detect whether the developer is running in TLS dev mode (mkcert + DEV_TLS).
  *
  * Resolution order:
- *   1. Tests (Vitest/Jest/NODE_ENV=test)   → always false (deterministic).
- *   2. Explicit `DEV_TLS` env var          → 'true'/'false' wins.
- *   3. Cert files at apps/backender/certs/ → presence ⇒ TLS mode.
+ *   1. Tests (Vitest/Jest/NODE_ENV=test) → always false (deterministic).
+ *   2. Explicit `DEV_TLS` env var        → 'true'/'false' wins.
+ *   3. `DEV_TLS` in the backender's env  → the setting that actually decides
+ *                                          whether the backender serves TLS.
  *
- * The cert-file probe walks up from cwd until it finds the repo root or
- * hits the filesystem root, so this works whether the CLI is run from
- * the repo root, an app subdirectory, or a worktree.
+ * Step 3 used to probe for `apps/backender/certs/dev.crt` and treat its
+ * PRESENCE as "TLS is on". That tested a proxy for the real question: the cert
+ * is written once by scripts/dev-setup-tls.sh and never removed when TLS is
+ * turned off, so any machine that had ever run it resolved TLS mode forever.
+ *
+ * The walk-up from cwd is retained, so this still works from the repo root, an
+ * app subdirectory, or a worktree.
+ *
+ * Keep in sync with `apps/sync-server/src/auth.ts:isLocalTlsMode()` — the two
+ * are duplicated verbatim (sync-server does not depend on this package). The
+ * bodies are kept byte-identical so a plain `diff` verifies the claim; that is
+ * also why the quote check below is split across lines, since this package
+ * formats at printWidth 80 and sync-server at 100.
  */
 function isLocalTlsMode(): boolean {
   if (isTestEnv()) return false;
   if (process.env.DEV_TLS === 'true') return true;
   if (process.env.DEV_TLS === 'false') return false;
+  return devTlsFromBackenderEnv();
+}
+
+/**
+ * `parseDevTls` reproduces three dotenv behaviours the obvious regex gets
+ * wrong. Each failed CLOSED — it missed a real `DEV_TLS=true` and so dialled
+ * http:// at a TLS backender, the exact bug this file exists to fix, mirrored:
+ *   - `export DEV_TLS=true`  — the form docs/guides/dev-tls-setup.md prints
+ *   - `DEV_TLS=true # note`  — trailing comment on an unquoted value
+ *   - the key repeated       — dotenv takes the LAST occurrence, not the first
+ *
+ * dotenv itself is not used: `packages/auth` does not depend on it, and this
+ * helper is duplicated verbatim between the two files (see the note above).
+ */
+export function parseDevTls(contents: string): boolean | undefined {
+  // Global: the LAST assignment wins, matching dotenv.
+  const re = /^[ \t]*(?:export[ \t]+)?DEV_TLS[ \t]*=[ \t]*(.*)$/gm;
+  let raw: string | undefined;
+  for (const m of contents.matchAll(re)) raw = m[1];
+  if (raw === undefined) return undefined;
+
+  let value = raw.trim();
+  const quote = value[0];
+  const isQuote = quote === '"' || quote === "'";
+  if (isQuote && value.length > 1 && value.endsWith(quote)) {
+    value = value.slice(1, -1);
+  } else {
+    // Unquoted only: everything from `#` onward is a comment.
+    value = (value.split('#')[0] ?? '').trim();
+  }
+  return value === 'true';
+}
+
+function devTlsFromBackenderEnv(): boolean {
   let dir = process.cwd();
   for (let i = 0; i < 10; i++) {
-    if (fs.existsSync(path.join(dir, 'apps/backender/certs/dev.crt'))) {
-      return true;
+    // `.env.worktree` FIRST — it outranks `.env` for the backender, because
+    // apps/backender/src/env.ts loads it first and dotenv does not overwrite
+    // an already-set key. Reading only `.env` resolves the wrong protocol in a
+    // worktree that overrides DEV_TLS.
+    for (const name of ['.env.worktree', '.env']) {
+      const envPath = path.join(dir, 'apps/backender', name);
+      if (!fs.existsSync(envPath)) continue;
+      try {
+        const parsed = parseDevTls(fs.readFileSync(envPath, 'utf8'));
+        if (parsed !== undefined) return parsed;
+      } catch {
+        // Unreadable env file must not silently select TLS — fail safe.
+        return false;
+      }
     }
     const parent = path.dirname(dir);
     if (parent === dir) break;
