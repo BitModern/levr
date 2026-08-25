@@ -14404,6 +14404,7 @@ const zGitHubAppClientAssociateInstallationV1Data = z.object({
 	path: z.object({ "installationId": z.number() }),
 	url: z.literal("/v1/github-app/installations/{installationId}/associate")
 });
+const zGitHubAppClientListAvailableInstallationsV1Data = z.object({ url: z.literal("/v1/github-app/available-installations") });
 const zGitHubAppClientDisassociateInstallationV1Data = z.object({
 	path: z.object({ "installationId": z.number() }),
 	url: z.literal("/v1/github-app/installations/{installationId}/disassociate")
@@ -15552,6 +15553,7 @@ const zInitiativeProjectBulkOperationV1Data = z.object({
 const zIntegrationTokenGetStatusV1Data = z.object({ url: z.literal("/v1/integrations/status") });
 const zIntegrationTokenDisconnectGithubV1Data = z.object({ url: z.literal("/v1/integrations/github") });
 const zIntegrationTokenDisconnectGithubUserV1Data = z.object({ url: z.literal("/v1/integrations/github/disconnect_user") });
+const zIntegrationTokenIssueConnectIntentV1Data = z.object({ url: z.literal("/v1/integrations/github/connect-intent") });
 
 //#endregion
 //#region ../sdk/dist/gen/issue/zod.js
