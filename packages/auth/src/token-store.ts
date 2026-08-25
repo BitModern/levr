@@ -204,6 +204,28 @@ export function loadTokensForUrl(url: string): StoredTokens | null {
 }
 
 /**
+ * Every backend the token map actually holds, with its canonical key.
+ *
+ * `loadTokensForEnv` can only ever see the three hardcoded `ENV_URLS`
+ * presets, so a worktree-offset local (`http://localhost:9480`), a DEV_TLS
+ * local, or any custom backend is invisible to it — while `saveTokens` keys
+ * on the token's real `apiBaseUrl`. Anything that wants to SHOW what is
+ * stored, rather than resolve one named environment, must enumerate the real
+ * keys or it will report on a backend the user never logged into. (internal)
+ *
+ * Malformed entries are dropped, so every returned `tokens` is a usable
+ * `StoredTokens` — expired included, since expiry is the caller's to display.
+ */
+export function listTokenEntries(): Array<{
+  url: string;
+  tokens: StoredTokens;
+}> {
+  return Object.entries(readTokenMap())
+    .filter((entry): entry is [string, StoredTokens] => isValidToken(entry[1]))
+    .map(([url, tokens]) => ({ url, tokens }));
+}
+
+/**
  * Save tokens for the current environment.
  * Upserts the entry keyed by the token's apiBaseUrl.
  */
@@ -231,39 +253,87 @@ export function saveTokensForEnv(env: EnvName, tokens: StoredTokens): void {
   writeTokenMap(map);
 }
 
-/**
- * Clear stored tokens for the current environment.
- * Moves the entire file to .bak before removing the entry.
- */
-export function clearTokens(): void {
+/** Snapshot the whole map to `.bak` before any destructive edit. */
+function backupTokenFile(): void {
   try {
-    if (!fs.existsSync(TOKEN_FILE)) return;
-
-    // Backup entire file before modifying
     const backupPath = TOKEN_FILE + '.bak';
-    try {
-      fs.copyFileSync(TOKEN_FILE, backupPath);
-      fs.chmodSync(backupPath, 0o600);
-    } catch {
-      // Backup failed — still proceed with clear
-    }
+    fs.copyFileSync(TOKEN_FILE, backupPath);
+    fs.chmodSync(backupPath, 0o600);
+  } catch {
+    // Backup failed — still proceed with the clear.
+  }
+}
+
+/**
+ * Remove the stored token for exactly ONE backend.
+ *
+ * @returns true when an entry was removed, false when that backend had none.
+ *
+ * Never touches another backend's entry, and never removes the file except
+ * when the entry cleared was the last one — at which point an empty map and a
+ * missing file mean the same thing.
+ */
+export function clearTokensForUrl(url: string): boolean {
+  try {
+    if (!fs.existsSync(TOKEN_FILE)) return false;
+    const key = normalizeBackendUrl(url);
+    if (!key) return false;
 
     const map = readTokenMap();
-    const currentUrl = getCurrentApiUrl();
-    if (currentUrl && map[currentUrl]) {
-      delete map[currentUrl];
-      if (Object.keys(map).length === 0) {
-        fs.unlinkSync(TOKEN_FILE);
-      } else {
-        writeTokenMap(map);
-      }
-    } else if (!currentUrl) {
-      // No current URL known — clear entire file (legacy behavior)
+    if (!(key in map)) return false;
+
+    backupTokenFile();
+    delete map[key];
+    if (Object.keys(map).length === 0) {
       fs.unlinkSync(TOKEN_FILE);
+    } else {
+      writeTokenMap(map);
     }
+    return true;
+  } catch (error) {
+    console.error('[levr-auth] Failed to clear tokens:', error);
+    return false;
+  }
+}
+
+/**
+ * Remove EVERY stored token, for every backend.
+ *
+ * Only ever reached through an explicit opt-in (`tq:logout --all`). This used
+ * to be the silent fallback of `clearTokens()` whenever the current backend
+ * could not be resolved — so an absent `~/.tq/config.json` with no
+ * `TQ_BACKEND_URL` set destroyed a dozen backends' credentials while the
+ * operator believed they were logging out of one. The single `.bak` survives
+ * that once, not twice. (internal D2)
+ */
+export function clearAllTokens(): void {
+  try {
+    if (!fs.existsSync(TOKEN_FILE)) return;
+    backupTokenFile();
+    fs.unlinkSync(TOKEN_FILE);
   } catch (error) {
     console.error('[levr-auth] Failed to clear tokens:', error);
   }
+}
+
+/**
+ * Clear stored tokens for the current environment.
+ *
+ * Refuses when the current backend cannot be resolved rather than falling
+ * back to wiping the file — see `clearAllTokens` for what that fallback used
+ * to do. Returns false when nothing was removed, for any reason.
+ */
+export function clearTokens(): boolean {
+  const currentUrl = getCurrentApiUrl();
+  if (!currentUrl) {
+    console.error(
+      '[levr-auth] Refusing to clear tokens: no backend is configured, so ' +
+        'there is no single environment to log out of. Pass an explicit ' +
+        '`--backend <url>`, or `--all` to clear every backend.',
+    );
+    return false;
+  }
+  return clearTokensForUrl(currentUrl);
 }
 
 /**

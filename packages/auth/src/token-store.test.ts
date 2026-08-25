@@ -24,6 +24,9 @@ let getTqDir: typeof import('./token-store.js').getTqDir;
 let getTokenFilePath: typeof import('./token-store.js').getTokenFilePath;
 let resolveEnvFromUrl: typeof import('./token-store.js').resolveEnvFromUrl;
 let resolveUrlFromEnv: typeof import('./token-store.js').resolveUrlFromEnv;
+let listTokenEntries: typeof import('./token-store.js').listTokenEntries;
+let clearTokensForUrl: typeof import('./token-store.js').clearTokensForUrl;
+let clearAllTokens: typeof import('./token-store.js').clearAllTokens;
 
 const stagingTokens: StoredTokens = {
   accessToken: 'staging-access',
@@ -54,6 +57,9 @@ beforeEach(async () => {
   getTokenFilePath = mod.getTokenFilePath;
   resolveEnvFromUrl = mod.resolveEnvFromUrl;
   resolveUrlFromEnv = mod.resolveUrlFromEnv;
+  listTokenEntries = mod.listTokenEntries;
+  clearTokensForUrl = mod.clearTokensForUrl;
+  clearAllTokens = mod.clearAllTokens;
 });
 
 afterEach(() => {
@@ -263,6 +269,23 @@ describe('clearTokens', () => {
     expect(() => clearTokens()).not.toThrow();
   });
 
+  // internal D2. This used to unlink the WHOLE file: an absent config.json
+  // with no TQ_BACKEND_URL destroyed every backend's credentials while the
+  // operator believed they were logging out of one.
+  it('refuses, and keeps every token, when no backend can be resolved', () => {
+    saveTokens(stagingTokens);
+    saveTokens({ ...localTokens, apiBaseUrl: 'http://localhost:9480' });
+    fs.rmSync(path.join(state.tmpDir, '.tq', 'config.json'), { force: true });
+    delete process.env.TQ_BACKEND_URL;
+
+    expect(clearTokens()).toBe(false);
+    expect(
+      listTokenEntries()
+        .map((e) => e.url)
+        .sort(),
+    ).toEqual(['http://localhost:9480', 'https://api.levr.now']);
+  });
+
   it('creates a backup before clearing', () => {
     saveTokens(stagingTokens);
     process.env.TQ_BACKEND_URL = 'https://api.levr.now';
@@ -292,5 +315,129 @@ describe('saveTokensForEnv', () => {
     });
     const loaded = loadTokensForEnv('production');
     expect(loaded?.accessToken).toBe('prod-access');
+  });
+});
+
+describe('listTokenEntries', () => {
+  it('returns every stored backend, including ones absent from ENV_URLS', () => {
+    // A worktree-offset local. `loadTokensForEnv('local')` cannot see this —
+    // it only ever looks at the hardcoded `http://localhost:8080`. (internal)
+    saveTokens({ ...localTokens, apiBaseUrl: 'http://localhost:9480' });
+    saveTokens(stagingTokens);
+
+    const urls = listTokenEntries().map((e) => e.url);
+    expect(urls).toContain('http://localhost:9480');
+    expect(urls).toContain('https://api.levr.now');
+    expect(loadTokensForEnv('local')).toBeNull();
+  });
+
+  it('returns an empty array when nothing is stored', () => {
+    expect(listTokenEntries()).toEqual([]);
+  });
+
+  it('pairs each url with its own tokens', () => {
+    saveTokens({ ...localTokens, apiBaseUrl: 'http://localhost:9480' });
+    const entry = listTokenEntries().find(
+      (e) => e.url === 'http://localhost:9480',
+    );
+    expect(entry?.tokens.accessToken).toBe('local-access');
+  });
+
+  it('drops malformed entries rather than surfacing them as tokens', () => {
+    saveTokens(stagingTokens);
+    const file = getTokenFilePath();
+    const map = JSON.parse(fs.readFileSync(file, 'utf-8')) as Record<
+      string,
+      unknown
+    >;
+    map['http://localhost:9480'] = { accessToken: 'no-refresh-no-expiry' };
+    fs.writeFileSync(file, JSON.stringify(map));
+
+    const urls = listTokenEntries().map((e) => e.url);
+    expect(urls).toEqual(['https://api.levr.now']);
+  });
+
+  it('normalizes a trailing-slash key so one backend yields one row', () => {
+    saveTokens({ ...stagingTokens, apiBaseUrl: 'https://api.levr.now/' });
+    expect(listTokenEntries().map((e) => e.url)).toEqual([
+      'https://api.levr.now',
+    ]);
+  });
+});
+
+describe('clearTokensForUrl', () => {
+  it('removes exactly one backend and leaves the rest', () => {
+    saveTokens(stagingTokens);
+    saveTokens({ ...localTokens, apiBaseUrl: 'http://localhost:8180' });
+    saveTokens({ ...localTokens, apiBaseUrl: 'http://localhost:9480' });
+
+    expect(clearTokensForUrl('http://localhost:8180')).toBe(true);
+    expect(
+      listTokenEntries()
+        .map((e) => e.url)
+        .sort(),
+    ).toEqual(['http://localhost:9480', 'https://api.levr.now']);
+  });
+
+  it('reports false for a backend it has no token for', () => {
+    saveTokens(stagingTokens);
+    expect(clearTokensForUrl('http://localhost:8180')).toBe(false);
+    expect(listTokenEntries()).toHaveLength(1);
+  });
+
+  it('matches a trailing-slash url to the canonical entry', () => {
+    saveTokens(stagingTokens);
+    expect(clearTokensForUrl('https://api.levr.now/')).toBe(true);
+    expect(hasStoredTokens()).toBe(false);
+  });
+
+  it('ignores a url that is not a usable key', () => {
+    saveTokens(stagingTokens);
+    expect(clearTokensForUrl('   ')).toBe(false);
+    expect(listTokenEntries()).toHaveLength(1);
+  });
+
+  it('backs the file up before removing an entry', () => {
+    saveTokens(stagingTokens);
+    saveTokens({ ...localTokens, apiBaseUrl: 'http://localhost:8180' });
+    clearTokensForUrl('http://localhost:8180');
+    expect(fs.existsSync(getTokenFilePath() + '.bak')).toBe(true);
+  });
+
+  it('does not write a backup when there was nothing to remove', () => {
+    saveTokens(stagingTokens);
+    clearTokensForUrl('http://localhost:8180');
+    // A no-op must not burn the single backup slot — that backup is the only
+    // thing standing between a mistyped url and a lost credential.
+    expect(fs.existsSync(getTokenFilePath() + '.bak')).toBe(false);
+  });
+
+  it('removes the file when the last entry goes', () => {
+    saveTokens(stagingTokens);
+    expect(clearTokensForUrl('https://api.levr.now')).toBe(true);
+    expect(hasStoredTokens()).toBe(false);
+  });
+});
+
+describe('clearAllTokens', () => {
+  it('removes every backend', () => {
+    saveTokens(stagingTokens);
+    saveTokens({ ...localTokens, apiBaseUrl: 'http://localhost:9480' });
+
+    clearAllTokens();
+
+    expect(hasStoredTokens()).toBe(false);
+    expect(listTokenEntries()).toEqual([]);
+  });
+
+  it('backs up first', () => {
+    saveTokens(stagingTokens);
+    const backup = getTokenFilePath() + '.bak';
+    clearAllTokens();
+    expect(fs.existsSync(backup)).toBe(true);
+  });
+
+  it('does not throw when there is no token file', () => {
+    expect(() => clearAllTokens()).not.toThrow();
   });
 });

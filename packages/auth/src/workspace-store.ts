@@ -362,14 +362,14 @@ export function saveIdentityCache(
  * selects a different entry, and clearing would throw away a still-valid
  * workspace pin the user would have to re-select.
  */
-export function clearWorkspace(apiBaseUrl?: string): void {
+export function clearWorkspace(apiBaseUrl?: string): boolean {
   try {
     const filePath = getWorkspacePath();
-    if (!fs.existsSync(filePath)) return;
+    if (!fs.existsSync(filePath)) return false;
 
     const map = readIdentityMap();
     const key = resolveKey(apiBaseUrl);
-    if (!(key in map)) return;
+    if (!(key in map)) return false;
 
     delete map[key];
     if (Object.keys(map).length === 0) {
@@ -377,6 +377,28 @@ export function clearWorkspace(apiBaseUrl?: string): void {
     } else {
       writeIdentityMap(map);
     }
+    return true;
+  } catch (error) {
+    console.error('[levr-auth] Failed to clear workspace:', error);
+    return false;
+  }
+}
+
+/**
+ * Remove EVERY backend's identity record.
+ *
+ * The counterpart to `clearAllTokens`. `tq:logout --all` used to pair a
+ * clear-all of the tokens with a single-backend `clearWorkspace()`, which
+ * resolved through `loadConfig()` — whose third tier is the stored token's
+ * own `apiBaseUrl`, deleted moments earlier, and whose fourth is the STAGING
+ * default. So "log out of everything" cleared every token but at most one
+ * pin, usually not the one in use, leaving N-1 stale workspace selections to
+ * be picked up by the next login.
+ */
+export function clearAllWorkspaces(): void {
+  try {
+    const filePath = getWorkspacePath();
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
   } catch (error) {
     console.error('[levr-auth] Failed to clear workspace:', error);
   }

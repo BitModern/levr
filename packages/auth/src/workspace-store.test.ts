@@ -20,6 +20,7 @@ let getWorkspaceFilePath: typeof import('./workspace-store.js').getWorkspaceFile
 let loadIdentityCache: typeof import('./workspace-store.js').loadIdentityCache;
 let refreshMirror: typeof import('./workspace-store.js').refreshMirror;
 let saveIdentityCache: typeof import('./workspace-store.js').saveIdentityCache;
+let clearAllWorkspaces: typeof import('./workspace-store.js').clearAllWorkspaces;
 
 beforeEach(async () => {
   state.tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tq-ws-test-'));
@@ -36,6 +37,7 @@ beforeEach(async () => {
   loadIdentityCache = mod.loadIdentityCache;
   refreshMirror = mod.refreshMirror;
   saveIdentityCache = mod.saveIdentityCache;
+  clearAllWorkspaces = mod.clearAllWorkspaces;
 });
 
 afterEach(() => {
@@ -698,5 +700,61 @@ describe('workspace.json and oauth-tokens.json agree on the key', () => {
       apiBaseUrl: BACKEND,
     });
     expect(keysOf('oauth-tokens.json')).toEqual([BACKEND]);
+  });
+});
+
+describe('clearWorkspace reports what it removed', () => {
+  // `tq:logout` used to probe with `loadWorkspace(target) !== null` before
+  // clearing. That only sees `workspace_id`, so an entry carrying identity
+  // fields WITHOUT one was deleted while the CLI printed "Nothing stored" —
+  // and the worktree teardown faithfully relayed that. (review F-006)
+  it('returns true for an entry that has no workspace_id', () => {
+    const file = getWorkspaceFilePath();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        'http://localhost:9480': { user_email: 'a@b.c' },
+      }),
+    );
+
+    expect(loadWorkspace('http://localhost:9480')).toBeNull();
+    expect(clearWorkspace('http://localhost:9480')).toBe(true);
+  });
+
+  it('returns true when a pinned entry is removed', () => {
+    saveWorkspace('ws-1', 'http://localhost:9480');
+    expect(clearWorkspace('http://localhost:9480')).toBe(true);
+  });
+
+  it('returns false when that backend has no entry', () => {
+    saveWorkspace('ws-1', 'http://localhost:9480');
+    expect(clearWorkspace('http://localhost:8180')).toBe(false);
+  });
+
+  it('returns false when the file does not exist', () => {
+    expect(clearWorkspace('http://localhost:9480')).toBe(false);
+  });
+});
+
+describe('clearAllWorkspaces', () => {
+  // `--all` paired clearAllTokens() with a single-backend clearWorkspace(),
+  // which resolved through loadConfig() — whose third tier is the token
+  // apiBaseUrl just deleted and whose fourth is the STAGING default. So "log
+  // out of everything" left N-1 pins behind. (review F-003)
+  it('removes every backend, not just the configured one', () => {
+    saveWorkspace('ws-1', 'http://localhost:9480');
+    saveWorkspace('ws-2', 'https://api.levr.now');
+    saveWorkspace('ws-3', 'http://localhost:8180');
+
+    clearAllWorkspaces();
+
+    expect(loadWorkspace('http://localhost:9480')).toBeNull();
+    expect(loadWorkspace('https://api.levr.now')).toBeNull();
+    expect(loadWorkspace('http://localhost:8180')).toBeNull();
+  });
+
+  it('does not throw when there is no workspace file', () => {
+    expect(() => clearAllWorkspaces()).not.toThrow();
   });
 });
