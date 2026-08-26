@@ -12982,6 +12982,35 @@ const zFindingObservationBulkOperationV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/first-run/zod.js
+const zFirstRunStatusDto = z.object({
+	state: z.enum([
+		"welcome",
+		"reminder",
+		"hidden"
+	]),
+	mcpUrl: z.string(),
+	cliCommand: z.string(),
+	connected: z.array(z.object({
+		id: z.string(),
+		label: z.string(),
+		grantedAt: z.string().nullable()
+	})),
+	harnesses: z.array(z.object({
+		id: z.string(),
+		label: z.string(),
+		installKind: z.enum(["config-file", "cli-command"]),
+		snippet: z.string(),
+		docsUrl: z.string(),
+		comingSoon: z.boolean()
+	}))
+});
+const zFirstRunGetStatusV1Data = z.object({ url: z.literal("/v1/first-run/mcp") });
+const zFirstRunMarkSeenV1Data = z.object({ url: z.literal("/v1/first-run/mcp/seen") });
+const zFirstRunDeclineV1Data = z.object({ url: z.literal("/v1/first-run/mcp/decline") });
+const zFirstRunHideReminderV1Data = z.object({ url: z.literal("/v1/first-run/mcp/hide-reminder") });
+
+//#endregion
 //#region ../sdk/dist/gen/folder/zod.js
 const zFolderWithChildrenDto = z.object({
 	type: z.enum(["folder"]),
