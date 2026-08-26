@@ -13285,7 +13285,8 @@ const zBulkFolderOperationDto = z.object({
 		sequence: z.string().optional(),
 		labels: z.array(z.string()).optional(),
 		origin: z.enum(["authored", "automation"]).optional(),
-		entity_type: z.enum(["test", "run"]).optional()
+		entity_type: z.enum(["test", "run"]).optional(),
+		is_root: z.unknown()
 	}), z.object({
 		name: z.string().optional(),
 		description: z.string().optional(),
@@ -13294,7 +13295,8 @@ const zBulkFolderOperationDto = z.object({
 		parent_id: z.string().nullable().optional(),
 		sequence: z.string().optional(),
 		add_labels: z.array(z.string()).optional(),
-		remove_labels: z.array(z.string()).optional()
+		remove_labels: z.array(z.string()).optional(),
+		is_root: z.unknown()
 	})]).optional().describe(""),
 	tx_id: z.string().describe("")
 });
@@ -13337,7 +13339,8 @@ const zCreateFolderDto = z.object({
 	sequence: z.string().optional(),
 	labels: z.array(z.string()).optional(),
 	origin: z.enum(["authored", "automation"]).optional(),
-	entity_type: z.enum(["test", "run"]).optional()
+	entity_type: z.enum(["test", "run"]).optional(),
+	is_root: z.unknown()
 });
 const zUpdateFolderDto = z.object({
 	name: z.string().optional(),
@@ -13347,7 +13350,8 @@ const zUpdateFolderDto = z.object({
 	parent_id: z.string().nullable().optional(),
 	sequence: z.string().optional(),
 	add_labels: z.array(z.string()).optional(),
-	remove_labels: z.array(z.string()).optional()
+	remove_labels: z.array(z.string()).optional(),
+	is_root: z.unknown()
 });
 const zFolderFindAllV1Data = z.object({
 	query: z.object({
@@ -29962,6 +29966,119 @@ const zUserAccountUpdateV1Data = z.object({
 const zUserAccountRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/user-account/{id}/restore")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/user-preference/zod.js
+const zCreateUserPreferenceDto = z.object({
+	id: z.string().optional().describe(""),
+	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
+	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
+	user_id: z.string()
+});
+const zResponseUserPreferenceDto = z.object({
+	id: z.string().describe(""),
+	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
+	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
+	user_id: z.string(),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe(""),
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
+});
+const zUpdateUserPreferenceDto = z.object({
+	id: z.string().optional().describe(""),
+	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
+	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
+	user_id: z.string().optional()
+});
+const zUserPreferenceBulkOperationDto = z.object({
+	op: z.enum([
+		"create",
+		"update",
+		"delete"
+	]).describe(""),
+	id: z.string().optional().describe(""),
+	data: z.union([zCreateUserPreferenceDto, zUpdateUserPreferenceDto]).optional().describe(""),
+	tx_id: z.string().describe("")
+});
+const zBulkUserPreferenceRequestDto = z.object({ operations: z.array(zUserPreferenceBulkOperationDto).describe("") });
+const zBulkUserPreferenceOperationResultDto = z.object({
+	index: z.number().describe(""),
+	tx_id: z.string().describe(""),
+	status: z.number().describe(""),
+	error: z.object({
+		message: z.string().optional(),
+		code: z.string().optional(),
+		details: z.unknown().optional()
+	}).optional().describe(""),
+	response: zResponseUserPreferenceDto.optional().describe("")
+});
+const zBulkUserPreferenceResponseDto = z.object({
+	results: z.array(zBulkUserPreferenceOperationResultDto).describe(""),
+	summary: z.object({
+		total: z.number().describe(""),
+		successful: z.number().describe(""),
+		failed: z.number().describe(""),
+		savepoints_used: z.number().describe("")
+	}).describe("")
+});
+const zUserPreferenceCreateV1Data = z.object({
+	body: zCreateUserPreferenceDto,
+	url: z.literal("/v1/user-preference")
+});
+const zUserPreferenceFindAllV1Data = z.object({
+	query: z.object({
+		"_with": z.string().optional(),
+		"page": z.number().optional(),
+		"limit": z.number().optional(),
+		"filter.id": z.array(z.string()).optional(),
+		"filter.auto_assign_on_start": z.array(z.string()).optional(),
+		"filter.auto_assign_on_result": z.array(z.string()).optional(),
+		"filter.user_id": z.array(z.string()).optional(),
+		"filter.created_at": z.array(z.string()).optional(),
+		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
+		"sortBy": z.array(z.enum([
+			"id:ASC",
+			"id:DESC",
+			"created_at:ASC",
+			"created_at:DESC",
+			"updated_at:ASC",
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
+		])).optional(),
+		"search": z.string().optional(),
+		"searchBy": z.array(z.string()).optional()
+	}).optional(),
+	url: z.literal("/v1/user-preference")
+});
+const zUserPreferenceFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/user-preference/recently-deleted") });
+const zUserPreferenceFindOneV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/user-preference/{id}")
+});
+const zUserPreferenceUpdateV1Data = z.object({
+	body: zUpdateUserPreferenceDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/user-preference/{id}")
+});
+const zUserPreferenceRemoveV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/user-preference/{id}")
+});
+const zUserPreferenceBulkOperationV1Data = z.object({
+	body: zBulkUserPreferenceRequestDto,
+	url: z.literal("/v1/user-preference/bulk")
+});
+const zUserPreferenceRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/user-preference/{id}/restore")
 });
 
 //#endregion
