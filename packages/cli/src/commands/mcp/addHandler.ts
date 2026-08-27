@@ -1,11 +1,17 @@
-import { detectSync, installHarnessSync } from '@levr/mcp-harnesses/node';
+import {
+  detectSync,
+  installHarnessSync,
+  type HarnessScope,
+} from '@levr/mcp-harnesses/node';
 import type { LocalContext } from '../../context.js';
 import { resolveMcpUrl } from '../../mcp/url.js';
 import {
-  autoSelectIds,
+  clientChoices,
+  DEFAULT_SCOPE,
   formatReport,
   installSelected,
   nextStepsText,
+  offerableScopes,
   runNonInteractive,
   type InstallFn,
   type RunDeps,
@@ -17,11 +23,12 @@ interface McpAddFlags {
   all: boolean;
   yes: boolean;
   'dry-run': boolean;
+  scope?: HarnessScope;
   url?: string;
 }
 
-const defaultInstall: InstallFn = (harness, mcpUrl, dryRun) =>
-  installHarnessSync(harness, mcpUrl, { dryRun });
+const defaultInstall: InstallFn = (harness, mcpUrl, dryRun, scope) =>
+  installHarnessSync(harness, mcpUrl, { dryRun, scope });
 
 const defaultDeps: RunDeps = {
   detect: () => detectSync(),
@@ -45,6 +52,7 @@ export async function mcpAddHandler(
     clients,
     yes: flags.yes,
     dryRun: flags['dry-run'],
+    scope: flags.scope,
   };
 
   const explicitSelection = options.all || clients.length > 0;
@@ -64,18 +72,29 @@ export async function mcpAddHandler(
     return;
   }
 
-  await interactive(this, options.dryRun, url, source);
+  await interactive(this, options.dryRun, url, source, flags.scope);
 }
 
 function hasFailure(report: RunReport): boolean {
   return report.outcomes.some((o) => !o.result.ok);
 }
 
+/** Human-readable meaning of each scope, for the interactive picker. */
+const SCOPE_LABELS: Record<HarnessScope, { label: string; hint: string }> = {
+  user: { label: 'user', hint: 'every project you open' },
+  project: {
+    label: 'project',
+    hint: 'this repo, shared with your team via git',
+  },
+  local: { label: 'local', hint: 'this repo, only you' },
+};
+
 async function interactive(
   ctx: LocalContext,
   dryRun: boolean,
   url: string,
   urlSource: string,
+  requestedScope?: HarnessScope,
 ): Promise<void> {
   const p = await import('@clack/prompts');
 
@@ -89,21 +108,46 @@ async function interactive(
     return;
   }
 
-  const preselect = new Set(autoSelectIds(detected));
+  // Scope FIRST. The client rows say whether each client is already set up,
+  // and that is only answerable once we know which scope we are installing
+  // into — asking afterwards would label rows against the wrong scope.
+  const choices = offerableScopes(
+    installable.map((d) => d.id),
+    detected,
+  );
+  let scope = requestedScope ?? DEFAULT_SCOPE;
+  if (!requestedScope && choices.length > 1) {
+    const picked = await p.select<HarnessScope>({
+      message: 'Where should Levr be available?',
+      options: choices.map((s) => ({
+        value: s,
+        label: SCOPE_LABELS[s].label,
+        hint: SCOPE_LABELS[s].hint,
+      })),
+      initialValue: choices.includes(DEFAULT_SCOPE)
+        ? DEFAULT_SCOPE
+        : choices[0],
+    });
+    if (p.isCancel(picked)) {
+      p.cancel('Cancelled.');
+      ctx.process.exitCode = 1;
+      return;
+    }
+    scope = picked;
+  } else if (!requestedScope && choices.length === 1) {
+    // One real option — asking would be a question with a single answer.
+    scope = choices[0] ?? DEFAULT_SCOPE;
+  }
+
+  const rows = clientChoices(detected, scope);
   const selection = await p.multiselect<string>({
-    message: 'Select clients to set up',
-    options: installable.map((d) => ({
-      value: d.id,
-      label: d.label,
-      hint: d.alreadyConfigured
-        ? 'already set up'
-        : d.installed
-          ? 'detected'
-          : 'not detected',
+    message: `Select clients to set up (${scope} scope)`,
+    options: rows.map((r) => ({
+      value: r.value,
+      label: r.label,
+      hint: r.hint,
     })),
-    initialValues: installable
-      .filter((d) => preselect.has(d.id))
-      .map((d) => d.id),
+    initialValues: rows.filter((r) => r.selected).map((r) => r.value),
     required: false,
   });
   if (p.isCancel(selection)) {
@@ -118,12 +162,24 @@ async function interactive(
 
   const spin = p.spinner();
   spin.start(dryRun ? 'Previewing changes' : 'Installing');
-  const outcomes = installSelected(selection, url, dryRun, defaultDeps.install);
+  const outcomes = installSelected(
+    selection,
+    {
+      mcpUrl: url,
+      dryRun,
+      scope,
+      // Interactively-picked clients were not asserted against this scope,
+      // so an unsupported one falls back rather than failing the run.
+      namedIds: new Set<string>(),
+    },
+    defaultDeps.install,
+  );
   spin.stop(dryRun ? 'Preview ready' : 'Done');
 
   const report: RunReport = {
     url,
     urlSource,
+    scope,
     outcomes,
     unknownClients: [],
     comingSoonClients: [],

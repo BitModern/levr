@@ -87,6 +87,18 @@ or when generating a script for a shell other than the one you are running.`
 
 //#endregion
 //#region src/commands/mcp/add.ts
+const SCOPES = [
+	"user",
+	"project",
+	"local"
+];
+/** Validate `--scope` at parse time so a typo fails before anything is read. */
+function parseScope(raw) {
+	const value = raw.trim().toLowerCase();
+	const match = SCOPES.find((s) => s === value);
+	if (!match) throw new Error(`invalid --scope "${raw}" (expected one of: ${SCOPES.join(", ")})`);
+	return match;
+}
 const mcpAddCommand = buildCommand({
 	docs: {
 		brief: "Add the Levr MCP server to installed AI clients",
@@ -95,16 +107,27 @@ Claude Code, Cursor, Windsurf, Zed) and write the Levr MCP server into each
 one's config. The entry is credential-free — the client opens a browser to
 authorize with Levr the first time it connects.
 
+--scope decides where the entry lands:
+  user     every project you open (the default)
+  project  this repository, shared with everyone who checks it out
+  local    this repository, only you (Claude Code only)
+
+Not every client supports every scope — Claude Desktop and Windsurf are
+user-only. A client you name with --client fails if it cannot honor the
+scope you asked for; one picked up by --all or interactively falls back to
+the scope it does support, and the report says so.
+
 Interactive by default; non-interactive when --all/--client/--yes is passed
 or when not running in a terminal (CI). Config edits preserve existing
 servers and comments, and re-running is a no-op.
 
 Examples:
-  npx @levr-one/cli mcp add        # detect clients and pick interactively
-  levr mcp add --all               # set up every detected client
+  npx @levr-one/cli mcp add            # detect clients and pick interactively
+  levr mcp add --all                   # set up every detected client
   levr mcp add --client cursor --yes
-  levr mcp add --dry-run           # preview without writing
-  levr mcp add --url <mcp-url>     # target a non-default MCP server`
+  levr mcp add --scope project         # commit the config to this repo
+  levr mcp add --dry-run               # preview without writing
+  levr mcp add --url <mcp-url>         # target a non-default MCP server`
 	},
 	parameters: {
 		flags: {
@@ -131,6 +154,13 @@ Examples:
 				default: false,
 				brief: "Show changes without writing"
 			},
+			scope: {
+				kind: "parsed",
+				parse: parseScope,
+				brief: "Where to install: user (default), project, or local",
+				placeholder: "user|project|local",
+				optional: true
+			},
 			url: {
 				kind: "parsed",
 				parse: String,
@@ -142,7 +172,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-K2a4rVv8.js");
+		const { mcpAddHandler } = await import("./addHandler-7QMKiy7o.js");
 		return mcpAddHandler;
 	}
 });
@@ -521,7 +551,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.6.12";
+var version = "0.7.0";
 
 //#endregion
 //#region src/app.ts

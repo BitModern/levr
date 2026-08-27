@@ -29,7 +29,7 @@ vi.mock('../../auth/credentials.js', () => ({
 import { mcpAddHandler } from './addHandler.js';
 
 function det(id: string, over: Partial<DetectedHarness> = {}): DetectedHarness {
-  return {
+  const base: Omit<DetectedHarness, 'scopes'> = {
     id,
     label: id,
     installed: true,
@@ -38,6 +38,20 @@ function det(id: string, over: Partial<DetectedHarness> = {}): DetectedHarness {
     available: true,
     comingSoon: false,
     ...over,
+  };
+  return {
+    ...base,
+    // Derived, so the legacy top-level mirror and the default scope never
+    // disagree — real detection keeps them in step.
+    scopes: over.scopes ?? [
+      {
+        scope: 'user',
+        installKind: 'config-file',
+        configPath: base.configPath,
+        available: base.available,
+        alreadyConfigured: base.alreadyConfigured,
+      },
+    ],
   };
 }
 
@@ -48,6 +62,7 @@ function okResult(over: Partial<InstallResult> = {}): InstallResult {
     path: '/fake/x.json',
     alreadyConfigured: false,
     dryRun: false,
+    scope: 'user',
     ...over,
   };
 }

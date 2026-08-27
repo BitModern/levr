@@ -12,6 +12,29 @@ See [arch.md](arch.md) for architecture, component diagrams, auth flows, and dat
 - **Colocated tests** — all test files live next to their source (e.g., `pushHandler.test.ts`, `resolve-token.test.ts`)
 - **Context injection for tests** — test handlers by binding a mock `LocalContext` via `.call(mockContext, ...)`
 
+## `mcp add` flags
+
+| Flag              | Meaning                                                        |
+| ----------------- | -------------------------------------------------------------- |
+| `--client <id,…>` | install into these harness ids (repeatable or comma-separated) |
+| `--all`           | install into every detected, installable client                |
+| `--yes`, `-y`     | non-interactive; auto-select detected clients                  |
+| `--dry-run`       | show the changes without writing                               |
+| `--scope <s>`     | `user` (default) · `project` · `local` (internal)              |
+| `--url <url>`     | explicit MCP URL (overrides `LEVR_MCP_URL` / derivation)       |
+
+**`add.ts` must keep taking `HarnessScope` via the `import type` FORM.** Under
+`verbatimModuleSyntax` an inline `import { type X }` still emits the import, so
+`import { type HarnessScope }` would pull the harness catalog into the chunk
+`app.ts` loads eagerly — costing `levr push` in CI the lazy-load property the
+whole command layout exists to preserve. Only `import type { … }` is erased.
+
+The unsupported-scope policy lives in `installSelected` (`src/mcp/run.ts`) and
+keys on `namedIds`: a client the user typed with `--client` FAILS when it cannot
+honor the requested scope, while one swept in by `--all` or a multiselect falls
+back to `defaultScope(harness)` and records `fallbackFrom` so the report can say
+so. Never make a fallback silent.
+
 ## Environment Variables
 
 | Variable        | Description                                                                                                                                                                                                                                              | Default                |
