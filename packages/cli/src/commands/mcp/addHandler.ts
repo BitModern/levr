@@ -39,7 +39,19 @@ export async function mcpAddHandler(
   this: LocalContext,
   flags: McpAddFlags,
 ): Promise<void> {
-  const { url, source } = resolveMcpUrl(flags.url);
+  // A bad --url / LEVR_MCP_URL is a user error, not a crash: report it the way
+  // every other handler reports one rather than letting a stack trace out.
+  let url: string;
+  let source: string;
+  try {
+    ({ url, source } = resolveMcpUrl(flags.url));
+  } catch (err) {
+    this.logger.error(
+      err instanceof Error ? err.message : 'Could not resolve the MCP URL.',
+    );
+    this.process.exitCode = 1;
+    return;
+  }
 
   const clients = (flags.client ?? []).flatMap((c) =>
     c
