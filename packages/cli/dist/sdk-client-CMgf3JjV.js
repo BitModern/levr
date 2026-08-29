@@ -49,7 +49,8 @@ const zResponseIssueDto = z.object({
 	deleted_by: z.string().nullable().describe(""),
 	archived_at: z.unknown().describe(""),
 	archived_by: z.string().nullable().describe(""),
-	auto_archived_at: z.unknown().describe("")
+	auto_archived_at: z.unknown().describe(""),
+	web_url: z.string().nullable().optional().describe("")
 });
 const zPaginatedMetaDocumented = z.object({
 	itemsPerPage: z.number(),
@@ -2896,7 +2897,8 @@ const zResponseAutomationRunDto = z.object({
 	deleted_at: z.unknown().describe(""),
 	deleted_by: z.string().nullable().describe(""),
 	archived_at: z.unknown().describe(""),
-	archived_by: z.string().nullable().describe("")
+	archived_by: z.string().nullable().describe(""),
+	web_url: z.string().nullable().optional().describe("")
 });
 const zUpdateAutomationRunDto = z.object({
 	id: z.string().optional().describe(""),
@@ -3312,7 +3314,8 @@ const zResponseAutomationRunResultDto = z.object({
 	deleted_at: z.unknown().describe(""),
 	deleted_by: z.string().nullable().describe(""),
 	archived_at: z.unknown().describe(""),
-	archived_by: z.string().nullable().describe("")
+	archived_by: z.string().nullable().describe(""),
+	web_url: z.string().nullable().optional().describe("")
 });
 const zUpdateAutomationRunResultDto = z.object({
 	id: z.string().optional().describe(""),
@@ -9947,7 +9950,8 @@ const zResponseCycleDto = z.object({
 	updated_by: z.string().describe(""),
 	workspace_id: z.string().describe(""),
 	deleted_at: z.unknown().describe(""),
-	deleted_by: z.string().nullable().describe("")
+	deleted_by: z.string().nullable().describe(""),
+	web_url: z.string().nullable().optional().describe("")
 });
 const zUpdateCycleDto = z.object({
 	id: z.string().optional().describe(""),
@@ -14921,7 +14925,8 @@ const zResponseGithubPullRequestDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	web_url: z.string().nullable().optional().describe("")
 });
 const zGithubPullRequestFindAllV1Data = z.object({
 	query: z.object({
@@ -15278,7 +15283,8 @@ const zResponseInitiativeDto = z.object({
 	deleted_at: z.unknown().describe(""),
 	deleted_by: z.string().nullable().describe(""),
 	archived_at: z.unknown().describe(""),
-	archived_by: z.string().nullable().describe("")
+	archived_by: z.string().nullable().describe(""),
+	web_url: z.string().nullable().optional().describe("")
 });
 const zUpdateInitiativeDto = z.object({
 	id: z.string().optional().describe(""),
@@ -21213,7 +21219,8 @@ const zResponseProjectDto = z.object({
 	deleted_by: z.string().nullable().describe(""),
 	archived_at: z.unknown().describe(""),
 	archived_by: z.string().nullable().describe(""),
-	auto_archived_at: z.unknown().describe("")
+	auto_archived_at: z.unknown().describe(""),
+	web_url: z.string().nullable().optional().describe("")
 });
 const zUpdateProjectDto = z.object({
 	id: z.string().optional().describe(""),
@@ -27468,7 +27475,8 @@ const zResponseTeamDto = z.object({
 	deleted_at: z.unknown().describe(""),
 	deleted_by: z.string().nullable().describe(""),
 	archived_at: z.unknown().describe(""),
-	archived_by: z.string().nullable().describe("")
+	archived_by: z.string().nullable().describe(""),
+	web_url: z.string().nullable().optional().describe("")
 });
 const zUpdateTeamDto = z.object({
 	id: z.string().optional().describe(""),
