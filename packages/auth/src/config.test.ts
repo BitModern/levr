@@ -19,6 +19,9 @@ import {
   getConfigFilePath,
   PRESETS,
   parseDevTls,
+  parseLocalBackenderOrigin,
+  extractEnvValue,
+  resolveOriginFromEnvFiles,
   type TqConfig,
 } from './config.js';
 
@@ -333,5 +336,195 @@ describe('getConfigFilePath', () => {
   it('returns path under ~/.tq/', () => {
     const p = getConfigFilePath();
     expect(p).toBe(path.join(state.tmpDir, '.tq', 'config.json'));
+  });
+});
+
+/**
+ * internal and its review follow-ups (internal…internal).
+ *
+ * `tq:env local` overrode a correctly-computed preset with
+ * `apps/backender/.env`'s `API_BASE_URL` — a key that does NOT mean the same
+ * thing in every env file. The original guard was `/^https?:\/\//`, which the
+ * client SPA's proxy URL passed.
+ *
+ * The values below are the REAL ones from the real checkouts, so the
+ * regression is pinned to observed data rather than an invented shape.
+ */
+describe('parseLocalBackenderOrigin', () => {
+  it('accepts a worktree backender origin — the value the override exists for', () => {
+    expect(parseLocalBackenderOrigin('http://localhost:8580')).toBe(
+      'http://localhost:8580',
+    );
+    expect(parseLocalBackenderOrigin('https://api.levr.test:8080')).toBe(
+      'https://api.levr.test:8080',
+    );
+  });
+
+  it('REJECTS the client SPA proxy URL that caused internal', () => {
+    expect(
+      parseLocalBackenderOrigin('https://ai.levr.test:3020/api'),
+    ).toBeUndefined();
+  });
+
+  /**
+   * internal. The first cut validated the PARSED url and returned the RAW
+   * string, so every shape WHATWG normalises during parsing slipped through
+   * and came back unnormalised. These are the exact escapes it allowed.
+   */
+  it('rejects shapes that only normalise away during parsing', () => {
+    // `search`/`hash` are EMPTY strings here, so a parsed-only check is blind.
+    expect(parseLocalBackenderOrigin('http://localhost:8080?')).toBeUndefined();
+    expect(parseLocalBackenderOrigin('http://localhost:8080#')).toBeUndefined();
+    // `/foo/..` collapses to `/`, so pathname looks clean.
+    expect(
+      parseLocalBackenderOrigin('http://localhost:8080/foo/..'),
+    ).toBeUndefined();
+  });
+
+  it('never returns the raw text — the parsed origin is what comes back', () => {
+    // Token and workspace stores are keyed BY URL, so casing must not vary.
+    expect(parseLocalBackenderOrigin('HTTP://LocalHost:8580')).toBe(
+      'http://localhost:8580',
+    );
+  });
+
+  it('rejects credentials rather than silently stripping them', () => {
+    expect(
+      parseLocalBackenderOrigin('http://user:pass@localhost:8080'),
+    ).toBeUndefined();
+  });
+
+  it('rejects any path, query or fragment', () => {
+    expect(parseLocalBackenderOrigin('http://localhost:8080/')).toBe(
+      'http://localhost:8080',
+    );
+    expect(
+      parseLocalBackenderOrigin('http://localhost:8080/v1'),
+    ).toBeUndefined();
+    expect(
+      parseLocalBackenderOrigin('http://localhost:8080?x=1'),
+    ).toBeUndefined();
+    expect(
+      parseLocalBackenderOrigin('http://localhost:8080#f'),
+    ).toBeUndefined();
+  });
+
+  it('rejects non-http(s) schemes and unparseable values', () => {
+    expect(parseLocalBackenderOrigin('ftp://localhost:8080')).toBeUndefined();
+    expect(parseLocalBackenderOrigin('file:///tmp/x')).toBeUndefined();
+    expect(parseLocalBackenderOrigin(undefined)).toBeUndefined();
+    expect(parseLocalBackenderOrigin('')).toBeUndefined();
+    expect(parseLocalBackenderOrigin('   ')).toBeUndefined();
+    expect(parseLocalBackenderOrigin('not a url')).toBeUndefined();
+  });
+});
+
+/**
+ * internal / internal — the dotenv shapes `parseDevTls` already handles.
+ * The repo has ALREADY been bitten by the `export ` form on this very key:
+ * see `scripts/worktree-delete.test.ts:319`.
+ */
+describe('extractEnvValue', () => {
+  const KEY = 'API_BASE_URL';
+
+  it('reads the plain and quoted forms', () => {
+    expect(extractEnvValue('API_BASE_URL=http://localhost:8580', KEY)).toBe(
+      'http://localhost:8580',
+    );
+    expect(extractEnvValue('API_BASE_URL="http://localhost:8580"', KEY)).toBe(
+      'http://localhost:8580',
+    );
+    expect(extractEnvValue("API_BASE_URL='http://localhost:8580'", KEY)).toBe(
+      'http://localhost:8580',
+    );
+  });
+
+  it('accepts the `export ` prefix', () => {
+    expect(
+      extractEnvValue('export API_BASE_URL=http://localhost:8580', KEY),
+    ).toBe('http://localhost:8580');
+  });
+
+  it('strips a trailing comment on an unquoted value', () => {
+    expect(
+      extractEnvValue('API_BASE_URL=http://localhost:8580 # worktree', KEY),
+    ).toBe('http://localhost:8580');
+  });
+
+  it('takes the LAST assignment when the key repeats, as dotenv does', () => {
+    expect(
+      extractEnvValue(
+        'API_BASE_URL=http://localhost:1111\nAPI_BASE_URL=http://localhost:8580',
+        KEY,
+      ),
+    ).toBe('http://localhost:8580');
+  });
+
+  it('leaves an UNPAIRED quote intact rather than half-stripping it', () => {
+    expect(extractEnvValue('API_BASE_URL="http://localhost:8580', KEY)).toBe(
+      '"http://localhost:8580',
+    );
+  });
+
+  it('returns undefined when the key is absent, so the caller keeps looking', () => {
+    expect(extractEnvValue('PORT=8580\n', KEY)).toBeUndefined();
+    expect(extractEnvValue('# API_BASE_URL=http://x', KEY)).toBeUndefined();
+  });
+});
+
+/**
+ * internal. The precedence rule, which had ZERO coverage before this — a
+ * mutation reverting the whole `.env.worktree` change left 250/250 tests
+ * passing.
+ *
+ * The load-bearing property: the first file that CONTAINS the key decides,
+ * even when its value is unusable. Falling through to a lower-precedence file
+ * would let the CLI and the backender resolve different URLs for one key.
+ */
+describe('resolveOriginFromEnvFiles', () => {
+  const KEY = 'API_BASE_URL';
+
+  it('prefers the first file, matching apps/backender/src/env.ts load order', () => {
+    expect(
+      resolveOriginFromEnvFiles(KEY, [
+        'API_BASE_URL=http://localhost:9999',
+        'API_BASE_URL=http://localhost:8580',
+      ]),
+    ).toBe('http://localhost:9999');
+  });
+
+  it('falls through only when the key is ABSENT from the earlier file', () => {
+    expect(
+      resolveOriginFromEnvFiles(KEY, [
+        'PORT=9999',
+        'API_BASE_URL=http://localhost:8580',
+      ]),
+    ).toBe('http://localhost:8580');
+    expect(
+      resolveOriginFromEnvFiles(KEY, [
+        undefined,
+        'API_BASE_URL=http://localhost:8580',
+      ]),
+    ).toBe('http://localhost:8580');
+  });
+
+  it('STOPS at an unusable value instead of falling to a lower file', () => {
+    // The whole point: the backender would use the proxy URL from the first
+    // file, so the CLI must not silently resolve the second one.
+    expect(
+      resolveOriginFromEnvFiles(KEY, [
+        'API_BASE_URL=https://ai.levr.test:3020/api',
+        'API_BASE_URL=http://localhost:8580',
+      ]),
+    ).toBeUndefined();
+  });
+
+  it('returns undefined when no file carries the key', () => {
+    expect(
+      resolveOriginFromEnvFiles(KEY, [undefined, undefined]),
+    ).toBeUndefined();
+    expect(
+      resolveOriginFromEnvFiles(KEY, ['PORT=1', 'PORT=2']),
+    ).toBeUndefined();
   });
 });

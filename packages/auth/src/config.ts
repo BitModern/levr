@@ -117,6 +117,141 @@ function devTlsFromBackenderEnv(): boolean {
   return false;
 }
 
+/**
+ * Accept an env value ONLY if it is a bare `http(s)` origin — scheme, host,
+ * optional port, and nothing else. Returns the normalised origin, or
+ * `undefined` for anything that is not one.
+ *
+ * This exists because `API_BASE_URL` does not mean the same thing in every
+ * env file. In a worktree's `apps/backender/.env` it is that backender's own
+ * origin (`http://localhost:8580`) — the value `tq:env local` wants. In the
+ * main checkout under DEV_TLS it is `https://ai.levr.test:3020/api`, the URL
+ * the BROWSER should call: the client SPA's `/api` proxy. Accepting the
+ * second overwrote a correctly-computed `LOCAL_HTTPS` preset with a value
+ * that was wrong twice over — wrong host role, and a client dev-server port
+ * that is usually not listening — so every stdio MCP server dialled a dead
+ * host and reported an opaque `fetch failed`.
+ *
+ * The path is the discriminator **for the local checkout specifically** — the
+ * name says `Local` for that reason. It is NOT a universal truth that a
+ * backend base URL has no path: this repo's own deploys set
+ * `API_BASE_URL=https://ai.levr.now/api` (`apps/backender/chart/stage.yaml:35`)
+ * and `https://ai.levr.one/api` (`chart/prod.yaml:74`), and `setup-mcp.ts`
+ * deliberately accepts that shape because the levr MCP endpoint IS reached
+ * through the SPA proxy. Do not reuse this helper where deployed values are
+ * in scope — it would reject a valid production URL. internal.
+ *
+ * It fails SAFE — anything ambiguous declines to override the preset instead
+ * of silently replacing it. Do NOT weaken this back to a `^https?://` prefix
+ * test; that is precisely the check the proxy URL passed.
+ *
+ * Kept here rather than in `cli.ts` because that module is a self-executing
+ * CLI (importing it runs the command switch), so a pure helper there cannot
+ * be unit-tested — the same reason `parseDevTls` lives in this file.
+ *
+ * internal.
+ */
+export function parseLocalBackenderOrigin(
+  raw: string | undefined,
+): string | undefined {
+  if (raw === undefined) return undefined;
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  if (!trimmed) return undefined;
+
+  // Reject on the RAW text, BEFORE parsing. WHATWG normalises during parse:
+  // `/foo/..` collapses to `/`, and a bare trailing `?` or `#` reports an
+  // EMPTY `search`/`hash`. A guard that reads only the parsed URL therefore
+  // cannot see the two shapes it most needs to reject — which is precisely
+  // the bug the first cut of this function shipped (internal): it validated
+  // `parsed` and then returned the raw string.
+  if (/[?#]/.test(trimmed)) return undefined;
+  const afterScheme = trimmed.replace(/^https?:\/\//i, '');
+  if (afterScheme.includes('/')) return undefined;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return undefined;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return undefined;
+  }
+  // Credentials never belong in a backend base URL, and silently stripping
+  // them would write a different URL than the author wrote.
+  if (parsed.username || parsed.password) return undefined;
+
+  // Return the PARSED origin, never the raw text — that pairing is what makes
+  // the guards above load-bearing rather than decorative.
+  return parsed.origin;
+}
+
+/**
+ * Read one key out of dotenv file contents, reproducing the behaviours
+ * `parseDevTls` documents twenty lines above: an `export ` prefix, a trailing
+ * `#` comment on an unquoted value, and the LAST assignment winning when the
+ * key repeats. Quotes are stripped only when they PAIR, so an unbalanced
+ * quote is left intact rather than half-removed.
+ *
+ * The first cut of this reader hand-rolled a narrower regex and inherited
+ * none of that, even though the repo had already been bitten by the `export `
+ * form on this very key — see `scripts/worktree-delete.test.ts:319`.
+ * internal / internal.
+ *
+ * `key` is always a literal from the call sites, never user input, so
+ * interpolating it into the pattern is safe.
+ */
+export function extractEnvValue(
+  contents: string,
+  key: string,
+): string | undefined {
+  const re = new RegExp(
+    `^[ \\t]*(?:export[ \\t]+)?${key}[ \\t]*=[ \\t]*(.*)$`,
+    'gm',
+  );
+  let raw: string | undefined;
+  for (const m of contents.matchAll(re)) raw = m[1];
+  if (raw === undefined) return undefined;
+
+  let value = raw.trim();
+  const quote = value[0];
+  const isQuote = quote === '"' || quote === "'";
+  if (isQuote && value.length > 1 && value.endsWith(quote)) {
+    value = value.slice(1, -1);
+  } else {
+    value = (value.split('#')[0] ?? '').trim();
+  }
+  return value;
+}
+
+/**
+ * Resolve a backender origin across the env files in precedence order, given
+ * their CONTENTS (`undefined` for a file that does not exist). Pure, so the
+ * precedence rule is unit-testable — the file I/O stays in `cli.ts`.
+ *
+ * **The first file that CONTAINS the key decides, even if its value is
+ * unusable.** That matches dotenv and `devTlsFromBackenderEnv`, which both
+ * fall through only on an ABSENT key. The first cut fell through on absent
+ * OR unusable, which let `.env.worktree` and `.env` disagree: the backender
+ * would use the higher-precedence value while the CLI silently resolved the
+ * lower one. Two answers for one key is exactly what reading these files in
+ * a shared order exists to prevent. Falling back to the preset is the safe
+ * direction; falling back to a different file is not. internal.
+ */
+export function resolveOriginFromEnvFiles(
+  key: string,
+  files: readonly (string | undefined)[],
+): string | undefined {
+  for (const contents of files) {
+    if (contents === undefined) continue;
+    const raw = extractEnvValue(contents, key);
+    if (raw === undefined) continue;
+    return parseLocalBackenderOrigin(raw);
+  }
+  return undefined;
+}
+
 const LOCAL_HTTP: TqConfig = {
   environment: 'local',
   apiUrl: 'http://localhost:8080',
