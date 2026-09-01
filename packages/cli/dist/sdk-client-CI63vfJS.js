@@ -27387,6 +27387,7 @@ const zIngestRequestDto = z.object({
 	advance_cursor_to: z.string().optional(),
 	force_upsert: z.boolean().optional()
 });
+const zSyncGetSseContextV1Data = z.object({ url: z.literal("/v1/sync/sse-context") });
 const zSyncGetLastSyncIdV1Data = z.object({ url: z.literal("/v1/sync/last-sync-id") });
 const zSyncBootstrapV1Data = z.object({
 	body: zBootstrapRequestDto,
