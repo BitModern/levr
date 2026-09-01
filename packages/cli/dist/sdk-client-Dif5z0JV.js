@@ -23,6 +23,8 @@ const zResponseIssueDto = z.object({
 	origin: z.string().optional().describe(""),
 	origin_detail: z.string().nullable().optional().describe(""),
 	origin_model: z.string().nullable().optional().describe(""),
+	origin_harness: z.string().nullable().optional().describe(""),
+	origin_harness_version: z.string().nullable().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	verification_status: z.string().optional().describe(""),
 	confidence_score: z.number().nullable().optional().describe(""),
@@ -13319,7 +13321,7 @@ const zBulkFolderOperationDto = z.object({
 		labels: z.array(z.string()).optional(),
 		origin: z.enum(["authored", "automation"]).optional(),
 		entity_type: z.enum(["test", "run"]).optional(),
-		is_root: z.unknown()
+		is_root: z.unknown().optional().describe("")
 	}), z.object({
 		name: z.string().optional(),
 		description: z.string().optional(),
@@ -13329,7 +13331,7 @@ const zBulkFolderOperationDto = z.object({
 		sequence: z.string().optional(),
 		add_labels: z.array(z.string()).optional(),
 		remove_labels: z.array(z.string()).optional(),
-		is_root: z.unknown()
+		is_root: z.unknown().optional().describe("")
 	})]).optional().describe(""),
 	tx_id: z.string().describe("")
 });
@@ -13373,7 +13375,7 @@ const zCreateFolderDto = z.object({
 	labels: z.array(z.string()).optional(),
 	origin: z.enum(["authored", "automation"]).optional(),
 	entity_type: z.enum(["test", "run"]).optional(),
-	is_root: z.unknown()
+	is_root: z.unknown().optional().describe("")
 });
 const zUpdateFolderDto = z.object({
 	name: z.string().optional(),
@@ -13384,7 +13386,7 @@ const zUpdateFolderDto = z.object({
 	sequence: z.string().optional(),
 	add_labels: z.array(z.string()).optional(),
 	remove_labels: z.array(z.string()).optional(),
-	is_root: z.unknown()
+	is_root: z.unknown().optional().describe("")
 });
 const zFolderFindAllV1Data = z.object({
 	query: z.object({
@@ -15616,7 +15618,6 @@ const zCreateIssueDto = z.object({
 	auto_closed_at: z.unknown().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	origin_detail: z.string().nullable().optional().describe(""),
-	origin_model: z.string().nullable().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	verification_status: z.string().optional().describe(""),
 	confidence_score: z.number().nullable().optional().describe(""),
@@ -15654,7 +15655,6 @@ const zUpdateIssueDto = z.object({
 	auto_closed_at: z.unknown().optional().describe(""),
 	origin: z.string().optional().describe(""),
 	origin_detail: z.string().nullable().optional().describe(""),
-	origin_model: z.string().nullable().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	verification_status: z.string().optional().describe(""),
 	confidence_score: z.number().nullable().optional().describe(""),
@@ -15733,6 +15733,8 @@ const zIssueFindAllV1Data = z.object({
 		"filter.origin": z.array(z.string()).optional(),
 		"filter.origin_detail": z.array(z.string()).optional(),
 		"filter.origin_model": z.array(z.string()).optional(),
+		"filter.origin_harness": z.array(z.string()).optional(),
+		"filter.origin_harness_version": z.array(z.string()).optional(),
 		"filter.origin_run_result_id": z.array(z.string()).optional(),
 		"filter.verification_status": z.array(z.string()).optional(),
 		"filter.confidence_score": z.array(z.string()).optional(),
@@ -15794,6 +15796,10 @@ const zIssueFindAllV1Data = z.object({
 			"origin_detail:DESC",
 			"origin_model:ASC",
 			"origin_model:DESC",
+			"origin_harness:ASC",
+			"origin_harness:DESC",
+			"origin_harness_version:ASC",
+			"origin_harness_version:DESC",
 			"verification_status:ASC",
 			"verification_status:DESC",
 			"confidence_score:ASC",
@@ -27765,6 +27771,10 @@ const zTestResponseDto = z.object({
 	]).nullable().optional().describe(""),
 	to_automate: z.boolean().optional().describe(""),
 	origin: z.string().optional().describe(""),
+	origin_detail: z.string().nullable().optional().describe(""),
+	origin_model: z.string().nullable().optional().describe(""),
+	origin_harness: z.string().nullable().optional().describe(""),
+	origin_harness_version: z.string().nullable().optional().describe(""),
 	case_type_id: z.string().nullable().optional().describe(""),
 	folder_id: z.string().nullable().optional().describe(""),
 	sequence: z.string().nullable().optional().describe(""),
@@ -27834,6 +27844,7 @@ const zCreateTestDto = z.object({
 	]).nullable().optional().describe(""),
 	to_automate: z.boolean().optional().describe(""),
 	origin: z.string().optional().describe(""),
+	origin_detail: z.string().nullable().optional().describe(""),
 	case_type_id: z.string().nullable().optional().describe(""),
 	folder_id: z.string().optional(),
 	sequence: z.string().nullable().optional().describe(""),
