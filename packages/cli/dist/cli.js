@@ -551,7 +551,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.7.3";
+var version = "0.7.4";
 
 //#endregion
 //#region src/app.ts
