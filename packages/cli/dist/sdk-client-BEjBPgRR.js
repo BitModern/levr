@@ -9919,6 +9919,9 @@ const zCreateCycleDto = z.object({
 	scope_initial: z.number().optional().describe(""),
 	scope_final: z.number().optional().describe(""),
 	completed_scope: z.number().optional().describe(""),
+	testing_scope_initial: z.number().optional().describe(""),
+	testing_scope_final: z.number().optional().describe(""),
+	testing_completed_scope: z.number().optional().describe(""),
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
 	status: z.string().optional().describe(""),
@@ -9938,6 +9941,9 @@ const zResponseCycleDto = z.object({
 	scope_initial: z.number().optional().describe(""),
 	scope_final: z.number().optional().describe(""),
 	completed_scope: z.number().optional().describe(""),
+	testing_scope_initial: z.number().optional().describe(""),
+	testing_scope_final: z.number().optional().describe(""),
+	testing_completed_scope: z.number().optional().describe(""),
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
 	status: z.string().optional().describe(""),
@@ -9966,6 +9972,9 @@ const zUpdateCycleDto = z.object({
 	scope_initial: z.number().optional().describe(""),
 	scope_final: z.number().optional().describe(""),
 	completed_scope: z.number().optional().describe(""),
+	testing_scope_initial: z.number().optional().describe(""),
+	testing_scope_final: z.number().optional().describe(""),
+	testing_completed_scope: z.number().optional().describe(""),
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	completed_at: z.unknown().optional().describe(""),
 	status: z.string().optional().describe(""),
@@ -10024,6 +10033,9 @@ const zCycleFindAllV1Data = z.object({
 		"filter.scope_initial": z.array(z.string()).optional(),
 		"filter.scope_final": z.array(z.string()).optional(),
 		"filter.completed_scope": z.array(z.string()).optional(),
+		"filter.testing_scope_initial": z.array(z.string()).optional(),
+		"filter.testing_scope_final": z.array(z.string()).optional(),
+		"filter.testing_completed_scope": z.array(z.string()).optional(),
 		"filter.scope_is_mixed_unit": z.array(z.string()).optional(),
 		"filter.completed_at": z.array(z.string()).optional(),
 		"filter.status": z.array(z.string()).optional(),
@@ -10055,6 +10067,12 @@ const zCycleFindAllV1Data = z.object({
 			"scope_final:DESC",
 			"completed_scope:ASC",
 			"completed_scope:DESC",
+			"testing_scope_initial:ASC",
+			"testing_scope_initial:DESC",
+			"testing_scope_final:ASC",
+			"testing_scope_final:DESC",
+			"testing_completed_scope:ASC",
+			"testing_completed_scope:DESC",
 			"completed_at:ASC",
 			"completed_at:DESC",
 			"status:ASC",
@@ -24062,6 +24080,7 @@ const zCreateRunDto = z.object({
 	project_id: z.string().nullable(),
 	test_scope_id: z.string().nullable(),
 	cycle_id: z.string().nullable(),
+	auto_add_tests_to_team: z.boolean().optional(),
 	name: z.string().optional(),
 	run_type: z.enum([
 		"manual",
@@ -24326,10 +24345,14 @@ const zUpdateExecutionStepDto = z.object({
 });
 const zAddTestsToRunDto = z.object({
 	tests: z.array(z.object({ test_id: z.string() })),
-	environment_ids: z.array(z.string()).optional()
+	environment_ids: z.array(z.string()).optional(),
+	auto_add_tests_to_team: z.boolean().optional()
 });
 const zUpdateTestsEpochDto = z.object({ run_result_ids: z.array(z.string()).optional() });
-const zRefreshFolderDto = z.object({ folder_id: z.string() });
+const zRefreshFolderDto = z.object({
+	folder_id: z.string(),
+	auto_add_tests_to_team: z.boolean().optional()
+});
 const zRefreshFolderResultDto = z.object({
 	added: z.number(),
 	removed: z.number(),
@@ -28253,7 +28276,9 @@ const zPreviewImportResponseDto = z.object({
 			"unknown"
 		]).optional(),
 		labelPrefix: z.string().optional().describe(""),
-		descriptionHeading: z.string().optional().describe("")
+		descriptionHeading: z.string().optional().describe(""),
+		teamQualifier: z.string().optional().describe(""),
+		team_id: z.string().optional().describe("")
 	})),
 	missing_required: z.array(z.string()),
 	sample_rows: z.array(z.record(z.string(), z.unknown())),
@@ -28366,7 +28391,9 @@ const zCommitImportDto = z.object({
 			"unknown"
 		]).optional(),
 		labelPrefix: z.string().optional().describe(""),
-		descriptionHeading: z.string().optional().describe("")
+		descriptionHeading: z.string().optional().describe(""),
+		teamQualifier: z.string().optional().describe(""),
+		team_id: z.string().optional().describe("")
 	})).optional().describe(""),
 	assignee_plan: z.object({
 		role: z.enum([
@@ -28917,11 +28944,13 @@ const zTestScopeRestoreV1Data = z.object({
 //#region ../sdk/dist/gen/test-team/zod.js
 const zCreateTestTeamDto = z.object({
 	id: z.string().optional().describe(""),
+	estimate: z.number().nullable().optional().describe(""),
 	test_id: z.string(),
 	team_id: z.string()
 });
 const zResponseTestTeamDto = z.object({
 	id: z.string().describe(""),
+	estimate: z.number().nullable().optional().describe(""),
 	test_id: z.string(),
 	team_id: z.string(),
 	created_at: z.unknown().describe(""),
@@ -28933,6 +28962,7 @@ const zResponseTestTeamDto = z.object({
 });
 const zUpdateTestTeamDto = z.object({
 	id: z.string().optional().describe(""),
+	estimate: z.number().nullable().optional().describe(""),
 	test_id: z.string().optional(),
 	team_id: z.string().optional()
 });
@@ -28977,6 +29007,7 @@ const zTestTeamFindAllV1Data = z.object({
 		"page": z.number().optional(),
 		"limit": z.number().optional(),
 		"filter.id": z.array(z.string()).optional(),
+		"filter.estimate": z.array(z.string()).optional(),
 		"filter.test_id": z.array(z.string()).optional(),
 		"filter.team_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
@@ -28984,6 +29015,8 @@ const zTestTeamFindAllV1Data = z.object({
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
+			"estimate:ASC",
+			"estimate:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
