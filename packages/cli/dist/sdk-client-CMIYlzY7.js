@@ -4606,7 +4606,9 @@ const zResponseBranchIssueDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateBranchIssueDto = z.object({
 	id: z.string().optional().describe(""),
@@ -4660,6 +4662,7 @@ const zBranchIssueFindAllV1Data = z.object({
 		"filter.issue_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -4668,13 +4671,16 @@ const zBranchIssueFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/branch-issue")
 });
+const zBranchIssueFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/branch-issue/recently-deleted") });
 const zBranchIssueFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/branch-issue/{id}")
@@ -4691,6 +4697,10 @@ const zBranchIssueRemoveV1Data = z.object({
 const zBranchIssueBulkOperationV1Data = z.object({
 	body: zBulkBranchIssueRequestDto,
 	url: z.literal("/v1/branch-issue/bulk")
+});
+const zBranchIssueRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/branch-issue/{id}/restore")
 });
 
 //#endregion
@@ -4713,7 +4723,9 @@ const zResponseBranchRunDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateBranchRunDto = z.object({
 	id: z.string().optional().describe(""),
@@ -4769,6 +4781,7 @@ const zBranchRunFindAllV1Data = z.object({
 		"filter.automation_run_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -4781,13 +4794,16 @@ const zBranchRunFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/branch-run")
 });
+const zBranchRunFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/branch-run/recently-deleted") });
 const zBranchRunFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/branch-run/{id}")
@@ -4804,6 +4820,10 @@ const zBranchRunRemoveV1Data = z.object({
 const zBranchRunBulkOperationV1Data = z.object({
 	body: zBulkBranchRunRequestDto,
 	url: z.literal("/v1/branch-run/bulk")
+});
+const zBranchRunRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/branch-run/{id}/restore")
 });
 
 //#endregion
@@ -9706,7 +9726,9 @@ const zResponseCommitIssueDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateCommitIssueDto = z.object({
 	id: z.string().optional().describe(""),
@@ -9760,6 +9782,7 @@ const zCommitIssueFindAllV1Data = z.object({
 		"filter.issue_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -9768,13 +9791,16 @@ const zCommitIssueFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/commit-issue")
 });
+const zCommitIssueFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/commit-issue/recently-deleted") });
 const zCommitIssueFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/commit-issue/{id}")
@@ -9791,6 +9817,10 @@ const zCommitIssueRemoveV1Data = z.object({
 const zCommitIssueBulkOperationV1Data = z.object({
 	body: zBulkCommitIssueRequestDto,
 	url: z.literal("/v1/commit-issue/bulk")
+});
+const zCommitIssueRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/commit-issue/{id}/restore")
 });
 
 //#endregion
@@ -9813,7 +9843,9 @@ const zResponseCommitRunDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateCommitRunDto = z.object({
 	id: z.string().optional().describe(""),
@@ -9869,6 +9901,7 @@ const zCommitRunFindAllV1Data = z.object({
 		"filter.automation_run_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -9881,13 +9914,16 @@ const zCommitRunFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/commit-run")
 });
+const zCommitRunFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/commit-run/recently-deleted") });
 const zCommitRunFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/commit-run/{id}")
@@ -9904,6 +9940,10 @@ const zCommitRunRemoveV1Data = z.object({
 const zCommitRunBulkOperationV1Data = z.object({
 	body: zBulkCommitRunRequestDto,
 	url: z.literal("/v1/commit-run/bulk")
+});
+const zCommitRunRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/commit-run/{id}/restore")
 });
 
 //#endregion
@@ -14519,7 +14559,9 @@ const zResponseGithubIssueCommentLinkDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateGithubIssueCommentLinkDto = z.object({
 	id: z.string().optional().describe(""),
@@ -14579,6 +14621,7 @@ const zGithubIssueCommentLinkFindAllV1Data = z.object({
 		"filter.tq_comment_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -14591,13 +14634,16 @@ const zGithubIssueCommentLinkFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/github-issue-comment-link")
 });
+const zGithubIssueCommentLinkFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/github-issue-comment-link/recently-deleted") });
 const zGithubIssueCommentLinkFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/github-issue-comment-link/{id}")
@@ -14614,6 +14660,10 @@ const zGithubIssueCommentLinkRemoveV1Data = z.object({
 const zGithubIssueCommentLinkBulkOperationV1Data = z.object({
 	body: zBulkGithubIssueCommentLinkRequestDto,
 	url: z.literal("/v1/github-issue-comment-link/bulk")
+});
+const zGithubIssueCommentLinkRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/github-issue-comment-link/{id}/restore")
 });
 
 //#endregion
@@ -14803,7 +14853,9 @@ const zResponseGithubIssueSyncConfigDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateGithubIssueSyncConfigDto = z.object({
 	id: z.string().optional().describe(""),
@@ -14874,6 +14926,7 @@ const zGithubIssueSyncConfigFindAllV1Data = z.object({
 		"filter.github_repository_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -14890,13 +14943,16 @@ const zGithubIssueSyncConfigFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/github-issue-sync-config")
 });
+const zGithubIssueSyncConfigFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/github-issue-sync-config/recently-deleted") });
 const zGithubIssueSyncConfigFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/github-issue-sync-config/{id}")
@@ -14913,6 +14969,10 @@ const zGithubIssueSyncConfigRemoveV1Data = z.object({
 const zGithubIssueSyncConfigBulkOperationV1Data = z.object({
 	body: zBulkGithubIssueSyncConfigRequestDto,
 	url: z.literal("/v1/github-issue-sync-config/bulk")
+});
+const zGithubIssueSyncConfigRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/github-issue-sync-config/{id}/restore")
 });
 
 //#endregion
@@ -14946,6 +15006,8 @@ const zResponseGithubPullRequestDto = z.object({
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
 	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe(""),
 	web_url: z.string().nullable().optional().describe("")
 });
 const zGithubPullRequestFindAllV1Data = z.object({
@@ -14977,6 +15039,7 @@ const zGithubPullRequestFindAllV1Data = z.object({
 		"filter.github_branch_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -15021,16 +15084,23 @@ const zGithubPullRequestFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/github-pull-request")
 });
+const zGithubPullRequestFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/github-pull-request/recently-deleted") });
 const zGithubPullRequestFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/github-pull-request/{id}")
+});
+const zGithubPullRequestRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/github-pull-request/{id}/restore")
 });
 
 //#endregion
@@ -16446,7 +16516,9 @@ const zResponseIssueRepositoryDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateIssueRepositoryDto = z.object({
 	id: z.string().optional().describe(""),
@@ -16500,6 +16572,7 @@ const zIssueRepositoryFindAllV1Data = z.object({
 		"filter.github_repository_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -16508,13 +16581,16 @@ const zIssueRepositoryFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/issue-repository")
 });
+const zIssueRepositoryFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/issue-repository/recently-deleted") });
 const zIssueRepositoryFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/issue-repository/{id}")
@@ -16531,6 +16607,10 @@ const zIssueRepositoryRemoveV1Data = z.object({
 const zIssueRepositoryBulkOperationV1Data = z.object({
 	body: zBulkIssueRepositoryRequestDto,
 	url: z.literal("/v1/issue-repository/bulk")
+});
+const zIssueRepositoryRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/issue-repository/{id}/restore")
 });
 
 //#endregion
@@ -20627,7 +20707,9 @@ const zResponsePrIssueDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdatePrIssueDto = z.object({
 	id: z.string().optional().describe(""),
@@ -20683,6 +20765,7 @@ const zPrIssueFindAllV1Data = z.object({
 		"filter.issue_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -20691,13 +20774,16 @@ const zPrIssueFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/pr-issue")
 });
+const zPrIssueFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/pr-issue/recently-deleted") });
 const zPrIssueFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/pr-issue/{id}")
@@ -20714,6 +20800,10 @@ const zPrIssueRemoveV1Data = z.object({
 const zPrIssueBulkOperationV1Data = z.object({
 	body: zBulkPrIssueRequestDto,
 	url: z.literal("/v1/pr-issue/bulk")
+});
+const zPrIssueRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/pr-issue/{id}/restore")
 });
 
 //#endregion
@@ -20736,7 +20826,9 @@ const zResponsePrRunDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdatePrRunDto = z.object({
 	id: z.string().optional().describe(""),
@@ -20792,6 +20884,7 @@ const zPrRunFindAllV1Data = z.object({
 		"filter.automation_run_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -20804,13 +20897,16 @@ const zPrRunFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/pr-run")
 });
+const zPrRunFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/pr-run/recently-deleted") });
 const zPrRunFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/pr-run/{id}")
@@ -20827,6 +20923,10 @@ const zPrRunRemoveV1Data = z.object({
 const zPrRunBulkOperationV1Data = z.object({
 	body: zBulkPrRunRequestDto,
 	url: z.literal("/v1/pr-run/bulk")
+});
+const zPrRunRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/pr-run/{id}/restore")
 });
 
 //#endregion
@@ -20847,7 +20947,9 @@ const zResponsePrTeamDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdatePrTeamDto = z.object({
 	id: z.string().optional().describe(""),
@@ -20901,6 +21003,7 @@ const zPrTeamFindAllV1Data = z.object({
 		"filter.team_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -20909,13 +21012,16 @@ const zPrTeamFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/pr-team")
 });
+const zPrTeamFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/pr-team/recently-deleted") });
 const zPrTeamFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/pr-team/{id}")
@@ -20932,6 +21038,10 @@ const zPrTeamRemoveV1Data = z.object({
 const zPrTeamBulkOperationV1Data = z.object({
 	body: zBulkPrTeamRequestDto,
 	url: z.literal("/v1/pr-team/bulk")
+});
+const zPrTeamRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/pr-team/{id}/restore")
 });
 
 //#endregion
@@ -23638,7 +23748,9 @@ const zResponseReviewHealthSnapshotDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zCreateReviewHealthSnapshotDto = z.object({
 	id: z.string().optional().describe(""),
@@ -23717,6 +23829,7 @@ const zReviewHealthSnapshotFindAllV1Data = z.object({
 		"filter.github_repository_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -23743,13 +23856,16 @@ const zReviewHealthSnapshotFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/review-health-snapshot")
 });
+const zReviewHealthSnapshotFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/review-health-snapshot/recently-deleted") });
 const zReviewHealthSnapshotFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/review-health-snapshot/{id}")
@@ -23757,6 +23873,10 @@ const zReviewHealthSnapshotFindOneV1Data = z.object({
 const zReviewHealthSnapshotBulkOperationV1Data = z.object({
 	body: zBulkReviewHealthSnapshotRequestDto,
 	url: z.literal("/v1/review-health-snapshot/bulk")
+});
+const zReviewHealthSnapshotRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/review-health-snapshot/{id}/restore")
 });
 
 //#endregion
