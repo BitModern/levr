@@ -15999,7 +15999,8 @@ const zCreateIssueAutomationTestEvidenceDto = z.object({
 		"fail",
 		"regression",
 		"verification",
-		"flaky"
+		"flaky",
+		"superseded"
 	]).describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16036,7 +16037,8 @@ const zResponseIssueAutomationTestEvidenceDto = z.object({
 		"fail",
 		"regression",
 		"verification",
-		"flaky"
+		"flaky",
+		"superseded"
 	]).describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16079,7 +16081,8 @@ const zUpdateIssueAutomationTestEvidenceDto = z.object({
 		"fail",
 		"regression",
 		"verification",
-		"flaky"
+		"flaky",
+		"superseded"
 	]).optional().describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16761,7 +16764,8 @@ const zCreateIssueTestEvidenceDto = z.object({
 		"fail",
 		"regression",
 		"verification",
-		"flaky"
+		"flaky",
+		"superseded"
 	]).describe(""),
 	status_id: z.string().describe(""),
 	context: z.unknown().optional().describe(""),
@@ -16779,7 +16783,8 @@ const zResponseIssueTestEvidenceDto = z.object({
 		"fail",
 		"regression",
 		"verification",
-		"flaky"
+		"flaky",
+		"superseded"
 	]).describe(""),
 	status_id: z.string().describe(""),
 	context: z.unknown().optional().describe(""),
@@ -16803,7 +16808,8 @@ const zUpdateIssueTestEvidenceDto = z.object({
 		"fail",
 		"regression",
 		"verification",
-		"flaky"
+		"flaky",
+		"superseded"
 	]).optional().describe(""),
 	status_id: z.string().optional().describe(""),
 	context: z.unknown().optional().describe(""),
