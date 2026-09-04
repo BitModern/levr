@@ -45,6 +45,45 @@ so. Never make a fallback silent.
 | `LEVR_MCP_URL`  | MCP server URL written by `levr mcp add` (internal). Derived from the API URL when unset: known hosts map to the app-host OAuth resource (`ai.levr.<env>/api/v1/mcp` — NOT the bare api host, RFC 9728 resource-identity), others get `<api-url>/v1/mcp` | derived                |
 | `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default)                                                                                                                                                                  |                        |
 | `LEVR_SOURCE`   | Default automation source name                                                                                                                                                                                                                           |                        |
+| `LEVR_ENV_FILE` | Path to a `.env` to read instead of `./.env` (absolute, or relative to cwd). Unlike the implicit `.env`, a path named here that does not exist is an ERROR, not a silent skip | `.env` |
+
+### `.env` loading
+
+The CLI reads a `.env` from the working directory at startup
+(`src/utils/load-env-file.ts`, called first in `src/bin/cli.ts` — every
+`process.env` read in this package is inside a function, so a body statement
+there beats all of them).
+
+Two rules, both load-bearing and both mutation-tested:
+
+- **Only `LEVR_`-prefixed keys are applied.** This parses with `dotenv.parse`
+  rather than calling `dotenv.config()`, which would merge EVERY key into
+  `process.env`. A checkout's `.env` routinely carries variables that change how
+  Node itself behaves — `NODE_TLS_REJECT_UNAUTHORIZED`, `HTTP_PROXY`,
+  `NODE_OPTIONS` — and none of those are ours to apply just because someone ran
+  the CLI in that directory. The `LEVR_` namespace is what makes an unrelated
+  project's `.env` inert here.
+- **A real environment variable always wins.** An already-set key is left alone,
+  so `LEVR_URL=… levr push` still overrides the file and CI variables are never
+  shadowed by a checked-in `.env`. The file is a default, not an override.
+
+A missing `.env` is normal and silent. A missing `LEVR_ENV_FILE` throws — naming
+a file and getting silence hides a typo'd path, which is the one case where
+quiet failure costs more than it saves.
+
+**Worktree tip.** The CLI does NOT read `~/.tq/config.json` — that file belongs
+to the `yarn tq:*` dev tooling and the stdio MCP servers (`@levr-one/auth`), a
+separate config system with a different default. `dist/cli.js` defaults to
+PRODUCTION (`https://api.levr.one`), so a dev running it from a worktree without
+`LEVR_URL` set is talking to prod. Point it at the worktree with a `.env`:
+
+```
+LEVR_URL=http://localhost:8280       # apps/backender/.env API_BASE_URL
+LEVR_AUTH_URL=http://localhost:3221  # apps/backender/.env AUTH_URL
+```
+
+Ports are assigned per worktree — read them from that worktree's
+`apps/backender/.env` rather than copying the numbers above.
 
 ## ESLint Rules
 

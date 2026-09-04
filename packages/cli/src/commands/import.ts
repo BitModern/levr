@@ -14,9 +14,9 @@ Required-field rule: a column must map to test_name or the commit is
 rejected — interactive mode will ask; non-interactive runs exit 1.
 
 Examples:
-  levr import ./testrail-export.csv --team-id <uuid>
-  levr import ./cases.xlsx --team-id <uuid> --map "Title=test_name"
-  levr import --sheets-url "https://docs.google.com/spreadsheets/d/..." --team-id <uuid> --yes
+  levr import ./testrail-export.csv --team-key ENG
+  levr import ./cases.xlsx --team-key ENG --map "Title=test_name"
+  levr import --sheets-url "https://docs.google.com/spreadsheets/d/..." --team-key ENG --yes
   levr import ./cases.csv --team-id <uuid> --save-mapping mapping.json
   levr import ./cases.csv --team-id <uuid> --mapping-file mapping.json --yes   # CI replay`,
   },
@@ -43,9 +43,18 @@ Examples:
       'team-id': {
         kind: 'parsed',
         parse: String,
-        brief: 'Team the imported test cases will belong to',
+        brief:
+          'Team doing the import, by UUID. Optional: use --team-key instead, or omit both when the workspace has one team',
         placeholder: 'uuid',
-        optional: false,
+        optional: true,
+      },
+      'team-key': {
+        kind: 'parsed',
+        parse: String,
+        brief:
+          'Team doing the import, by key (e.g. ENG). Case-insensitive. Alternative to --team-id',
+        placeholder: 'key',
+        optional: true,
       },
       'sheets-url': {
         kind: 'parsed',
@@ -97,6 +106,7 @@ Examples:
     aliases: {
       w: 'workspace-id',
       t: 'team-id',
+      k: 'team-key',
       f: 'format',
       m: 'map',
       y: 'yes',

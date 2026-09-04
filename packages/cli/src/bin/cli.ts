@@ -3,8 +3,34 @@ import { run } from '@stricli/core';
 import { buildContext } from '../context.js';
 import { app } from '../app.js';
 import { proposeCompletionLines } from '../completion.js';
+import { loadEnvFile } from '../utils/load-env-file.js';
 
 const argv = process.argv.slice(2);
+
+// Before ANY command runs, and before anything reads process.env — every read
+// in this CLI is inside a function, so this body statement beats all of them.
+//
+// Only `LEVR_*` keys are taken, and only when not already set: a real
+// environment variable always wins, so `LEVR_URL=… levr push` still overrides
+// the file and CI variables are never shadowed by a checked-in `.env`.
+//
+// F-006: this THROWS on a missing `LEVR_ENV_FILE`, and as a bare top-level
+// statement that killed the process before the `__complete` branch below —
+// so a stale `LEVR_ENV_FILE` in a shell profile made every command AND every
+// TAB PRESS dump a Node stack trace through bundled internals. Completion in
+// particular must never crash: it runs on a keystroke, and its output is
+// consumed by the shell.
+try {
+  loadEnvFile();
+} catch (err) {
+  if (argv[0] !== '__complete') {
+    process.stderr.write(
+      `${err instanceof Error ? err.message : String(err)}\n`,
+    );
+    process.exit(1);
+  }
+  // Completion: proceed with whatever the real environment already holds.
+}
 
 // Shell tab-completion entrypoint. The scripts printed by
 // `levr completion bash|zsh` register a shell function that invokes

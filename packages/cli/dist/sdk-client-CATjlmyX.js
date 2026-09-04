@@ -100,19 +100,6 @@ const zResponseLabelDto = z.object({
 	archived_at: z.unknown().describe(""),
 	archived_by: z.string().nullable().describe("")
 });
-const zProfileResponseDto = z.object({
-	id: z.string(),
-	profileName: z.string(),
-	providerType: z.number(),
-	providerName: z.string(),
-	modelName: z.string(),
-	temperature: z.number().optional(),
-	baseUrl: z.string().optional(),
-	isSystem: z.boolean(),
-	llmProviderId: z.string(),
-	createdAt: z.unknown(),
-	updatedAt: z.unknown()
-});
 const zUpdateProfileDto = z.object({
 	profileName: z.string().optional(),
 	providerType: z.number().optional(),
@@ -2615,6 +2602,17 @@ const zAuthClientWorkspaceResponseDto = z.object({
 	token: z.string().describe(""),
 	user: zLoginUserDto.describe(""),
 	invitation_accepted: z.boolean().optional()
+});
+const zUserProfileResponseDto = z.object({
+	id: z.string(),
+	user_account_id: z.string().optional(),
+	email: z.string().optional(),
+	name: z.string().optional(),
+	avatar_url: z.string().optional(),
+	color: z.string().optional(),
+	verified: z.boolean().optional(),
+	workspace_id: z.string().optional(),
+	active_team_id: z.string().nullable().optional()
 });
 const zSitesResponseDto = z.object({
 	sites: z.array(z.object({
@@ -21204,6 +21202,19 @@ const zProfileListResponseDto = z.array(z.object({
 	createdAt: z.unknown(),
 	updatedAt: z.unknown()
 }));
+const zProfileResponseDto = z.object({
+	id: z.string(),
+	profileName: z.string(),
+	providerType: z.number(),
+	providerName: z.string(),
+	modelName: z.string(),
+	temperature: z.number().optional(),
+	baseUrl: z.string().optional(),
+	isSystem: z.boolean(),
+	llmProviderId: z.string(),
+	createdAt: z.unknown(),
+	updatedAt: z.unknown()
+});
 const zUpdateProfileResponseDto = z.object({
 	profile: z.object({
 		id: z.string(),
@@ -27579,6 +27590,22 @@ const zSyncSnapshotV1Data = z.object({ url: z.literal("/v1/sync/snapshot") });
 const zSyncMigrationsAppliedV1Data = z.object({ url: z.literal("/v1/sync/migrations-applied") });
 
 //#endregion
+//#region ../sdk/dist/gen/team/functions.js
+/**
+* Retrieve a paginated list of teams with optional filtering, sorting, and searching capabilities.
+*/
+const teamFindAllV1 = (options) => {
+	return (options?.client ?? client).get({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/team",
+		...options
+	});
+};
+
+//#endregion
 //#region ../sdk/dist/gen/team/zod.js
 const zCreateTeamDto = z.object({
 	id: z.string().optional().describe(""),
@@ -31476,4 +31503,4 @@ function tryReadMessage(err) {
 }
 
 //#endregion
-export { authGetProfileV1, authGetSitesV1, client, configureClient, testCaseImportCommitV1, testCaseImportPreviewV1, uploadAutomationIngest, uploadImport };
+export { authGetProfileV1, authGetSitesV1, client, configureClient, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1, uploadAutomationIngest, uploadImport };

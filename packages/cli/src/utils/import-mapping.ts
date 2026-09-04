@@ -9,7 +9,29 @@ export type MappingEntry = PreviewImportResponseDto['proposed_mapping'][number];
 
 export type ImportTarget = NonNullable<MappingEntry['targetProperty']>;
 
-export const IMPORT_TARGETS: ImportTarget[] = [
+/**
+ * Every import target the CLI will accept for `--map`.
+ *
+ * internal shipped a `teams` target on the server and in the web client, and
+ * this list was left behind — so `levr import --map "Team=teams"` threw
+ * "Invalid --map target" and team ownership was simply unreachable from the
+ * CLI. Nothing caught it: this is the THIRD hand-maintained copy of the
+ * target list (backend `IMPORT_TARGET_PROPERTIES`, client
+ * `TEST_CASE_KNOWN_PROPERTIES`, here), and while the ELEMENT type is derived
+ * from the SDK, TypeScript cannot see that an array literal omits a member of
+ * a union — `ImportTarget[]` is satisfied by any subset, including `[]`.
+ *
+ * So the literal is `as const` and the exhaustiveness assertions below turn a
+ * missing target into a COMPILE error naming it, rather than a runtime
+ * rejection the user discovers. Adding a target server-side now breaks this
+ * build until it is listed here.
+ *
+ * Caveat worth knowing: `@levr/sdk` resolves to `dist/`, so the union this
+ * is checked against is only as fresh as the last SDK build. A regenerated
+ * but unbuilt SDK delays detection to the next build — it does not restore
+ * the old failure, where the omission was invisible indefinitely.
+ */
+const IMPORT_TARGET_LIST = [
   'row_type',
   'test_id',
   'test_key',
@@ -26,6 +48,7 @@ export const IMPORT_TARGETS: ImportTarget[] = [
   'is_automated',
   'assignee_email',
   'labels',
+  'teams',
   'attachment_filenames',
   'data_set_names',
   'sequence',
@@ -38,7 +61,26 @@ export const IMPORT_TARGETS: ImportTarget[] = [
   'data_table',
   'steps',
   'preconditions',
-];
+] as const;
+
+export const IMPORT_TARGETS: readonly ImportTarget[] = IMPORT_TARGET_LIST;
+
+/**
+ * Compile-time drift guards. `Assert<T>` only accepts `never`, so each alias
+ * below fails to compile — naming the offending target in the error — when
+ * the two sets diverge in either direction.
+ */
+type Assert<T extends never> = T;
+
+/** A target the SDK knows about that this list omits. The internal failure. */
+type _NoMissingTargets = Assert<
+  Exclude<ImportTarget, (typeof IMPORT_TARGET_LIST)[number]>
+>;
+
+/** A target listed here that the SDK no longer has — a removal left behind. */
+type _NoUnknownTargets = Assert<
+  Exclude<(typeof IMPORT_TARGET_LIST)[number], ImportTarget>
+>;
 
 export const REQUIRED_TARGETS: ImportTarget[] = ['test_name'];
 

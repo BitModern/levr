@@ -2,6 +2,9 @@
 import { COMPLETION_SHELLS } from "./completionHandler-O2G_WZLf.js";
 import { buildApplication, buildCommand, buildRouteMap, proposeCompletions, run, text_en } from "@stricli/core";
 import chalk from "chalk";
+import { existsSync, readFileSync } from "node:fs";
+import { isAbsolute, resolve } from "node:path";
+import { parse } from "dotenv";
 
 //#region src/utils/logger.ts
 var Logger = class {
@@ -210,7 +213,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-BOWFHzAn.js");
+		const { loginHandler } = await import("./loginHandler-BE9JX12M.js");
 		return loginHandler;
 	}
 });
@@ -249,7 +252,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-BBTHpyog.js");
+		const { statusHandler } = await import("./statusHandler-CyhoTEEI.js");
 		return statusHandler;
 	}
 });
@@ -361,7 +364,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-BBzX09LW.js");
+		const { pushHandler } = await import("./pushHandler-BukCooiv.js");
 		return pushHandler;
 	}
 });
@@ -382,9 +385,9 @@ Required-field rule: a column must map to test_name or the commit is
 rejected — interactive mode will ask; non-interactive runs exit 1.
 
 Examples:
-  levr import ./testrail-export.csv --team-id <uuid>
-  levr import ./cases.xlsx --team-id <uuid> --map "Title=test_name"
-  levr import --sheets-url "https://docs.google.com/spreadsheets/d/..." --team-id <uuid> --yes
+  levr import ./testrail-export.csv --team-key ENG
+  levr import ./cases.xlsx --team-key ENG --map "Title=test_name"
+  levr import --sheets-url "https://docs.google.com/spreadsheets/d/..." --team-key ENG --yes
   levr import ./cases.csv --team-id <uuid> --save-mapping mapping.json
   levr import ./cases.csv --team-id <uuid> --mapping-file mapping.json --yes   # CI replay`
 	},
@@ -409,9 +412,16 @@ Examples:
 			"team-id": {
 				kind: "parsed",
 				parse: String,
-				brief: "Team the imported test cases will belong to",
+				brief: "Team doing the import, by UUID. Optional: use --team-key instead, or omit both when the workspace has one team",
 				placeholder: "uuid",
-				optional: false
+				optional: true
+			},
+			"team-key": {
+				kind: "parsed",
+				parse: String,
+				brief: "Team doing the import, by key (e.g. ENG). Case-insensitive. Alternative to --team-id",
+				placeholder: "key",
+				optional: true
 			},
 			"sheets-url": {
 				kind: "parsed",
@@ -466,6 +476,7 @@ Examples:
 		aliases: {
 			w: "workspace-id",
 			t: "team-id",
+			k: "team-key",
 			f: "format",
 			m: "map",
 			y: "yes",
@@ -473,7 +484,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler--Odfz6sz.js");
+		const { importHandler } = await import("./importHandler-zfgrGCyh.js");
 		return importHandler;
 	}
 });
@@ -494,7 +505,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-CBKYVX8A.js");
+		const { listHandler } = await import("./listHandler-B5KqRcYG.js");
 		return listHandler;
 	}
 });
@@ -527,7 +538,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-UrTpL_l1.js");
+		const { selectHandler } = await import("./selectHandler-CXwxIKL9.js");
 		return selectHandler;
 	}
 });
@@ -551,7 +562,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.7.8";
+var version = "0.8.0";
 
 //#endregion
 //#region src/app.ts
@@ -623,8 +634,87 @@ async function proposeCompletionLines(rawArgs, compLine, context) {
 }
 
 //#endregion
+//#region src/utils/load-env-file.ts
+/**
+* Only `LEVR_`-prefixed keys are taken from a `.env` file.
+*
+* `dotenv.config()` would merge EVERY key into `process.env`, which is more
+* than this CLI needs and more than a user consents to by running it in a
+* directory. A checkout's `.env` routinely carries things that change how Node
+* itself behaves — `NODE_TLS_REJECT_UNAUTHORIZED`, `HTTP_PROXY`,
+* `NODE_OPTIONS` — and none of them are ours to apply. Parsing and filtering
+* means an unrelated project's `.env` cannot reach this process at all; only
+* keys deliberately namespaced for this CLI have any effect.
+*/
+const LEVR_KEY = /^LEVR_[A-Z0-9_]*$/;
+/**
+* Where to look. `LEVR_ENV_FILE` names an explicit file (absolute, or relative
+* to cwd); otherwise `.env` in the working directory.
+*/
+function envFilePath(cwd, env) {
+	const explicit = env["LEVR_ENV_FILE"];
+	if (explicit) return isAbsolute(explicit) ? explicit : resolve(cwd, explicit);
+	return resolve(cwd, ".env");
+}
+/**
+* Merge `LEVR_*` variables from a `.env` file into `process.env`.
+*
+* A real environment variable ALWAYS wins: an already-set key is left alone,
+* so `LEVR_URL=… levr push` still overrides the file, and CI variables are
+* never shadowed by a checked-in `.env`. This matches dotenv's own precedence
+* and is the behaviour anyone who has used a `.env` expects — the file is a
+* default, not an override.
+*
+* Missing or unreadable files are not an error: `.env` is optional by nature,
+* and a CLI that refused to start because a directory has no `.env` would be
+* broken for every user who does not use one. An explicitly requested
+* `LEVR_ENV_FILE` that does not exist IS reported, because naming a file and
+* getting silence is the one case where quiet failure hides a real mistake.
+*/
+function loadEnvFile(cwd = process.cwd(), env = process.env) {
+	const path = envFilePath(cwd, env);
+	const explicitlyRequested = Boolean(env["LEVR_ENV_FILE"]);
+	if (!existsSync(path)) {
+		if (explicitlyRequested) throw new Error(`LEVR_ENV_FILE points at "${path}", which does not exist.`);
+		return {
+			path: null,
+			applied: []
+		};
+	}
+	let parsed;
+	try {
+		parsed = parse(readFileSync(path, "utf8"));
+	} catch (error) {
+		if (explicitlyRequested) throw error;
+		return {
+			path: null,
+			applied: []
+		};
+	}
+	const applied = [];
+	for (const [key, value] of Object.entries(parsed)) {
+		if (!LEVR_KEY.test(key)) continue;
+		if (env[key] !== void 0 && env[key] !== "") continue;
+		env[key] = value;
+		applied.push(key);
+	}
+	return {
+		path,
+		applied
+	};
+}
+
+//#endregion
 //#region src/bin/cli.ts
 const argv = process.argv.slice(2);
+try {
+	loadEnvFile();
+} catch (err) {
+	if (argv[0] !== "__complete") {
+		process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+		process.exit(1);
+	}
+}
 if (argv[0] === "__complete") for (const line of await proposeCompletionLines(argv, process.env["COMP_LINE"], buildContext(process))) process.stdout.write(`${line}\n`);
 else {
 	let savedExitCode;

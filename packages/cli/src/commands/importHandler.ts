@@ -13,8 +13,9 @@ import {
 import type { LocalContext } from '../context.js';
 import { resolveToken } from '../auth/resolve-token.js';
 import { resolveWorkspace } from '../workspace/resolve-workspace.js';
+import { resolveTeamId } from './resolve-team.js';
 import { configureClient } from '../utils/sdk-client.js';
-import { getApiUrl } from '../utils/env.js';
+import { getApiUrl, getTeamId } from '../utils/env.js';
 import {
   IMPORT_TARGETS,
   applyOverrides,
@@ -27,7 +28,8 @@ import {
 
 export interface ImportCommandFlags {
   'workspace-id'?: string;
-  'team-id': string;
+  'team-id'?: string;
+  'team-key'?: string;
   'sheets-url'?: string;
   format?: 'csv' | 'xlsx' | 'json';
   map?: string[];
@@ -159,14 +161,60 @@ export async function importHandler(
     this.logger.debug(`API:  ${getApiUrl()}`);
   }
   if (auth.type === 'jwt') {
-    const workspaceOk = await resolveWorkspace.call(
-      this,
-      flags['workspace-id'],
-    );
-    if (!workspaceOk) {
+    // Wrapped like the auth and team steps around it. Every non-returning
+    // path in `resolveWorkspace` THROWS ("Workspace <id> not found. Run 'levr
+    // workspace list'.", "No workspaces available."), and unwrapped those
+    // surfaced as a raw stack trace with internal bundle paths — for an
+    // ordinary user error whose message was already actionable.
+    let workspace;
+    try {
+      workspace = await resolveWorkspace.call(this, flags['workspace-id']);
+    } catch (err) {
+      this.logger.error(
+        err instanceof Error ? err.message : 'Could not resolve the workspace.',
+      );
       this.process.exitCode = 1;
       return;
     }
+    // Re-configure with the workspace now that it is known, so
+    // workspace-scoped endpoints get the `Workspace-Id` header.
+    //
+    // `configureClient` has always accepted a workspaceId and nothing ever
+    // passed one: every call the CLI made until now either infers the
+    // workspace server-side (the import preview, from `team_id`) or does not
+    // need one (auth, sites). Resolving `--team-key` lists teams, which is the
+    // first call that requires the header — without this it fails with
+    // "Workspace-Id header is required".
+    configureClient(auth, workspace.workspaceId);
+  }
+
+  // The importing team is resolved AFTER the workspace is settled: team keys
+  // are workspace-scoped, so resolving earlier could match a team in whatever
+  // workspace happened to be cached.
+  let teamId: string;
+  try {
+    const team = await resolveTeamId(
+      flags['team-id'],
+      flags['team-key'],
+      getTeamId(),
+    );
+    teamId = team.teamId;
+    // Report anything the user did not ask for outright. An import silently
+    // choosing which team gets the estimates is exactly the surprise this
+    // default is supposed to save them from.
+    if (team.source === 'active-team') {
+      this.logger.info(`Importing as your active team (${teamId}).`);
+    } else if (team.source === 'env') {
+      this.logger.info(`Importing as LEVR_TEAM_ID (${teamId}).`);
+    } else if (team.source === 'only-team') {
+      this.logger.info(`Importing as the only team in this workspace.`);
+    }
+  } catch (err) {
+    this.logger.error(
+      err instanceof Error ? err.message : 'Could not resolve the team.',
+    );
+    this.process.exitCode = 1;
+    return;
   }
 
   // 2. Preview
@@ -174,7 +222,7 @@ export async function importHandler(
   let preview: PreviewImportResponseDto;
   try {
     const body: Record<string, unknown> = {
-      team_id: flags['team-id'],
+      team_id: teamId,
       format: flags.format,
       sheets_url: flags['sheets-url'],
     };
