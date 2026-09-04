@@ -15137,6 +15137,14 @@ const zHelpGetDocV1Data = z.object({
 	}),
 	url: z.literal("/v1/help/docs/{category}/{name}")
 });
+const zHelpGetDocNestedV1Data = z.object({
+	path: z.object({
+		"cat1": z.string(),
+		"cat2": z.string(),
+		"name": z.string()
+	}),
+	url: z.literal("/v1/help/docs/{cat1}/{cat2}/{name}")
+});
 
 //#endregion
 //#region ../sdk/dist/gen/import/functions.js
