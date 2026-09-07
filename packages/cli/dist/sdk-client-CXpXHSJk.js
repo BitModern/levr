@@ -17557,6 +17557,148 @@ const zJiraListInstallationProjectsV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/jira-issue-sync-config/zod.js
+const zCreateJiraIssueSyncConfigDto = z.object({
+	id: z.string().optional().describe(""),
+	sync_direction: z.string().nullable().optional().describe(""),
+	issue_sync_enabled: z.boolean().optional().describe(""),
+	pull_filter: z.unknown().optional().describe(""),
+	push_exclude_type_ids: z.string().nullable().optional().describe(""),
+	inbound_type_label_id: z.string().nullable().optional().describe(""),
+	sync_labels: z.boolean().optional().describe(""),
+	sync_status: z.boolean().optional().describe(""),
+	sync_comments: z.boolean().optional().describe(""),
+	jira_project_id: z.string()
+});
+const zResponseJiraIssueSyncConfigDto = z.object({
+	id: z.string().describe(""),
+	sync_direction: z.string().nullable().optional().describe(""),
+	issue_sync_enabled: z.boolean().optional().describe(""),
+	pull_filter: z.unknown().optional().describe(""),
+	push_exclude_type_ids: z.string().nullable().optional().describe(""),
+	inbound_type_label_id: z.string().nullable().optional().describe(""),
+	sync_labels: z.boolean().optional().describe(""),
+	sync_status: z.boolean().optional().describe(""),
+	sync_comments: z.boolean().optional().describe(""),
+	jira_project_id: z.string(),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe(""),
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
+});
+const zUpdateJiraIssueSyncConfigDto = z.object({
+	id: z.string().optional().describe(""),
+	sync_direction: z.string().nullable().optional().describe(""),
+	issue_sync_enabled: z.boolean().optional().describe(""),
+	pull_filter: z.unknown().optional().describe(""),
+	push_exclude_type_ids: z.string().nullable().optional().describe(""),
+	inbound_type_label_id: z.string().nullable().optional().describe(""),
+	sync_labels: z.boolean().optional().describe(""),
+	sync_status: z.boolean().optional().describe(""),
+	sync_comments: z.boolean().optional().describe(""),
+	jira_project_id: z.string().optional()
+});
+const zJiraIssueSyncConfigBulkOperationDto = z.object({
+	op: z.enum([
+		"create",
+		"update",
+		"delete"
+	]).describe(""),
+	id: z.string().optional().describe(""),
+	data: z.union([zCreateJiraIssueSyncConfigDto, zUpdateJiraIssueSyncConfigDto]).optional().describe(""),
+	tx_id: z.string().describe("")
+});
+const zBulkJiraIssueSyncConfigRequestDto = z.object({ operations: z.array(zJiraIssueSyncConfigBulkOperationDto).describe("") });
+const zBulkJiraIssueSyncConfigOperationResultDto = z.object({
+	index: z.number().describe(""),
+	tx_id: z.string().describe(""),
+	status: z.number().describe(""),
+	error: z.object({
+		message: z.string().optional(),
+		code: z.string().optional(),
+		details: z.unknown().optional()
+	}).optional().describe(""),
+	response: zResponseJiraIssueSyncConfigDto.optional().describe("")
+});
+const zBulkJiraIssueSyncConfigResponseDto = z.object({
+	results: z.array(zBulkJiraIssueSyncConfigOperationResultDto).describe(""),
+	summary: z.object({
+		total: z.number().describe(""),
+		successful: z.number().describe(""),
+		failed: z.number().describe(""),
+		savepoints_used: z.number().describe("")
+	}).describe("")
+});
+const zJiraIssueSyncConfigCreateV1Data = z.object({
+	body: zCreateJiraIssueSyncConfigDto,
+	url: z.literal("/v1/jira-issue-sync-config")
+});
+const zJiraIssueSyncConfigFindAllV1Data = z.object({
+	query: z.object({
+		"_with": z.string().optional(),
+		"page": z.number().optional(),
+		"limit": z.number().optional(),
+		"filter.id": z.array(z.string()).optional(),
+		"filter.sync_direction": z.array(z.string()).optional(),
+		"filter.issue_sync_enabled": z.array(z.string()).optional(),
+		"filter.push_exclude_type_ids": z.array(z.string()).optional(),
+		"filter.inbound_type_label_id": z.array(z.string()).optional(),
+		"filter.sync_labels": z.array(z.string()).optional(),
+		"filter.sync_status": z.array(z.string()).optional(),
+		"filter.sync_comments": z.array(z.string()).optional(),
+		"filter.jira_project_id": z.array(z.string()).optional(),
+		"filter.created_at": z.array(z.string()).optional(),
+		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
+		"sortBy": z.array(z.enum([
+			"id:ASC",
+			"id:DESC",
+			"sync_direction:ASC",
+			"sync_direction:DESC",
+			"push_exclude_type_ids:ASC",
+			"push_exclude_type_ids:DESC",
+			"inbound_type_label_id:ASC",
+			"inbound_type_label_id:DESC",
+			"created_at:ASC",
+			"created_at:DESC",
+			"updated_at:ASC",
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
+		])).optional(),
+		"search": z.string().optional(),
+		"searchBy": z.array(z.string()).optional()
+	}).optional(),
+	url: z.literal("/v1/jira-issue-sync-config")
+});
+const zJiraIssueSyncConfigFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/jira-issue-sync-config/recently-deleted") });
+const zJiraIssueSyncConfigFindOneV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/jira-issue-sync-config/{id}")
+});
+const zJiraIssueSyncConfigUpdateV1Data = z.object({
+	body: zUpdateJiraIssueSyncConfigDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/jira-issue-sync-config/{id}")
+});
+const zJiraIssueSyncConfigRemoveV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/jira-issue-sync-config/{id}")
+});
+const zJiraIssueSyncConfigBulkOperationV1Data = z.object({
+	body: zBulkJiraIssueSyncConfigRequestDto,
+	url: z.literal("/v1/jira-issue-sync-config/bulk")
+});
+const zJiraIssueSyncConfigRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/jira-issue-sync-config/{id}/restore")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/jira-project-team/zod.js
 const zCreateJiraProjectTeamDto = z.object({
 	id: z.string().optional().describe(""),
