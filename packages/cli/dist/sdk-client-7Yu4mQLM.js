@@ -27671,6 +27671,8 @@ const zPriorityBootstrapRequestDto = z.object({
 	column: z.string().describe(""),
 	value: z.string().describe("")
 });
+const zEntityPresenceRequestDto = z.object({ entities: z.array(z.string()).describe("") });
+const zEntityPresenceResponseDto = z.object({ present: z.record(z.string(), z.boolean()).describe("") });
 const zTransactionOperationDto = z.object({
 	op: z.enum([
 		"create",
@@ -27710,6 +27712,10 @@ const zSyncPriorityBootstrapV1Data = z.object({
 	url: z.literal("/v1/sync/priority-bootstrap")
 });
 const zSyncSchemaVersionsV1Data = z.object({ url: z.literal("/v1/sync/schema-versions") });
+const zSyncEntityPresenceV1Data = z.object({
+	body: zEntityPresenceRequestDto,
+	url: z.literal("/v1/sync/entity-presence")
+});
 const zSyncProcessBulkTransactionsV1Data = z.object({
 	body: zBulkTransactionRequestDto,
 	url: z.literal("/v1/sync/transactions")
