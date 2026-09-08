@@ -16004,7 +16004,9 @@ const zCreateIssueAutomationTestEvidenceDto = z.object({
 		"regression",
 		"verification",
 		"flaky",
-		"superseded"
+		"superseded",
+		"override",
+		"not_applicable"
 	]).describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16028,6 +16030,7 @@ const zCreateIssueAutomationTestEvidenceDto = z.object({
 	]).nullable().optional().describe(""),
 	context: z.unknown().optional().describe(""),
 	recorded_at: z.unknown().describe(""),
+	reason: z.string().nullable().optional().describe(""),
 	issue_test_link_id: z.string(),
 	automation_run_result_id: z.string().nullable().optional(),
 	automation_run_id: z.string().nullable().optional(),
@@ -16042,7 +16045,9 @@ const zResponseIssueAutomationTestEvidenceDto = z.object({
 		"regression",
 		"verification",
 		"flaky",
-		"superseded"
+		"superseded",
+		"override",
+		"not_applicable"
 	]).describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16066,6 +16071,7 @@ const zResponseIssueAutomationTestEvidenceDto = z.object({
 	]).nullable().optional().describe(""),
 	context: z.unknown().optional().describe(""),
 	recorded_at: z.unknown().describe(""),
+	reason: z.string().nullable().optional().describe(""),
 	issue_test_link_id: z.string(),
 	automation_run_result_id: z.string().nullable().optional(),
 	automation_run_id: z.string().nullable().optional(),
@@ -16086,7 +16092,9 @@ const zUpdateIssueAutomationTestEvidenceDto = z.object({
 		"regression",
 		"verification",
 		"flaky",
-		"superseded"
+		"superseded",
+		"override",
+		"not_applicable"
 	]).optional().describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16110,6 +16118,7 @@ const zUpdateIssueAutomationTestEvidenceDto = z.object({
 	]).nullable().optional().describe(""),
 	context: z.unknown().optional().describe(""),
 	recorded_at: z.unknown().optional().describe(""),
+	reason: z.string().nullable().optional().describe(""),
 	issue_test_link_id: z.string().optional(),
 	automation_run_result_id: z.string().nullable().optional(),
 	automation_run_id: z.string().nullable().optional(),
@@ -16157,6 +16166,7 @@ const zIssueAutomationTestEvidenceFindAllV1Data = z.object({
 		"limit": z.number().optional(),
 		"filter.id": z.array(z.string()).optional(),
 		"filter.recorded_at": z.array(z.string()).optional(),
+		"filter.reason": z.array(z.string()).optional(),
 		"filter.issue_test_link_id": z.array(z.string()).optional(),
 		"filter.automation_run_result_id": z.array(z.string()).optional(),
 		"filter.automation_run_id": z.array(z.string()).optional(),
@@ -16168,6 +16178,8 @@ const zIssueAutomationTestEvidenceFindAllV1Data = z.object({
 			"id:DESC",
 			"recorded_at:ASC",
 			"recorded_at:DESC",
+			"reason:ASC",
+			"reason:DESC",
 			"automation_run_result_id:ASC",
 			"automation_run_result_id:DESC",
 			"automation_run_id:ASC",
@@ -16769,11 +16781,14 @@ const zCreateIssueTestEvidenceDto = z.object({
 		"regression",
 		"verification",
 		"flaky",
-		"superseded"
+		"superseded",
+		"override",
+		"not_applicable"
 	]).describe(""),
 	status_id: z.string().describe(""),
 	context: z.unknown().optional().describe(""),
 	recorded_at: z.unknown().describe(""),
+	reason: z.string().nullable().optional().describe(""),
 	issue_test_link_id: z.string(),
 	run_result_id: z.string().nullable().optional(),
 	run_result_variant_id: z.string().nullable().optional(),
@@ -16788,11 +16803,14 @@ const zResponseIssueTestEvidenceDto = z.object({
 		"regression",
 		"verification",
 		"flaky",
-		"superseded"
+		"superseded",
+		"override",
+		"not_applicable"
 	]).describe(""),
 	status_id: z.string().describe(""),
 	context: z.unknown().optional().describe(""),
 	recorded_at: z.unknown().describe(""),
+	reason: z.string().nullable().optional().describe(""),
 	issue_test_link_id: z.string(),
 	run_result_id: z.string().nullable().optional(),
 	run_result_variant_id: z.string().nullable().optional(),
@@ -16813,11 +16831,14 @@ const zUpdateIssueTestEvidenceDto = z.object({
 		"regression",
 		"verification",
 		"flaky",
-		"superseded"
+		"superseded",
+		"override",
+		"not_applicable"
 	]).optional().describe(""),
 	status_id: z.string().optional().describe(""),
 	context: z.unknown().optional().describe(""),
 	recorded_at: z.unknown().optional().describe(""),
+	reason: z.string().nullable().optional().describe(""),
 	issue_test_link_id: z.string().optional(),
 	run_result_id: z.string().nullable().optional(),
 	run_result_variant_id: z.string().nullable().optional(),
@@ -16866,6 +16887,7 @@ const zIssueTestEvidenceFindAllV1Data = z.object({
 		"filter.id": z.array(z.string()).optional(),
 		"filter.status_id": z.array(z.string()).optional(),
 		"filter.recorded_at": z.array(z.string()).optional(),
+		"filter.reason": z.array(z.string()).optional(),
 		"filter.issue_test_link_id": z.array(z.string()).optional(),
 		"filter.run_result_id": z.array(z.string()).optional(),
 		"filter.run_result_variant_id": z.array(z.string()).optional(),
@@ -16877,6 +16899,8 @@ const zIssueTestEvidenceFindAllV1Data = z.object({
 			"id:DESC",
 			"recorded_at:ASC",
 			"recorded_at:DESC",
+			"reason:ASC",
+			"reason:DESC",
 			"run_result_id:ASC",
 			"run_result_id:DESC",
 			"run_result_variant_id:ASC",
@@ -17114,6 +17138,11 @@ const zTransitionIssueDto = z.object({
 		"leave_children",
 		"cascade_children"
 	]).optional().describe(""),
+	verification_override: z.array(z.object({
+		link_id: z.string(),
+		kind: z.enum(["override", "not_applicable"]),
+		reason: z.string()
+	})).optional().describe(""),
 	batch_scope: z.array(z.string()).optional().describe("")
 });
 const zIssueTransitionTransitionV1Data = z.object({
