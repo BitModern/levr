@@ -13112,7 +13112,6 @@ const zFolderWithChildrenDto = z.object({
 			data: z.record(z.string(), z.unknown()).optional(),
 			sequence: z.string(),
 			labels: z.array(z.string()),
-			is_automated: z.boolean(),
 			automation_status: z.string(),
 			automation_type: z.string(),
 			priority: z.number(),
@@ -13122,16 +13121,7 @@ const zFolderWithChildrenDto = z.object({
 			updated_by: z.string(),
 			epoch: z.number(),
 			key: z.number(),
-			assignee_id: z.string().optional(),
-			test_type: z.enum([
-				"manual",
-				"text",
-				"prometheus",
-				"gherkin",
-				"generic_automation",
-				"yaml"
-			]).nullable(),
-			to_automate: z.boolean()
+			assignee_id: z.string().optional()
 		}),
 		z.object({
 			type: z.enum(["run"]),
@@ -13193,7 +13183,6 @@ const zRootLevelResponseDto = z.object({
 		data: z.record(z.string(), z.unknown()).optional(),
 		sequence: z.string(),
 		labels: z.array(z.string()),
-		is_automated: z.boolean(),
 		automation_status: z.string(),
 		automation_type: z.string(),
 		priority: z.number(),
@@ -13203,16 +13192,7 @@ const zRootLevelResponseDto = z.object({
 		updated_by: z.string(),
 		epoch: z.number(),
 		key: z.number(),
-		assignee_id: z.string().optional(),
-		test_type: z.enum([
-			"manual",
-			"text",
-			"prometheus",
-			"gherkin",
-			"generic_automation",
-			"yaml"
-		]).nullable(),
-		to_automate: z.boolean()
+		assignee_id: z.string().optional()
 	}), z.object({
 		type: z.enum(["run"]),
 		id: z.string(),
@@ -13293,7 +13273,6 @@ const zFolderChildrenResponseDto = z.object({
 			data: z.record(z.string(), z.unknown()).optional(),
 			sequence: z.string(),
 			labels: z.array(z.string()),
-			is_automated: z.boolean(),
 			automation_status: z.string(),
 			automation_type: z.string(),
 			priority: z.number(),
@@ -13303,16 +13282,7 @@ const zFolderChildrenResponseDto = z.object({
 			updated_by: z.string(),
 			epoch: z.number(),
 			key: z.number(),
-			assignee_id: z.string().optional(),
-			test_type: z.enum([
-				"manual",
-				"text",
-				"prometheus",
-				"gherkin",
-				"generic_automation",
-				"yaml"
-			]).nullable(),
-			to_automate: z.boolean()
+			assignee_id: z.string().optional()
 		}),
 		z.object({
 			type: z.enum(["run"]),
@@ -24329,12 +24299,6 @@ const zRunNodeDto = z.object({
 	original_parent_run_id: z.string().nullable(),
 	name: z.string(),
 	key: z.number().optional(),
-	run_type: z.enum([
-		"manual",
-		"automated",
-		"ci",
-		"scheduled"
-	]),
 	triggered_by: z.enum([
 		"user",
 		"ci",
@@ -24344,7 +24308,6 @@ const zRunNodeDto = z.object({
 	started_at: z.unknown(),
 	ended_at: z.unknown(),
 	is_complete: z.boolean(),
-	is_automated: z.boolean(),
 	host_name: z.string().nullable(),
 	source: z.record(z.string(), z.unknown()).nullable(),
 	status_type: z.string().optional(),
@@ -24396,12 +24359,6 @@ const zCreateRunDto = z.object({
 	cycle_id: z.string().nullable(),
 	auto_add_tests_to_team: z.boolean().optional(),
 	name: z.string().optional(),
-	run_type: z.enum([
-		"manual",
-		"automated",
-		"ci",
-		"scheduled"
-	]).optional(),
 	triggered_by: z.enum([
 		"user",
 		"ci",
@@ -24409,7 +24366,6 @@ const zCreateRunDto = z.object({
 		"pr"
 	]).optional(),
 	host_name: z.string().nullable(),
-	is_automated: z.boolean().optional(),
 	environment_ids: z.array(z.string()).optional(),
 	test_inclusions: z.array(z.object({
 		test_id: z.string(),
@@ -24421,7 +24377,6 @@ const zCreateRunDto = z.object({
 const zUpdateRunDto = z.object({
 	name: z.string().optional(),
 	host_name: z.string().nullable(),
-	is_automated: z.boolean().optional(),
 	is_complete: z.boolean().optional(),
 	project_id: z.string().nullable(),
 	cycle_id: z.string().nullable(),
@@ -24440,12 +24395,6 @@ const zRunWithContentDto = z.object({
 	original_parent_run_id: z.string().nullable(),
 	name: z.string(),
 	key: z.number().optional(),
-	run_type: z.enum([
-		"manual",
-		"automated",
-		"ci",
-		"scheduled"
-	]),
 	triggered_by: z.enum([
 		"user",
 		"ci",
@@ -24455,7 +24404,6 @@ const zRunWithContentDto = z.object({
 	started_at: z.unknown(),
 	ended_at: z.unknown(),
 	is_complete: z.boolean(),
-	is_automated: z.boolean(),
 	host_name: z.string().nullable(),
 	source: z.record(z.string(), z.unknown()).nullable(),
 	status_type: z.string().optional(),
@@ -24535,7 +24483,6 @@ const zRunWithContentDto = z.object({
 			name: z.string(),
 			description: z.string().nullable(),
 			key: z.number(),
-			is_automated: z.boolean(),
 			priority: z.number(),
 			epoch: z.number(),
 			precondition: z.string().nullable()
@@ -24584,7 +24531,6 @@ const zRunResultNodeDto = z.object({
 		name: z.string(),
 		description: z.string().nullable(),
 		key: z.number(),
-		is_automated: z.boolean(),
 		priority: z.number(),
 		epoch: z.number(),
 		precondition: z.string().nullable()
@@ -28116,19 +28062,9 @@ const zTestResponseDto = z.object({
 	priority: z.number().optional(),
 	data: z.unknown().optional().describe(""),
 	assignee_id: z.string().nullable().optional().describe(""),
-	is_automated: z.boolean().optional().describe(""),
 	key: z.number().optional().describe(""),
 	identifier: z.string().optional().describe(""),
 	state_mask: z.number().nullable().optional().describe(""),
-	test_type: z.enum([
-		"manual",
-		"text",
-		"prometheus",
-		"gherkin",
-		"generic_automation",
-		"yaml"
-	]).nullable().optional().describe(""),
-	to_automate: z.boolean().optional().describe(""),
 	automation_status: z.enum([
 		"not_automated",
 		"to_automate",
@@ -28199,19 +28135,9 @@ const zCreateTestDto = z.object({
 	priority: z.number().optional().describe(""),
 	data: z.unknown().optional().describe(""),
 	assignee_id: z.string().nullable().optional().describe(""),
-	is_automated: z.boolean().optional().describe(""),
 	key: z.number().optional().describe(""),
 	identifier: z.string().optional().describe(""),
 	state_mask: z.number().nullable().optional().describe(""),
-	test_type: z.enum([
-		"manual",
-		"text",
-		"prometheus",
-		"gherkin",
-		"generic_automation",
-		"yaml"
-	]).nullable().optional().describe(""),
-	to_automate: z.boolean().optional().describe(""),
 	automation_status: z.enum([
 		"not_automated",
 		"to_automate",
@@ -28254,8 +28180,6 @@ const zUpdateTestDto = z.object({
 		"automated",
 		"agentic"
 	]).optional(),
-	is_automated: z.boolean().optional(),
-	to_automate: z.boolean().optional(),
 	state_mask: z.number().optional(),
 	assignee_id: z.string().optional(),
 	data: z.object({
