@@ -11606,13 +11606,11 @@ const zGenerateIssueDraftResponseDto = z.object({
 });
 const zPromoteItemToTestDto = z.object({
 	name: z.string().optional().describe(""),
-	test_type: z.enum([
+	automation_type: z.enum([
 		"manual",
-		"text",
-		"prometheus",
-		"gherkin",
-		"generic_automation",
-		"yaml"
+		"check",
+		"automated",
+		"agentic"
 	]).optional().describe(""),
 	folder_id: z.string().nullable().optional().describe(""),
 	description: z.string().optional().describe(""),
@@ -13115,6 +13113,8 @@ const zFolderWithChildrenDto = z.object({
 			sequence: z.string(),
 			labels: z.array(z.string()),
 			is_automated: z.boolean(),
+			automation_status: z.string(),
+			automation_type: z.string(),
 			priority: z.number(),
 			created_at: z.unknown(),
 			updated_at: z.unknown(),
@@ -13141,7 +13141,7 @@ const zFolderWithChildrenDto = z.object({
 			sequence: z.string(),
 			labels: z.array(z.string()),
 			key: z.number(),
-			run_type: z.string(),
+			ingestion_method: z.string(),
 			triggered_by: z.string(),
 			status_type: z.enum([
 				"Unstarted",
@@ -13155,7 +13155,6 @@ const zFolderWithChildrenDto = z.object({
 			unstarted_count: z.number(),
 			cancelled_count: z.number(),
 			is_complete: z.boolean(),
-			is_automated: z.boolean(),
 			started_at: z.unknown(),
 			ended_at: z.unknown(),
 			total_duration_ms: z.number().nullable(),
@@ -13195,6 +13194,8 @@ const zRootLevelResponseDto = z.object({
 		sequence: z.string(),
 		labels: z.array(z.string()),
 		is_automated: z.boolean(),
+		automation_status: z.string(),
+		automation_type: z.string(),
 		priority: z.number(),
 		created_at: z.unknown(),
 		updated_at: z.unknown(),
@@ -13220,7 +13221,7 @@ const zRootLevelResponseDto = z.object({
 		sequence: z.string(),
 		labels: z.array(z.string()),
 		key: z.number(),
-		run_type: z.string(),
+		ingestion_method: z.string(),
 		triggered_by: z.string(),
 		status_type: z.enum([
 			"Unstarted",
@@ -13234,7 +13235,6 @@ const zRootLevelResponseDto = z.object({
 		unstarted_count: z.number(),
 		cancelled_count: z.number(),
 		is_complete: z.boolean(),
-		is_automated: z.boolean(),
 		started_at: z.unknown(),
 		ended_at: z.unknown(),
 		total_duration_ms: z.number().nullable(),
@@ -13294,6 +13294,8 @@ const zFolderChildrenResponseDto = z.object({
 			sequence: z.string(),
 			labels: z.array(z.string()),
 			is_automated: z.boolean(),
+			automation_status: z.string(),
+			automation_type: z.string(),
 			priority: z.number(),
 			created_at: z.unknown(),
 			updated_at: z.unknown(),
@@ -13320,7 +13322,7 @@ const zFolderChildrenResponseDto = z.object({
 			sequence: z.string(),
 			labels: z.array(z.string()),
 			key: z.number(),
-			run_type: z.string(),
+			ingestion_method: z.string(),
 			triggered_by: z.string(),
 			status_type: z.enum([
 				"Unstarted",
@@ -13334,7 +13336,6 @@ const zFolderChildrenResponseDto = z.object({
 			unstarted_count: z.number(),
 			cancelled_count: z.number(),
 			is_complete: z.boolean(),
-			is_automated: z.boolean(),
 			started_at: z.unknown(),
 			ended_at: z.unknown(),
 			total_duration_ms: z.number().nullable(),
@@ -24666,7 +24667,7 @@ const zRunApiFindAllV1Data = z.object({
 		"filter.id": z.array(z.string()).optional(),
 		"filter.name": z.array(z.string()).optional(),
 		"filter.is_complete": z.array(z.string()).optional(),
-		"filter.is_automated": z.array(z.string()).optional(),
+		"filter.ingestion_method": z.array(z.string()).optional(),
 		"filter.status_type": z.array(z.string()).optional(),
 		"filter.project_id": z.array(z.string()).optional(),
 		"filter.team_id": z.array(z.string()).optional(),
@@ -28093,6 +28094,17 @@ const zTestResponseDto = z.object({
 		"yaml"
 	]).nullable().optional().describe(""),
 	to_automate: z.boolean().optional().describe(""),
+	automation_status: z.enum([
+		"not_automated",
+		"to_automate",
+		"automated"
+	]).optional().describe(""),
+	automation_type: z.enum([
+		"manual",
+		"check",
+		"automated",
+		"agentic"
+	]).optional().describe(""),
 	origin: z.string().optional().describe(""),
 	origin_detail: z.string().nullable().optional().describe(""),
 	origin_model: z.string().nullable().optional().describe(""),
@@ -28165,6 +28177,17 @@ const zCreateTestDto = z.object({
 		"yaml"
 	]).nullable().optional().describe(""),
 	to_automate: z.boolean().optional().describe(""),
+	automation_status: z.enum([
+		"not_automated",
+		"to_automate",
+		"automated"
+	]).optional().describe(""),
+	automation_type: z.enum([
+		"manual",
+		"check",
+		"automated",
+		"agentic"
+	]).optional().describe(""),
 	origin: z.string().optional().describe(""),
 	origin_detail: z.string().nullable().optional().describe(""),
 	case_type_id: z.string().nullable().optional().describe(""),
@@ -28185,6 +28208,17 @@ const zCreateTestDto = z.object({
 });
 const zUpdateTestDto = z.object({
 	name: z.string().optional(),
+	automation_status: z.enum([
+		"not_automated",
+		"to_automate",
+		"automated"
+	]).optional(),
+	automation_type: z.enum([
+		"manual",
+		"check",
+		"automated",
+		"agentic"
+	]).optional(),
 	is_automated: z.boolean().optional(),
 	to_automate: z.boolean().optional(),
 	state_mask: z.number().optional(),
@@ -28287,10 +28321,9 @@ const zTestFindAllV1Data = z.object({
 		"filter.key": z.array(z.string()).optional(),
 		"filter.name": z.array(z.string()).optional(),
 		"filter.priority": z.array(z.string()).optional(),
-		"filter.test_type": z.array(z.string()).optional(),
 		"filter.case_type_id": z.array(z.string()).optional(),
-		"filter.is_automated": z.array(z.string()).optional(),
-		"filter.to_automate": z.array(z.string()).optional(),
+		"filter.automation_status": z.array(z.string()).optional(),
+		"filter.automation_type": z.array(z.string()).optional(),
 		"filter.state_mask": z.array(z.string()).optional(),
 		"filter.assignee_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
@@ -28315,10 +28348,10 @@ const zTestFindAllV1Data = z.object({
 			"updated_by:DESC",
 			"priority:ASC",
 			"priority:DESC",
-			"is_automated:ASC",
-			"is_automated:DESC",
-			"to_automate:ASC",
-			"to_automate:DESC"
+			"automation_status:ASC",
+			"automation_status:DESC",
+			"automation_type:ASC",
+			"automation_type:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
@@ -28532,12 +28565,12 @@ const zPreviewImportResponseDto = z.object({
 			"folder_name",
 			"test_name",
 			"test_description",
-			"test_type",
+			"automation_status",
+			"automation_type",
 			"case_type_id",
 			"case_type_name",
 			"test_priority",
 			"estimate",
-			"is_automated",
 			"assignee_email",
 			"labels",
 			"teams",
@@ -28590,12 +28623,12 @@ const zPreviewImportResponseDto = z.object({
 			"folder_name",
 			"test_name",
 			"test_description",
-			"test_type",
+			"automation_status",
+			"automation_type",
 			"case_type_id",
 			"case_type_name",
 			"test_priority",
 			"estimate",
-			"is_automated",
 			"assignee_email",
 			"labels",
 			"teams",
@@ -28649,12 +28682,12 @@ const zCommitImportDto = z.object({
 			"folder_name",
 			"test_name",
 			"test_description",
-			"test_type",
+			"automation_status",
+			"automation_type",
 			"case_type_id",
 			"case_type_name",
 			"test_priority",
 			"estimate",
-			"is_automated",
 			"assignee_email",
 			"labels",
 			"teams",

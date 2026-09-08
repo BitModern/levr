@@ -40,12 +40,17 @@ const IMPORT_TARGET_LIST = [
   'folder_name',
   'test_name',
   'test_description',
-  'test_type',
+  // internal D8.10 — the automation axes replace test_type and the
+  // is_automated boolean. MEMBERSHIP tracks TEST_CASE_KNOWN_PROPERTIES in the
+  // backend's test-case-column-mapper (order here is display order and differs);
+  // this list is what the CLI offers as override targets, so a target the
+  // server accepts but this list omits is unreachable from `levr import`.
+  'automation_status',
+  'automation_type',
   'case_type_id',
   'case_type_name',
   'test_priority',
   'estimate',
-  'is_automated',
   'assignee_email',
   'labels',
   'teams',

@@ -1,7 +1,7 @@
 import { getApiUrl, getTeamId } from "./env-CHeKHu5S.js";
-import { authGetProfileV1, configureClient, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1 } from "./sdk-client-CXpXHSJk.js";
+import { authGetProfileV1, configureClient, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1 } from "./sdk-client-B8v6bgC4.js";
 import "./workspace-store-DDOxnut1.js";
-import { resolveWorkspace } from "./resolve-workspace-B75GtcUw.js";
+import { resolveWorkspace } from "./resolve-workspace-BquQJznu.js";
 import "./token-refresh-Cu5RpkLJ.js";
 import { resolveToken } from "./resolve-token-DbQsmn03.js";
 import chalk from "chalk";
@@ -180,12 +180,12 @@ const IMPORT_TARGET_LIST = [
 	"folder_name",
 	"test_name",
 	"test_description",
-	"test_type",
+	"automation_status",
+	"automation_type",
 	"case_type_id",
 	"case_type_name",
 	"test_priority",
 	"estimate",
-	"is_automated",
 	"assignee_email",
 	"labels",
 	"teams",
