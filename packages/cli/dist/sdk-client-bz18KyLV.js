@@ -13659,6 +13659,132 @@ const zGateFileCheckV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/gate-binding/zod.js
+const zCreateGateBindingDto = z.object({
+	id: z.string().optional().describe(""),
+	gate_key: z.string().describe(""),
+	repo_key: z.string().nullable().optional().describe(""),
+	path_prefix: z.string().nullable().optional().describe(""),
+	config: z.unknown().optional().describe(""),
+	enabled: z.boolean().optional().describe("")
+});
+const zResponseGateBindingDto = z.object({
+	id: z.string().describe(""),
+	gate_key: z.string().describe(""),
+	repo_key: z.string().nullable().optional().describe(""),
+	path_prefix: z.string().nullable().optional().describe(""),
+	config: z.unknown().optional().describe(""),
+	enabled: z.boolean().optional().describe(""),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe(""),
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
+});
+const zUpdateGateBindingDto = z.object({
+	id: z.string().optional().describe(""),
+	gate_key: z.string().optional().describe(""),
+	repo_key: z.string().nullable().optional().describe(""),
+	path_prefix: z.string().nullable().optional().describe(""),
+	config: z.unknown().optional().describe(""),
+	enabled: z.boolean().optional().describe("")
+});
+const zGateBindingBulkOperationDto = z.object({
+	op: z.enum([
+		"create",
+		"update",
+		"delete"
+	]).describe(""),
+	id: z.string().optional().describe(""),
+	data: z.union([zCreateGateBindingDto, zUpdateGateBindingDto]).optional().describe(""),
+	tx_id: z.string().describe("")
+});
+const zBulkGateBindingRequestDto = z.object({ operations: z.array(zGateBindingBulkOperationDto).describe("") });
+const zBulkGateBindingOperationResultDto = z.object({
+	index: z.number().describe(""),
+	tx_id: z.string().describe(""),
+	status: z.number().describe(""),
+	error: z.object({
+		message: z.string().optional(),
+		code: z.string().optional(),
+		details: z.unknown().optional()
+	}).optional().describe(""),
+	response: zResponseGateBindingDto.optional().describe("")
+});
+const zBulkGateBindingResponseDto = z.object({
+	results: z.array(zBulkGateBindingOperationResultDto).describe(""),
+	summary: z.object({
+		total: z.number().describe(""),
+		successful: z.number().describe(""),
+		failed: z.number().describe(""),
+		savepoints_used: z.number().describe("")
+	}).describe("")
+});
+const zGateBindingCreateV1Data = z.object({
+	body: zCreateGateBindingDto,
+	url: z.literal("/v1/gate-binding")
+});
+const zGateBindingFindAllV1Data = z.object({
+	query: z.object({
+		"_with": z.string().optional(),
+		"page": z.number().optional(),
+		"limit": z.number().optional(),
+		"filter.id": z.array(z.string()).optional(),
+		"filter.gate_key": z.array(z.string()).optional(),
+		"filter.repo_key": z.array(z.string()).optional(),
+		"filter.path_prefix": z.array(z.string()).optional(),
+		"filter.enabled": z.array(z.string()).optional(),
+		"filter.created_at": z.array(z.string()).optional(),
+		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
+		"sortBy": z.array(z.enum([
+			"id:ASC",
+			"id:DESC",
+			"gate_key:ASC",
+			"gate_key:DESC",
+			"repo_key:ASC",
+			"repo_key:DESC",
+			"path_prefix:ASC",
+			"path_prefix:DESC",
+			"created_at:ASC",
+			"created_at:DESC",
+			"updated_at:ASC",
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
+		])).optional(),
+		"search": z.string().optional(),
+		"searchBy": z.array(z.string()).optional()
+	}).optional(),
+	url: z.literal("/v1/gate-binding")
+});
+const zGateBindingFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/gate-binding/recently-deleted") });
+const zGateBindingFindOneV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/gate-binding/{id}")
+});
+const zGateBindingUpdateV1Data = z.object({
+	body: zUpdateGateBindingDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/gate-binding/{id}")
+});
+const zGateBindingRemoveV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/gate-binding/{id}")
+});
+const zGateBindingBulkOperationV1Data = z.object({
+	body: zBulkGateBindingRequestDto,
+	url: z.literal("/v1/gate-binding/bulk")
+});
+const zGateBindingRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/gate-binding/{id}/restore")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/gate-definition/zod.js
 const zCreateGateDefinitionDto = z.object({
 	id: z.string().optional().describe(""),
@@ -31057,6 +31183,122 @@ const zWorkspaceUpdateV1Data = z.object({
 const zWorkspaceRemoveV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/workspace/{id}")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/workspace-capability/zod.js
+const zCreateWorkspaceCapabilityDto = z.object({
+	id: z.string().optional().describe(""),
+	repo_key: z.string().nullable().optional().describe(""),
+	setting_key: z.string().describe(""),
+	setting_value: z.unknown().describe("")
+});
+const zResponseWorkspaceCapabilityDto = z.object({
+	id: z.string().describe(""),
+	repo_key: z.string().nullable().optional().describe(""),
+	setting_key: z.string().describe(""),
+	setting_value: z.unknown().describe(""),
+	created_at: z.unknown().describe(""),
+	updated_at: z.unknown().describe(""),
+	epoch: z.number().describe(""),
+	created_by: z.string().describe(""),
+	updated_by: z.string().describe(""),
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
+});
+const zUpdateWorkspaceCapabilityDto = z.object({
+	id: z.string().optional().describe(""),
+	repo_key: z.string().nullable().optional().describe(""),
+	setting_key: z.string().optional().describe(""),
+	setting_value: z.unknown().optional().describe("")
+});
+const zWorkspaceCapabilityBulkOperationDto = z.object({
+	op: z.enum([
+		"create",
+		"update",
+		"delete"
+	]).describe(""),
+	id: z.string().optional().describe(""),
+	data: z.union([zCreateWorkspaceCapabilityDto, zUpdateWorkspaceCapabilityDto]).optional().describe(""),
+	tx_id: z.string().describe("")
+});
+const zBulkWorkspaceCapabilityRequestDto = z.object({ operations: z.array(zWorkspaceCapabilityBulkOperationDto).describe("") });
+const zBulkWorkspaceCapabilityOperationResultDto = z.object({
+	index: z.number().describe(""),
+	tx_id: z.string().describe(""),
+	status: z.number().describe(""),
+	error: z.object({
+		message: z.string().optional(),
+		code: z.string().optional(),
+		details: z.unknown().optional()
+	}).optional().describe(""),
+	response: zResponseWorkspaceCapabilityDto.optional().describe("")
+});
+const zBulkWorkspaceCapabilityResponseDto = z.object({
+	results: z.array(zBulkWorkspaceCapabilityOperationResultDto).describe(""),
+	summary: z.object({
+		total: z.number().describe(""),
+		successful: z.number().describe(""),
+		failed: z.number().describe(""),
+		savepoints_used: z.number().describe("")
+	}).describe("")
+});
+const zWorkspaceCapabilityCreateV1Data = z.object({
+	body: zCreateWorkspaceCapabilityDto,
+	url: z.literal("/v1/workspace-capability")
+});
+const zWorkspaceCapabilityFindAllV1Data = z.object({
+	query: z.object({
+		"_with": z.string().optional(),
+		"page": z.number().optional(),
+		"limit": z.number().optional(),
+		"filter.id": z.array(z.string()).optional(),
+		"filter.repo_key": z.array(z.string()).optional(),
+		"filter.setting_key": z.array(z.string()).optional(),
+		"filter.created_at": z.array(z.string()).optional(),
+		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
+		"sortBy": z.array(z.enum([
+			"id:ASC",
+			"id:DESC",
+			"repo_key:ASC",
+			"repo_key:DESC",
+			"setting_key:ASC",
+			"setting_key:DESC",
+			"created_at:ASC",
+			"created_at:DESC",
+			"updated_at:ASC",
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
+		])).optional(),
+		"search": z.string().optional(),
+		"searchBy": z.array(z.string()).optional()
+	}).optional(),
+	url: z.literal("/v1/workspace-capability")
+});
+const zWorkspaceCapabilityFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/workspace-capability/recently-deleted") });
+const zWorkspaceCapabilityFindOneV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/workspace-capability/{id}")
+});
+const zWorkspaceCapabilityUpdateV1Data = z.object({
+	body: zUpdateWorkspaceCapabilityDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/workspace-capability/{id}")
+});
+const zWorkspaceCapabilityRemoveV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/workspace-capability/{id}")
+});
+const zWorkspaceCapabilityBulkOperationV1Data = z.object({
+	body: zBulkWorkspaceCapabilityRequestDto,
+	url: z.literal("/v1/workspace-capability/bulk")
+});
+const zWorkspaceCapabilityRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/workspace-capability/{id}/restore")
 });
 
 //#endregion
