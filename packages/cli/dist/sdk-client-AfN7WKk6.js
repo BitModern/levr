@@ -19528,6 +19528,28 @@ const zLayer0CompleteRunV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/learn/zod.js
+const zLearnResetBodyDto = z.object({
+	scope: z.enum([
+		"item",
+		"track",
+		"everything"
+	]).describe(""),
+	role: z.enum([
+		"developer",
+		"pm_owner",
+		"dev_leader",
+		"qa"
+	]).optional().describe(""),
+	key: z.string().optional().describe("")
+});
+const zLearnGetProjectionV1Data = z.object({ url: z.literal("/v1/learn") });
+const zLearnResetV1Data = z.object({
+	body: zLearnResetBodyDto,
+	url: z.literal("/v1/learn/reset")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/llm-provider/zod.js
 const zCreateLlmProviderDto = z.object({
 	id: z.string().optional().describe(""),

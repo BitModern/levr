@@ -1,5 +1,5 @@
 import { getApiUrl, getPatToken, readCredentials } from "./env-CHeKHu5S.js";
-import { authGetProfileV1, configureClient } from "./sdk-client-bz18KyLV.js";
+import { authGetProfileV1, configureClient } from "./sdk-client-AfN7WKk6.js";
 import { isTokenExpired } from "./token-refresh-Cu5RpkLJ.js";
 import chalk from "chalk";
 
