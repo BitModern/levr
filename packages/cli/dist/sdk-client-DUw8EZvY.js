@@ -27,6 +27,7 @@ const zResponseIssueDto = z.object({
 	origin_harness_version: z.string().nullable().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	verification_status: z.string().optional().describe(""),
+	verification_detail: z.unknown().optional().describe(""),
 	confidence_score: z.number().nullable().optional().describe(""),
 	added_to_cycle_at: z.unknown().optional().describe(""),
 	sla_status: z.string().nullable().optional().describe(""),
@@ -15932,7 +15933,9 @@ const zCreateIssueAutomationTestEvidenceDto = z.object({
 		"flaky",
 		"superseded",
 		"override",
-		"not_applicable"
+		"not_applicable",
+		"pending",
+		"skipped"
 	]).describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -15973,7 +15976,9 @@ const zResponseIssueAutomationTestEvidenceDto = z.object({
 		"flaky",
 		"superseded",
 		"override",
-		"not_applicable"
+		"not_applicable",
+		"pending",
+		"skipped"
 	]).describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16020,7 +16025,9 @@ const zUpdateIssueAutomationTestEvidenceDto = z.object({
 		"flaky",
 		"superseded",
 		"override",
-		"not_applicable"
+		"not_applicable",
+		"pending",
+		"skipped"
 	]).optional().describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16709,7 +16716,9 @@ const zCreateIssueTestEvidenceDto = z.object({
 		"flaky",
 		"superseded",
 		"override",
-		"not_applicable"
+		"not_applicable",
+		"pending",
+		"skipped"
 	]).describe(""),
 	status_id: z.string().describe(""),
 	context: z.unknown().optional().describe(""),
@@ -16731,7 +16740,9 @@ const zResponseIssueTestEvidenceDto = z.object({
 		"flaky",
 		"superseded",
 		"override",
-		"not_applicable"
+		"not_applicable",
+		"pending",
+		"skipped"
 	]).describe(""),
 	status_id: z.string().describe(""),
 	context: z.unknown().optional().describe(""),
@@ -16759,7 +16770,9 @@ const zUpdateIssueTestEvidenceDto = z.object({
 		"flaky",
 		"superseded",
 		"override",
-		"not_applicable"
+		"not_applicable",
+		"pending",
+		"skipped"
 	]).optional().describe(""),
 	status_id: z.string().optional().describe(""),
 	context: z.unknown().optional().describe(""),
