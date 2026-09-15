@@ -27620,7 +27620,8 @@ const zStreamingCompleteV1Data = z.object({
 const zBootstrapRequestDto = z.object({ entities: z.array(z.string()).describe("") });
 const zDeltaRequestDto = z.object({
 	lastSyncId: z.number().describe(""),
-	entity: z.string().optional().describe("")
+	entity: z.string().optional().describe(""),
+	cold_start: z.boolean().optional().describe("")
 });
 const zPriorityBootstrapRequestDto = z.object({
 	entity: z.string().describe(""),
@@ -30431,6 +30432,69 @@ const zUserPreferenceBulkOperationV1Data = z.object({
 const zUserPreferenceRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/user-preference/{id}/restore")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/verify/zod.js
+const zVerifyDigestRequestDto = z.object({
+	entity: z.string().describe(""),
+	level: z.union([z.number(), z.number()]).optional().describe("")
+});
+const zFoldedDigestDto = z.object({
+	n: z.number().describe(""),
+	maxEpoch: z.number().nullable(),
+	xor: z.string()
+});
+const zBucketDigestDto = z.object({
+	bucket: z.string().describe(""),
+	n: z.number().describe(""),
+	maxEpoch: z.number().nullable().describe(""),
+	xor: z.string().describe("")
+});
+const zVerifyDigestResponseDto = z.object({
+	entity: z.string(),
+	entity_version: z.string().describe(""),
+	version_key: z.string().describe(""),
+	l1: zFoldedDigestDto,
+	buckets: z.array(zBucketDigestDto).optional().describe(""),
+	cached: z.boolean().describe("")
+});
+const zVerifyBucketRowsRequestDto = z.object({
+	entity: z.string().describe(""),
+	buckets: z.array(z.string()).describe(""),
+	after: z.string().optional().describe(""),
+	limit: z.number().optional().describe("")
+});
+const zRowRefDto = z.object({
+	id: z.string(),
+	epoch: z.number().nullable()
+});
+const zVerifyBucketRowsResponseDto = z.object({
+	rows: z.array(zRowRefDto),
+	next: z.string().nullable().describe("")
+});
+const zVerifyRowsRequestDto = z.object({
+	entity: z.string().describe(""),
+	ids: z.array(z.string()).describe("")
+});
+const zVerifyRowsResponseDto = z.object({
+	entity: z.string(),
+	entity_version: z.string(),
+	rows: z.array(z.record(z.string(), z.unknown())).describe(""),
+	missing: z.array(z.string()).describe(""),
+	partial: z.boolean().describe("")
+});
+const zVerifyDigestV1Data = z.object({
+	body: zVerifyDigestRequestDto,
+	url: z.literal("/v1/sync/verify/digest")
+});
+const zVerifyBucketRowsV1Data = z.object({
+	body: zVerifyBucketRowsRequestDto,
+	url: z.literal("/v1/sync/verify/bucket-rows")
+});
+const zVerifyRowsV1Data = z.object({
+	body: zVerifyRowsRequestDto,
+	url: z.literal("/v1/sync/verify/rows")
 });
 
 //#endregion
