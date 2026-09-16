@@ -12880,8 +12880,10 @@ const zFirstRunStatusDto = z.object({
 	state: z.enum([
 		"welcome",
 		"reminder",
+		"land",
 		"hidden"
 	]),
+	landingPath: z.enum(["/inbox", "/dashboard"]),
 	mcpUrl: z.string(),
 	cliCommand: z.string(),
 	connected: z.array(z.object({
@@ -12902,6 +12904,7 @@ const zFirstRunGetStatusV1Data = z.object({ url: z.literal("/v1/first-run/mcp") 
 const zFirstRunMarkSeenV1Data = z.object({ url: z.literal("/v1/first-run/mcp/seen") });
 const zFirstRunDeclineV1Data = z.object({ url: z.literal("/v1/first-run/mcp/decline") });
 const zFirstRunHideReminderV1Data = z.object({ url: z.literal("/v1/first-run/mcp/hide-reminder") });
+const zFirstRunMarkLandedV1Data = z.object({ url: z.literal("/v1/first-run/mcp/landed") });
 
 //#endregion
 //#region ../sdk/dist/gen/folder/zod.js
