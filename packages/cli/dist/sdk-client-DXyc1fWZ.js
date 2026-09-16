@@ -12970,13 +12970,15 @@ const zFolderWithChildrenDto = z.object({
 				"Unstarted",
 				"Pass",
 				"Fail",
-				"Cancelled"
+				"Cancelled",
+				"Blocked"
 			]),
 			total_results: z.number(),
 			pass_count: z.number(),
 			fail_count: z.number(),
 			unstarted_count: z.number(),
 			cancelled_count: z.number(),
+			blocked_count: z.number(),
 			is_complete: z.boolean(),
 			started_at: z.unknown(),
 			ended_at: z.unknown(),
@@ -13040,13 +13042,15 @@ const zRootLevelResponseDto = z.object({
 			"Unstarted",
 			"Pass",
 			"Fail",
-			"Cancelled"
+			"Cancelled",
+			"Blocked"
 		]),
 		total_results: z.number(),
 		pass_count: z.number(),
 		fail_count: z.number(),
 		unstarted_count: z.number(),
 		cancelled_count: z.number(),
+		blocked_count: z.number(),
 		is_complete: z.boolean(),
 		started_at: z.unknown(),
 		ended_at: z.unknown(),
@@ -13131,13 +13135,15 @@ const zFolderChildrenResponseDto = z.object({
 				"Unstarted",
 				"Pass",
 				"Fail",
-				"Cancelled"
+				"Cancelled",
+				"Blocked"
 			]),
 			total_results: z.number(),
 			pass_count: z.number(),
 			fail_count: z.number(),
 			unstarted_count: z.number(),
 			cancelled_count: z.number(),
+			blocked_count: z.number(),
 			is_complete: z.boolean(),
 			started_at: z.unknown(),
 			ended_at: z.unknown(),
@@ -15935,7 +15941,8 @@ const zCreateIssueAutomationTestEvidenceDto = z.object({
 		"override",
 		"not_applicable",
 		"pending",
-		"skipped"
+		"skipped",
+		"blocked"
 	]).describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -15978,7 +15985,8 @@ const zResponseIssueAutomationTestEvidenceDto = z.object({
 		"override",
 		"not_applicable",
 		"pending",
-		"skipped"
+		"skipped",
+		"blocked"
 	]).describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16027,7 +16035,8 @@ const zUpdateIssueAutomationTestEvidenceDto = z.object({
 		"override",
 		"not_applicable",
 		"pending",
-		"skipped"
+		"skipped",
+		"blocked"
 	]).optional().describe(""),
 	automation_status_type: z.enum([
 		"passed",
@@ -16718,7 +16727,8 @@ const zCreateIssueTestEvidenceDto = z.object({
 		"override",
 		"not_applicable",
 		"pending",
-		"skipped"
+		"skipped",
+		"blocked"
 	]).describe(""),
 	status_id: z.string().describe(""),
 	context: z.unknown().optional().describe(""),
@@ -16742,7 +16752,8 @@ const zResponseIssueTestEvidenceDto = z.object({
 		"override",
 		"not_applicable",
 		"pending",
-		"skipped"
+		"skipped",
+		"blocked"
 	]).describe(""),
 	status_id: z.string().describe(""),
 	context: z.unknown().optional().describe(""),
@@ -16772,7 +16783,8 @@ const zUpdateIssueTestEvidenceDto = z.object({
 		"override",
 		"not_applicable",
 		"pending",
-		"skipped"
+		"skipped",
+		"blocked"
 	]).optional().describe(""),
 	status_id: z.string().optional().describe(""),
 	context: z.unknown().optional().describe(""),
@@ -24262,7 +24274,8 @@ const zRunApiBatchUpdateRunResultVariantsV1Body = z.object({
 		status: z.enum([
 			"passed",
 			"failed",
-			"blocked"
+			"blocked",
+			"skipped"
 		]),
 		notes: z.string().optional(),
 		duration_ms: z.number().optional(),
@@ -24297,12 +24310,14 @@ const zRunNodeDto = z.object({
 	fail_count: z.number().optional(),
 	unstarted_count: z.number().optional(),
 	cancelled_count: z.number().optional(),
+	blocked_count: z.number().optional(),
 	status_counts: z.record(z.string(), z.unknown()).nullable(),
 	total_executions: z.number().optional(),
 	exec_pass_count: z.number().optional(),
 	exec_fail_count: z.number().optional(),
 	exec_unstarted_count: z.number().optional(),
 	exec_cancelled_count: z.number().optional(),
+	exec_blocked_count: z.number().optional(),
 	exec_status_counts: z.record(z.string(), z.unknown()).nullable(),
 	total_duration_ms: z.number().nullable(),
 	folder_id: z.string().nullable(),
@@ -24393,12 +24408,14 @@ const zRunWithContentDto = z.object({
 	fail_count: z.number().optional(),
 	unstarted_count: z.number().optional(),
 	cancelled_count: z.number().optional(),
+	blocked_count: z.number().optional(),
 	status_counts: z.record(z.string(), z.unknown()).nullable(),
 	total_executions: z.number().optional(),
 	exec_pass_count: z.number().optional(),
 	exec_fail_count: z.number().optional(),
 	exec_unstarted_count: z.number().optional(),
 	exec_cancelled_count: z.number().optional(),
+	exec_blocked_count: z.number().optional(),
 	exec_status_counts: z.record(z.string(), z.unknown()).nullable(),
 	total_duration_ms: z.number().nullable(),
 	folder_id: z.string().nullable(),
@@ -24453,6 +24470,7 @@ const zRunWithContentDto = z.object({
 		fail_count: z.number().optional(),
 		unstarted_count: z.number().optional(),
 		cancelled_count: z.number().optional(),
+		blocked_count: z.number().optional(),
 		status_counts: z.record(z.string(), z.unknown()).nullable(),
 		created_at: z.unknown(),
 		updated_at: z.unknown(),
@@ -24501,6 +24519,7 @@ const zRunResultNodeDto = z.object({
 	fail_count: z.number().optional(),
 	unstarted_count: z.number().optional(),
 	cancelled_count: z.number().optional(),
+	blocked_count: z.number().optional(),
 	status_counts: z.record(z.string(), z.unknown()).nullable(),
 	created_at: z.unknown(),
 	updated_at: z.unknown(),
@@ -27381,7 +27400,8 @@ const zCreateStatusDto = z.object({
 		"Unstarted",
 		"Pass",
 		"Fail",
-		"Cancelled"
+		"Cancelled",
+		"Blocked"
 	]).optional().describe(""),
 	all_projects: z.boolean().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe("")
@@ -27398,7 +27418,8 @@ const zResponseStatusDto = z.object({
 		"Unstarted",
 		"Pass",
 		"Fail",
-		"Cancelled"
+		"Cancelled",
+		"Blocked"
 	]).optional().describe(""),
 	all_projects: z.boolean().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
@@ -27423,7 +27444,8 @@ const zUpdateStatusDto = z.object({
 		"Unstarted",
 		"Pass",
 		"Fail",
-		"Cancelled"
+		"Cancelled",
+		"Blocked"
 	]).optional().describe(""),
 	all_projects: z.boolean().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe("")
