@@ -317,6 +317,22 @@ function failureText(o: InstalledOutcome): string {
         (r.currentUrl ? ` (${r.currentUrl})` : '') +
         '; remove it first, then re-run'
       );
+    case 'write-failed':
+      // The document was fine; the filesystem refused. The atomic write left
+      // the original intact, so this is a per-client failure, not a crash.
+      return (
+        `its config could not be written` +
+        (r.detail ? ` (${r.detail})` : '') +
+        `; check the file's permissions and re-run`
+      );
+    case 'unsupported-config-shape':
+      // The file is there and we will not guess at it — it may hold everything
+      // else the user configured for this client. Hand them the snippet path.
+      return (
+        `its config could not be edited safely` +
+        (r.detail ? ` (${r.detail})` : '') +
+        `; fix the file or add the entry by hand`
+      );
     default:
       // A command we ran that failed reports the client's own diagnostics.
       if (r.commandError) {
@@ -335,6 +351,14 @@ function outcomeLine(o: InstalledOutcome, dryRun: boolean): string {
     ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]`
     : '';
   const where = r.path ? ` → ${r.path}` : '';
+  // A format that keeps far more than our entry in one file (TOML) gets a
+  // one-shot backup of the original; the user is told where, before and after.
+  // On a dry run the backup is only where it WOULD go — nothing was copied.
+  const backup = r.backupPath
+    ? dryRun
+      ? ` [original would be backed up to ${r.backupPath}]`
+      : ` [original backed up to ${r.backupPath}]`
+    : '';
 
   // Failure first: a refusal must never be dressed up as pending work, and
   // several refusals (url-mismatch, a failed command) carry a `command`.
@@ -349,9 +373,10 @@ function outcomeLine(o: InstalledOutcome, dryRun: boolean): string {
     return `${o.label} (${r.scope}): run \`${r.command}\`${note}`;
   }
   if (dryRun) {
-    return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${note}`;
+    return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${note}`;
   }
-  if (r.wrote) return `${o.label}: installed (${r.scope})${where}${note}`;
+  if (r.wrote)
+    return `${o.label}: installed (${r.scope})${where}${backup}${note}`;
   return `${o.label}: no change (${r.scope})${where}${note}`;
 }
 

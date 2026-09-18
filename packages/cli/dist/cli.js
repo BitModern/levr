@@ -106,8 +106,8 @@ const mcpAddCommand = buildCommand({
 	docs: {
 		brief: "Add the Levr MCP server to installed AI clients",
 		fullDescription: `Detect MCP-capable clients on this machine (Claude Desktop,
-Claude Code, Cursor, Windsurf, Zed) and write the Levr MCP server into each
-one's config. The entry is credential-free — the client opens a browser to
+Claude Code, Cursor, Windsurf, Zed, Gemini CLI, Codex CLI, Grok Build,
+Antigravity) and write the Levr MCP server into each one's config. The entry is credential-free — the client opens a browser to
 authorize with Levr the first time it connects.
 
 --scope decides where the entry lands:
@@ -115,8 +115,8 @@ authorize with Levr the first time it connects.
   project  this repository, shared with everyone who checks it out
   local    this repository, only you (Claude Code only)
 
-Not every client supports every scope — Claude Desktop and Windsurf are
-user-only. A client you name with --client fails if it cannot honor the
+Not every client supports every scope — Claude Desktop, Windsurf, Codex CLI
+and Antigravity are user-only. A client you name with --client fails if it cannot honor the
 scope you asked for; one picked up by --all or interactively falls back to
 the scope it does support, and the report says so.
 
@@ -175,7 +175,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-Brr4ndcR.js");
+		const { mcpAddHandler } = await import("./addHandler-BlZQkDtP.js");
 		return mcpAddHandler;
 	}
 });
@@ -562,7 +562,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.9.12";
+var version = "0.9.13";
 
 //#endregion
 //#region src/app.ts

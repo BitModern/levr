@@ -1,23 +1,119 @@
 import { getApiUrl } from "./env-CHeKHu5S.js";
-import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
-import { applyEdits, modify, parse } from "jsonc-parser";
+import { applyEdits, modify, parse, printParseErrorCode } from "jsonc-parser";
+import { TomlError, parse as parse$1 } from "smol-toml";
 import { execFileSync } from "node:child_process";
 
-//#region ../mcp-harnesses/dist/catalog.js
+//#region ../mcp-harnesses/dist/format/toml-render.js
 /**
-* @levr/mcp-harnesses — isomorphic catalog (browser + Node).
+* Value → TOML text, ISOMORPHIC (browser + Node), dependency-free.
 *
-* Single source of truth for MCP-capable clients ("harnesses"): the catalog,
-* the OAuth-client → catalog matcher, and the pure config builders. This module
-* MUST stay free of Node built-ins (`node:fs`, `node:os`, `node:path`) so the
-* client SPA can import it without pulling `node:fs` into the bundle. Detection
-* and config-write live in the `@levr/mcp-harnesses/node` subpath.
+* Two consumers, one implementation (ENG-5264 D5, audit C1):
+* - `buildHarnessConfig` in the isomorphic catalog renders the pasteable
+*   snippet a TOML client's card shows — so it must run in the client SPA,
+*   which forbids `node:` imports and the `/node/` subpath (catalog.test.ts
+*   isomorphic guard).
+* - The node `tomlAdapter` renders the body of the table it writes into the
+*   user's config file.
 *
-* Plans: specs/plans/mcp-harness-detect-installer.md (ENG-43, P1) ·
-*        specs/plans/mcp-install-scopes-ENG-4151.md (ENG-4152, D1 — scope model)
+* Written once here so the snippet a user pastes by hand and the bytes the
+* installer writes can never drift apart.
+*
+* Scope is deliberately what `buildServerEntry` produces: string, number,
+* boolean, arrays of those, and nested plain objects. Anything else throws —
+* a TOML file is never the place to discover a serializer guessed.
 */
+/** Keys TOML lets us write without quotes. */
+const BARE_KEY = /^[A-Za-z0-9_-]+$/;
+/** A TOML key, quoted only when it has to be. */
+function renderTomlKey(key) {
+	return BARE_KEY.test(key) ? key : renderTomlString(key);
+}
+/**
+* A TOML basic string with every escape TOML requires: backslash, double
+* quote, the C0 controls, and DEL. Everything else (including non-ASCII) is
+* written verbatim, which TOML permits in basic strings.
+*/
+function renderTomlString(value) {
+	let out = "\"";
+	for (const ch of value) {
+		const code = ch.codePointAt(0) ?? 0;
+		if (ch === "\"") out += "\\\"";
+		else if (ch === "\\") out += "\\\\";
+		else if (ch === "\n") out += "\\n";
+		else if (ch === "\r") out += "\\r";
+		else if (ch === "	") out += "\\t";
+		else if (ch === "\b") out += "\\b";
+		else if (ch === "\f") out += "\\f";
+		else if (code < 32 || code === 127) out += `\\u${code.toString(16).toUpperCase().padStart(4, "0")}`;
+		else out += ch;
+	}
+	return out + "\"";
+}
+/** A scalar or array value on the right-hand side of `key = …`. */
+function renderTomlValue(value) {
+	if (typeof value === "string") return renderTomlString(value);
+	if (typeof value === "boolean") return value ? "true" : "false";
+	if (typeof value === "number") {
+		if (!Number.isFinite(value)) throw new Error(`cannot render non-finite number ${String(value)} as TOML`);
+		return String(value);
+	}
+	if (Array.isArray(value)) {
+		if (value.length === 0) return "[]";
+		return `[ ${value.map((v) => renderTomlValue(v)).join(", ")} ]`;
+	}
+	throw new Error(`cannot render a ${value === null ? "null" : typeof value} as a TOML value`);
+}
+function isPlainObject(value) {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+/**
+* The `key = value` lines for one table body, in the order the object's keys
+* were declared, followed by sub-tables for any nested objects. Nested objects
+* become `[path.key]` sub-tables rather than inline tables so the output stays
+* one key per line — the shape both Codex and Grok Build write themselves.
+*
+* `pathPrefix` is the table this body belongs to, needed to name sub-tables.
+* Returns lines WITHOUT line terminators; the caller picks `\n` or `\r\n`.
+*/
+function renderTomlBodyLines(value, pathPrefix) {
+	const lines = [];
+	const nested = [];
+	for (const [key, v] of Object.entries(value)) {
+		if (v === void 0) continue;
+		if (isPlainObject(v)) {
+			nested.push([key, v]);
+			continue;
+		}
+		lines.push(`${renderTomlKey(key)} = ${renderTomlValue(v)}`);
+	}
+	for (const [key, v] of nested) {
+		const path = [...pathPrefix, key];
+		lines.push("", `[${path.map(renderTomlKey).join(".")}]`);
+		lines.push(...renderTomlBodyLines(v, path));
+	}
+	return lines;
+}
+
+//#endregion
+//#region ../mcp-harnesses/dist/catalog.js
+/** The `{ url, type: "http" }` shape Claude Code and Gemini CLI write. */
+const DEFAULT_NATIVE_HTTP_ENTRY = {
+	urlKey: "url",
+	constants: { type: "http" }
+};
+/**
+* Provenance sentinel for entries that predate the invariant (ENG-5264 D1,
+* decision ENG-5327). No observation record exists for the harnesses that
+* carry it, and inventing a version or date would be exactly what the
+* invariant forbids — so they say so, greppably: `grep unverified-legacy`
+* names every entry still owing a real observation. An entry is upgraded to a
+* real version + date whenever someone next installs that client, and is never
+* downgraded back. A NEW entry must never be born carrying this value.
+*/
+const UNVERIFIED_LEGACY = "unverified-legacy";
 /** Stable server key written into every harness config (used by detect/remove).
 * Renamed from the legacy brand key pre-first-publish (ENG-2515) — this key
 * is a persisted identity in end-users' client config files, so it must not
@@ -59,11 +155,12 @@ const CLAUDE_CODE_LOCATIONS = [
 /**
 * The catalog. Order is presentation order (most common first).
 *
-* `comingSoon` clients (VS Code, Codex) are listed but not installable: their
-* config formats differ enough (VS Code's `servers`/native-http schema, Codex's
-* TOML) that faithful writes are deferred to a dedicated builder branch. Their
-* SCOPES are declared as data regardless, so the support matrix stays complete
-* and turning them on later is a builder change, not a catalog change.
+* `comingSoon` clients (VS Code) are listed but not installable: their config
+* format differs enough (VS Code's `servers`/native-http schema) that a
+* faithful write is deferred. Their SCOPES are declared as data regardless, so
+* the support matrix stays complete and turning them on later is a builder
+* change, not a catalog change. Codex left this list in ENG-5264 once the TOML
+* adapter existed.
 */
 const HARNESSES = [
 	{
@@ -78,6 +175,8 @@ const HARNESSES = [
 		transport: "mcp-remote",
 		docsUrl: "https://modelcontextprotocol.io/quickstart/user",
 		comingSoon: false,
+		verifiedVersion: UNVERIFIED_LEGACY,
+		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -124,6 +223,8 @@ const HARNESSES = [
 		transport: "native-http",
 		docsUrl: "https://docs.anthropic.com/en/docs/claude-code/mcp",
 		comingSoon: false,
+		verifiedVersion: UNVERIFIED_LEGACY,
+		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -179,6 +280,8 @@ const HARNESSES = [
 		transport: "mcp-remote",
 		docsUrl: "https://cursor.com/docs/mcp",
 		comingSoon: false,
+		verifiedVersion: UNVERIFIED_LEGACY,
+		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -228,6 +331,8 @@ const HARNESSES = [
 		transport: "mcp-remote",
 		docsUrl: "https://docs.windsurf.com/windsurf/mcp",
 		comingSoon: false,
+		verifiedVersion: UNVERIFIED_LEGACY,
+		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -273,6 +378,8 @@ const HARNESSES = [
 		transport: "mcp-remote",
 		docsUrl: "https://zed.dev/docs/ai/mcp",
 		comingSoon: false,
+		verifiedVersion: UNVERIFIED_LEGACY,
+		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -312,6 +419,161 @@ const HARNESSES = [
 			scope: "project",
 			installKind: "config-file",
 			projectPath: ".zed/settings.json"
+		}]
+	},
+	{
+		id: "gemini",
+		label: "Gemini CLI",
+		matchers: ["gemini cli", "gemini-cli"],
+		serverPropertyName: "mcpServers",
+		transport: "native-http",
+		docsUrl: "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md",
+		comingSoon: false,
+		verifiedVersion: "0.35.1",
+		verifiedOn: "2026-09-17",
+		detectSignals: [
+			{
+				platform: "darwin",
+				signals: ["which:gemini", "~/.gemini/settings.json"]
+			},
+			{
+				platform: "linux",
+				signals: ["which:gemini", "~/.gemini/settings.json"]
+			},
+			{
+				platform: "win32",
+				signals: ["which:gemini", "~/.gemini/settings.json"]
+			}
+		],
+		scopes: [{
+			scope: "user",
+			installKind: "config-file",
+			locations: [
+				{
+					platform: "darwin",
+					configPath: "~/.gemini/settings.json"
+				},
+				{
+					platform: "linux",
+					configPath: "~/.gemini/settings.json"
+				},
+				{
+					platform: "win32",
+					configPath: "~/.gemini/settings.json"
+				}
+			]
+		}, {
+			scope: "project",
+			installKind: "config-file",
+			projectPath: ".gemini/settings.json"
+		}]
+	},
+	{
+		id: "grok",
+		label: "Grok Build",
+		matchers: ["grok build", "grok-build"],
+		serverPropertyName: "mcp_servers",
+		transport: "native-http",
+		nativeHttpEntry: {
+			urlKey: "url",
+			constants: { enabled: true }
+		},
+		configFormat: "toml",
+		docsUrl: "https://docs.x.ai/build/overview",
+		comingSoon: false,
+		verifiedVersion: "1.0.34",
+		verifiedOn: "2026-09-17",
+		detectSignals: [
+			{
+				platform: "darwin",
+				signals: ["~/.grok/config.toml", "~/.grok/bin/grok"]
+			},
+			{
+				platform: "linux",
+				signals: ["~/.grok/config.toml", "~/.grok/bin/grok"]
+			},
+			{
+				platform: "win32",
+				signals: ["~/.grok/config.toml", "~/.grok/bin/grok.exe"]
+			}
+		],
+		scopes: [{
+			scope: "user",
+			installKind: "config-file",
+			locations: [
+				{
+					platform: "darwin",
+					configPath: "~/.grok/config.toml"
+				},
+				{
+					platform: "linux",
+					configPath: "~/.grok/config.toml"
+				},
+				{
+					platform: "win32",
+					configPath: "~/.grok/config.toml"
+				}
+			]
+		}, {
+			scope: "project",
+			installKind: "config-file",
+			projectPath: ".grok/config.toml"
+		}]
+	},
+	{
+		id: "antigravity",
+		label: "Antigravity",
+		matchers: ["antigravity"],
+		serverPropertyName: "mcpServers",
+		transport: "native-http",
+		nativeHttpEntry: {
+			urlKey: "serverUrl",
+			constants: { disabled: false }
+		},
+		docsUrl: "https://antigravity.google/docs/mcp",
+		comingSoon: false,
+		verifiedVersion: "1.2.5",
+		verifiedOn: "2026-09-17",
+		detectSignals: [
+			{
+				platform: "darwin",
+				signals: [
+					"which:agy",
+					"~/.local/bin/agy",
+					"/Applications/Antigravity IDE.app",
+					"~/.gemini/config/mcp_config.json"
+				]
+			},
+			{
+				platform: "linux",
+				signals: [
+					"which:agy",
+					"~/.local/bin/agy",
+					"~/.gemini/config/mcp_config.json"
+				]
+			},
+			{
+				platform: "win32",
+				signals: ["which:agy", "~/.gemini/config/mcp_config.json"]
+			}
+		],
+		scopes: [{
+			scope: "user",
+			installKind: "config-file",
+			locations: [
+				{
+					platform: "darwin",
+					configPath: "~/.gemini/config/mcp_config.json"
+				},
+				{
+					platform: "linux",
+					configPath: "~/.gemini/config/mcp_config.json"
+				},
+				{
+					platform: "win32",
+					configPath: "~/.gemini/config/mcp_config.json"
+				}
+			]
 		}]
 	},
 	{
@@ -367,10 +629,14 @@ const HARNESSES = [
 		id: "codex",
 		label: "Codex CLI",
 		matchers: ["codex"],
-		serverPropertyName: "mcpServers",
-		transport: "mcp-remote",
+		serverPropertyName: "mcp_servers",
+		transport: "native-http",
+		nativeHttpEntry: { urlKey: "url" },
+		configFormat: "toml",
 		docsUrl: "https://github.com/openai/codex",
-		comingSoon: true,
+		comingSoon: false,
+		verifiedVersion: "0.154.0",
+		verifiedOn: "2026-09-17",
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -402,10 +668,6 @@ const HARNESSES = [
 					configPath: "~/.codex/config.toml"
 				}
 			]
-		}, {
-			scope: "project",
-			installKind: "config-file",
-			projectPath: ".codex/config.toml"
 		}]
 	}
 ];
@@ -473,7 +735,8 @@ function mcpRemoteInvocation(mcpUrl) {
 /**
 * The structured server entry to merge under the scope's server property,
 * keyed by {@link SERVER_NAME}. Shape is per-transport, then per-property:
-* - `native-http` (Claude Code's `.mcp.json`): `{ type: 'http', url }`.
+* - `native-http`: the entry's declared {@link NativeHttpEntryShape} —
+*   `{ url, type: 'http' }` by default (Claude Code's `.mcp.json`, Gemini).
 * - `mcpServers` (Claude Desktop, Cursor, Windsurf): flat `{ command, args }`.
 * - `context_servers` (Zed): nested `{ source, command: { path, args } }`.
 *
@@ -481,10 +744,13 @@ function mcpRemoteInvocation(mcpUrl) {
 */
 function buildServerEntry(harness, mcpUrl, scope = defaultScope(harness)) {
 	requireScope(harness, scope);
-	if (harness.transport === "native-http") return { [SERVER_NAME]: {
-		type: "http",
-		url: mcpUrl
-	} };
+	if (harness.transport === "native-http") {
+		const shape = harness.nativeHttpEntry ?? DEFAULT_NATIVE_HTTP_ENTRY;
+		return { [SERVER_NAME]: {
+			[shape.urlKey]: mcpUrl,
+			...shape.constants ?? {}
+		} };
+	}
 	const { command, args } = mcpRemoteInvocation(mcpUrl);
 	if (serverPropertyFor(harness, scope) === "context_servers") return { [SERVER_NAME]: {
 		source: "custom",
@@ -725,6 +991,428 @@ function getAtPath(obj, path) {
 }
 
 //#endregion
+//#region ../mcp-harnesses/dist/node/format/port.js
+/**
+* Outbound port: a config DOCUMENT the installer can read a value out of and
+* surgically edit, without the domain knowing what syntax the file is in.
+*
+* `installHarnessSync` / `removeHarnessSync` (`../install.ts`) and detection
+* (`../detect.ts`) speak only this interface; each concrete format lives in a
+* sibling adapter and is selected by the DECLARATIVE `configFormat` field on
+* the catalog entry (`adapterFor`, `./index.ts`). No harness id, and no format
+* name, ever reaches the domain — plan ENG-5264 §2.
+*
+* ## The failure channel is part of the contract (review F-002)
+*
+* A read has THREE outcomes, not two. `absent` is the state the domain answers
+* by writing a fresh entry into an empty document; `unsupported` is the state
+* it must REFUSE on — a non-empty file that does not parse, or a document in
+* which our key sits in a shape the adapter cannot edit in place. Collapsing
+* the two (returning `undefined` for both) is how a real user config gets
+* treated as empty and overwritten. That is why `readAt` returns a tagged
+* union rather than `unknown`, and why the mutators throw a typed error
+* instead of best-effort restructuring a document they did not understand.
+*/
+/**
+* Thrown by {@link ConfigDocumentAdapter.setAt} / `removeAt` when the edit
+* cannot be made without restructuring content the adapter does not fully
+* understand. The domain catches it and refuses the install — fail closed.
+*/
+var UnsupportedConfigShapeError = class extends Error {
+	detail;
+	constructor(detail) {
+		super(detail);
+		this.detail = detail;
+		this.name = "UnsupportedConfigShapeError";
+	}
+};
+
+//#endregion
+//#region ../mcp-harnesses/dist/node/format/jsonc.js
+const FORMAT = {
+	insertSpaces: true,
+	tabSize: 2,
+	eol: "\n"
+};
+/**
+* Parse strictly enough to be safe: any syntax error is a refusal, never a
+* partial document. Returns the root, or the reason it cannot be used.
+*/
+function parseDocument$1(text) {
+	const errors = [];
+	const root = parse(text, errors, {
+		allowTrailingComma: true,
+		disallowComments: false
+	});
+	const first = errors[0];
+	if (first) return {
+		ok: false,
+		detail: `document does not parse (${printParseErrorCode(first.error)} at offset ${first.offset})`
+	};
+	if (root === null || typeof root !== "object" || Array.isArray(root)) return {
+		ok: false,
+		detail: "document root is not an object"
+	};
+	return {
+		ok: true,
+		root
+	};
+}
+const jsoncAdapter = {
+	empty: "{}",
+	readAt(text, path) {
+		if (text.trim() === "") return { kind: "absent" };
+		const doc = parseDocument$1(text);
+		if (!doc.ok) return {
+			kind: "unsupported",
+			detail: doc.detail
+		};
+		const value = getAtPath(doc.root, path);
+		return value === void 0 ? { kind: "absent" } : {
+			kind: "value",
+			value
+		};
+	},
+	setAt(text, path, value) {
+		return edit(text, path, value);
+	},
+	removeAt(text, path) {
+		return edit(text, path, void 0);
+	}
+};
+/** Shared by set and remove: jsonc-parser removes a key when `value` is `undefined`. */
+function edit(text, path, value) {
+	const doc = parseDocument$1(text);
+	if (!doc.ok) throw new UnsupportedConfigShapeError(doc.detail);
+	try {
+		return applyEdits(text, modify(text, path, value, { formattingOptions: FORMAT }));
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		throw new UnsupportedConfigShapeError(`cannot edit path ${path.join(".")}: ${message}`);
+	}
+}
+
+//#endregion
+//#region ../mcp-harnesses/dist/node/format/toml.js
+/**
+* Suffix of the one-shot sibling backup the domain writes before the FIRST
+* modifying write to a TOML target (review F-005): `config.toml.levr-bak`.
+* Declared here, applied format-generically by the installer.
+*/
+const TOML_BACKUP_SUFFIX = ".levr-bak";
+const BOM = "﻿";
+function parseDocument(text) {
+	try {
+		return {
+			ok: true,
+			root: parse$1(stripBom(text))
+		};
+	} catch (err) {
+		if (err instanceof TomlError) return {
+			ok: false,
+			detail: `document does not parse: ${err.message.split("\n")[0] ?? err.message} (line ${err.line}, col ${err.column})`
+		};
+		return {
+			ok: false,
+			detail: `document does not parse: ${err instanceof Error ? err.message : String(err)}`
+		};
+	}
+}
+/**
+* `smol-toml` does not strip a UTF-8 byte-order mark, and Windows editors
+* write one (code review F-006). The BOM is document decoration: parse and
+* edit the text behind it, put it back on the way out.
+*/
+function stripBom(text) {
+	return text.startsWith(BOM) ? text.slice(1) : text;
+}
+function splitLines(text) {
+	const lines = [];
+	const eols = [];
+	let crlf = 0;
+	let lf = 0;
+	let from = 0;
+	for (let i = 0; i < text.length; i++) {
+		if (text[i] !== "\n") continue;
+		const cr = i > 0 && text[i - 1] === "\r";
+		lines.push(text.slice(from, cr ? i - 1 : i));
+		eols.push(cr ? "\r\n" : "\n");
+		if (cr) crlf++;
+		else lf++;
+		from = i + 1;
+	}
+	lines.push(text.slice(from));
+	eols.push("");
+	return {
+		lines,
+		eols,
+		eol: crlf > lf ? "\r\n" : "\n"
+	};
+}
+function joinLines(lines, eols) {
+	let out = "";
+	for (let i = 0; i < lines.length; i++) out += lines[i] + (eols[i] ?? "");
+	return out;
+}
+/** Leading whitespace then `[` — the shape every table header shares. */
+function isBracketLed(line) {
+	return /^[ \t]*\[/.test(line);
+}
+/**
+* The key path of a `[table.header]` line, or `undefined` when the line is
+* not a standard-table header this scanner can read. Array-of-tables
+* (`[[x]]`) and comment lines never match; a trailing `# comment` may
+* contain anything, brackets included. Segments may be bare, `"basic"` (with
+* escapes) or `'literal'` keys.
+*
+* `undefined` means "not OUR table" and nothing more — see the module
+* comment for why an unreadable header still ends a body.
+*/
+function headerPathOf(line) {
+	let i = 0;
+	while (line[i] === " " || line[i] === "	") i++;
+	if (line[i] !== "[" || line[i + 1] === "[") return void 0;
+	i++;
+	const segments = [];
+	let current = "";
+	let sawSegment = false;
+	let closed = false;
+	while (i < line.length) {
+		const ch = line[i];
+		if (ch === " " || ch === "	") {
+			i++;
+			continue;
+		}
+		if (ch === "]") {
+			closed = true;
+			i++;
+			break;
+		}
+		if (ch === "\"") {
+			const end = scanBasicString(line, i);
+			if (end === -1) return void 0;
+			const unescaped = unescapeBasic(line.slice(i + 1, end));
+			if (unescaped === void 0) return void 0;
+			current += unescaped;
+			i = end + 1;
+			sawSegment = true;
+			continue;
+		}
+		if (ch === "'") {
+			const close = line.indexOf("'", i + 1);
+			if (close === -1) return void 0;
+			current += line.slice(i + 1, close);
+			i = close + 1;
+			sawSegment = true;
+			continue;
+		}
+		if (ch === ".") {
+			if (!sawSegment) return void 0;
+			segments.push(current);
+			current = "";
+			sawSegment = false;
+			i++;
+			continue;
+		}
+		if (/[A-Za-z0-9_-]/.test(ch)) {
+			current += ch;
+			sawSegment = true;
+			i++;
+			continue;
+		}
+		return;
+	}
+	if (!closed || !sawSegment) return void 0;
+	const rest = line.slice(i);
+	if (!/^[ \t]*(#.*)?$/.test(rest)) return void 0;
+	segments.push(current);
+	return segments;
+}
+/** Index of the closing quote of the basic string opening at `open`, or -1. */
+function scanBasicString(line, open) {
+	for (let i = open + 1; i < line.length; i++) {
+		if (line[i] === "\\") {
+			i++;
+			continue;
+		}
+		if (line[i] === "\"") return i;
+	}
+	return -1;
+}
+/** TOML basic-string escapes are a subset of JSON's, so JSON can decode them. */
+function unescapeBasic(raw) {
+	try {
+		const value = JSON.parse(`"${raw}"`);
+		return typeof value === "string" ? value : void 0;
+	} catch {
+		return;
+	}
+}
+const PROBE_KEY = "__levr_header_probe__";
+/**
+* What is the bracket-led line at `idx`? Swap it for a probe header and ask
+* the parser:
+*
+* - `'real'`: the probe table appeared at the root — the line was a genuine
+*   header at document level.
+* - `'text'`: the document still parses and the probe did NOT appear — the
+*   line is content inside a multi-line string. It changed the string, not
+*   the document's shape.
+* - `'unknown'`: the swap broke the document. Nothing is proven either way.
+*/
+function probeHeader(doc, idx) {
+	const probe = [...doc.lines];
+	probe[idx] = `[${PROBE_KEY}]`;
+	const parsed = parseDocument(joinLines(probe, doc.eols));
+	if (!parsed.ok) return "unknown";
+	return Object.prototype.hasOwnProperty.call(parsed.root, PROBE_KEY) ? "real" : "text";
+}
+function samePath(a, b) {
+	return a.length === b.length && a.every((s, i) => s === b[i]);
+}
+function isSubPath(path, prefix) {
+	return path.length > prefix.length && prefix.every((s, i) => s === path[i]);
+}
+/**
+* Locate our table: the header line index and the index just past its body.
+* `undefined` when there is no standalone header for `path`.
+*
+* The START must be a fully parsed header for exactly `path`, confirmed
+* real. The END is the first bracket-led line after it that is neither one
+* of our own sub-tables nor proven to be string content — a header the path
+* scanner cannot read, or one whose probe breaks the document, still ends
+* the body. Misjudging a line can only make our region smaller.
+*/
+function locateTable(doc, path) {
+	const { lines } = doc;
+	let start = -1;
+	for (let i = 0; i < lines.length; i++) {
+		const hp = headerPathOf(lines[i]);
+		if (hp && samePath(hp, path) && probeHeader(doc, i) === "real") {
+			start = i;
+			break;
+		}
+	}
+	if (start === -1) return void 0;
+	const last = lines.length - 1;
+	const limit = lines[last] === "" ? last : lines.length;
+	let end = limit;
+	for (let i = start + 1; i < limit; i++) {
+		if (!isBracketLed(lines[i])) continue;
+		const verdict = probeHeader(doc, i);
+		if (verdict === "text") continue;
+		const hp = headerPathOf(lines[i]);
+		if (hp && isSubPath(hp, path) && verdict === "real") continue;
+		end = i;
+		break;
+	}
+	while (end - 1 > start && /^[ \t]*(#.*)?$/.test(lines[end - 1])) end--;
+	return {
+		start,
+		end
+	};
+}
+function requireEditable(text, path) {
+	const parsed = parseDocument(text);
+	if (!parsed.ok) throw new UnsupportedConfigShapeError(parsed.detail);
+	return {
+		doc: splitLines(text),
+		exists: getAtPath(parsed.root, path) !== void 0
+	};
+}
+function notStandalone(path) {
+	return new UnsupportedConfigShapeError(`${path.join(".")} exists but not as a standalone [${path.join(".")}] table (inline table or dotted key) — refusing to restructure it`);
+}
+const tomlAdapter = {
+	empty: "",
+	backupSuffix: TOML_BACKUP_SUFFIX,
+	readAt(text, path) {
+		if (stripBom(text).trim() === "") return { kind: "absent" };
+		const doc = parseDocument(text);
+		if (!doc.ok) return {
+			kind: "unsupported",
+			detail: doc.detail
+		};
+		const value = getAtPath(doc.root, path);
+		return value === void 0 ? { kind: "absent" } : {
+			kind: "value",
+			value
+		};
+	},
+	setAt(text, path, value) {
+		if (value === null || typeof value !== "object" || Array.isArray(value)) throw new UnsupportedConfigShapeError(`a TOML table body must be an object, got ${value === null ? "null" : Array.isArray(value) ? "array" : typeof value}`);
+		const body = value;
+		const bom = text.startsWith(BOM) ? BOM : "";
+		const inner = stripBom(text);
+		if (inner.trim() === "") return bom + renderTable(path, body, inner.includes("\r\n") ? "\r\n" : "\n");
+		const { doc, exists } = requireEditable(inner, path);
+		const table = locateTable(doc, path);
+		if (!table) {
+			if (exists) throw notStandalone(path);
+			const { eol } = doc;
+			let base = inner.endsWith("\n") ? inner : inner + eol;
+			if (!/\r?\n\r?\n$/.test(base)) base += eol;
+			return bom + base + renderTable(path, body, eol);
+		}
+		const rendered = renderTomlBodyLines(body, path);
+		const atEof = table.end === doc.lines.length;
+		return bom + joinLines([
+			...doc.lines.slice(0, table.start + 1),
+			...rendered,
+			...doc.lines.slice(table.end)
+		], [
+			...doc.eols.slice(0, table.start + 1),
+			...rendered.map((_, i) => atEof && i === rendered.length - 1 ? "" : doc.eol),
+			...doc.eols.slice(table.end)
+		]);
+	},
+	removeAt(text, path) {
+		const bom = text.startsWith(BOM) ? BOM : "";
+		const inner = stripBom(text);
+		if (inner.trim() === "") return text;
+		const { doc, exists } = requireEditable(inner, path);
+		if (!exists) return text;
+		const table = locateTable(doc, path);
+		if (!table) throw notStandalone(path);
+		const lines = [...doc.lines.slice(0, table.start), ...doc.lines.slice(table.end)];
+		const eols = [...doc.eols.slice(0, table.start), ...doc.eols.slice(table.end)];
+		const at = table.start;
+		if (at === 0) {
+			if (lines[0] === "" && lines.length > 1) {
+				lines.splice(0, 1);
+				eols.splice(0, 1);
+			}
+		} else if (lines[at - 1] === "" && (at >= lines.length || lines[at] === "")) {
+			lines.splice(at - 1, 1);
+			eols.splice(at - 1, 1);
+		}
+		return bom + joinLines(lines, eols);
+	}
+};
+function renderTable(path, body, eol) {
+	return [`[${path.map(renderTomlKey).join(".")}]`, ...renderTomlBodyLines(body, path)].join(eol) + eol;
+}
+
+//#endregion
+//#region ../mcp-harnesses/dist/node/format/index.js
+/** Every syntax the installer can write, keyed by the catalog's `configFormat`. */
+const ADAPTERS = {
+	jsonc: jsoncAdapter,
+	toml: tomlAdapter
+};
+/** The format a harness declares, with the catalog's documented default. */
+function configFormatOf(harness) {
+	return harness.configFormat ?? "jsonc";
+}
+/** The adapter for this harness's config syntax. */
+function adapterFor(harness) {
+	const format = configFormatOf(harness);
+	const adapter = ADAPTERS[format];
+	if (!adapter) throw new Error(`no config adapter registered for configFormat "${format}" (declared by harness "${harness.id}")`);
+	return adapter;
+}
+
+//#endregion
 //#region ../mcp-harnesses/dist/node/detect.js
 /**
 * Is our server key present for this scope?
@@ -737,8 +1425,8 @@ function getAtPath(obj, path) {
 function isServerConfigured(harness, scope, configPath, cwdKey) {
 	const text = readTextOrNull(configPath);
 	if (!text) return false;
-	const val = getAtPath(parse(text), entryPathFor(harness, scope, cwdKey));
-	return val !== void 0 && val !== null;
+	const read = adapterFor(harness).readAt(text, entryPathFor(harness, scope, cwdKey));
+	return read.kind === "value" && read.value !== null;
 }
 function detectScope(harness, env, def) {
 	const configPath = resolveConfigPath(harness, env, def.scope);
@@ -867,11 +1555,6 @@ function runHarnessCommandSync(argv, opts = {}) {
 
 //#endregion
 //#region ../mcp-harnesses/dist/node/install.js
-const FORMAT = {
-	insertSpaces: true,
-	tabSize: 2,
-	eol: "\n"
-};
 /**
 * Resolve the target path for a scope, or the reason it cannot be resolved.
 * Shared by install and remove so the two can never disagree about where a
@@ -901,7 +1584,11 @@ function resolveTarget(harness, env, scope) {
 function currentEntry(harness, env, scope) {
 	const configPath = resolveConfigPath(harness, env, scope);
 	if (!configPath) return { present: false };
-	const entry = readServerEntry(harness, scope, configPath, env.cwd, (t) => parse(t));
+	const adapter = adapterFor(harness);
+	const entry = readServerEntry(harness, scope, configPath, env.cwd, (t) => {
+		const read = adapter.readAt(t, []);
+		return read.kind === "value" ? read.value : void 0;
+	});
 	if (entry === void 0 || entry === null) return { present: false };
 	const e = entry;
 	if (typeof e.url === "string") return {
@@ -917,9 +1604,19 @@ function currentEntry(harness, env, scope) {
 	}
 	return { present: true };
 }
-/** JSON-structural equality — sufficient for our small config values. */
+/**
+* Structural equality, key order ignored. A client that writes its keys in a
+* different order than we do (Antigravity sorts them; older versions of our
+* own writer put `type` before `url`) must still read as already configured,
+* or every install becomes a perpetual rewrite.
+*/
 function sameValue(a, b) {
-	return JSON.stringify(a) === JSON.stringify(b);
+	return canonical(a) === canonical(b);
+}
+function canonical(value) {
+	if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+	if (value !== null && typeof value === "object") return `{${Object.entries(value).filter(([, v]) => v !== void 0).sort(([x], [y]) => x < y ? -1 : x > y ? 1 : 0).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
+	return JSON.stringify(value) ?? "undefined";
 }
 /** Merge (or preview) our MCP into a harness config. */
 function installHarnessSync(harness, mcpUrl, opts = {}) {
@@ -993,11 +1690,19 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 	const { path } = target;
 	const entryValue = buildServerEntry(harness, mcpUrl, scope)[SERVER_NAME];
 	const modPath = entryPathFor(harness, scope, env.cwd);
+	const adapter = adapterFor(harness);
 	const existing = readTextOrNull(path);
-	const baseText = existing && existing.trim() ? existing : "{}";
-	const current = getAtPath(parse(baseText), modPath);
-	const alreadyConfigured = current !== void 0 && sameValue(current, entryValue);
-	const nextText = applyEdits(baseText, modify(baseText, modPath, entryValue, { formattingOptions: FORMAT }));
+	const baseText = existing && existing.trim() ? existing : adapter.empty;
+	const current = adapter.readAt(baseText, modPath);
+	if (current.kind === "unsupported") return unsupportedShape(path, dryRun, scope, current.detail);
+	const alreadyConfigured = current.kind === "value" && sameValue(current.value, entryValue);
+	let nextText;
+	try {
+		nextText = adapter.setAt(baseText, modPath, entryValue);
+	} catch (err) {
+		if (err instanceof UnsupportedConfigShapeError) return unsupportedShape(path, dryRun, scope, err.detail);
+		throw err;
+	}
 	if (alreadyConfigured) return {
 		ok: true,
 		wrote: false,
@@ -1007,6 +1712,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		scope,
 		preview: nextText
 	};
+	const backupPath = backupPathFor(path, adapter.backupSuffix);
 	if (dryRun) return {
 		ok: true,
 		wrote: false,
@@ -1014,11 +1720,17 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		alreadyConfigured: false,
 		dryRun: true,
 		scope,
-		preview: nextText
+		preview: nextText,
+		...backupPath ? { backupPath } : {}
 	};
-	mkdirSync(dirname(path), { recursive: true });
 	const finalText = nextText.endsWith("\n") ? nextText : `${nextText}\n`;
-	writeFileSync(path, finalText, "utf8");
+	try {
+		mkdirSync(dirname(path), { recursive: true });
+		if (backupPath) backupOnce(path, backupPath);
+		writeConfigAtomic(path, finalText);
+	} catch (err) {
+		return writeFailed(path, scope, err);
+	}
 	return {
 		ok: true,
 		wrote: true,
@@ -1026,8 +1738,81 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		alreadyConfigured: false,
 		dryRun: false,
 		scope,
-		preview: finalText
+		preview: finalText,
+		...backupPath ? { backupPath } : {}
 	};
+}
+/**
+* Where the one-shot backup of an existing `path` lives, for an adapter that
+* asks for one — `undefined` when the format does not, or when there is no
+* original to protect yet.
+*/
+function backupPathFor(path, suffix) {
+	if (!suffix || !existsSync(path)) return void 0;
+	return `${path}${suffix}`;
+}
+/** Copy the original once. An existing backup is never overwritten. */
+function backupOnce(path, backupPath) {
+	if (existsSync(backupPath)) return;
+	copyFileSync(path, backupPath);
+}
+/** The refusal every format shares: the file is there, and we will not touch it. */
+function unsupportedShape(path, dryRun, scope, detail) {
+	return {
+		ok: false,
+		wrote: false,
+		path,
+		alreadyConfigured: false,
+		dryRun,
+		scope,
+		reason: "unsupported-config-shape",
+		detail
+	};
+}
+/** The filesystem said no: report it per client instead of aborting the run. */
+function writeFailed(path, scope, err) {
+	return {
+		ok: false,
+		wrote: false,
+		path,
+		alreadyConfigured: false,
+		dryRun: false,
+		scope,
+		reason: "write-failed",
+		detail: err instanceof Error ? err.message : String(err)
+	};
+}
+/**
+* Replace `path`'s contents atomically: the new text goes to a sibling temp
+* file that is then renamed over the target, so an interrupted write (ENOSPC,
+* a kill, sleep) leaves the ORIGINAL file intact rather than a truncated one,
+* and a concurrent reader sees either the old document or the new one. The
+* original mode is preserved (a `0600` config stays `0600`).
+*
+* This matters more than it did: a harness config can be the file that also
+* holds a user's model providers, profiles and sandbox policy (review F-005).
+*/
+function writeConfigAtomic(path, text) {
+	let target = path;
+	let mode;
+	try {
+		target = realpathSync(path);
+		mode = statSync(target).mode & 511;
+	} catch {}
+	const tmp = join(dirname(target), `.${basename(target)}.${process.pid}.tmp`);
+	writeFileSync(tmp, text, {
+		encoding: "utf8",
+		...mode !== void 0 ? { mode } : {}
+	});
+	try {
+		if (mode !== void 0) chmodSync(tmp, mode);
+		renameSync(tmp, target);
+	} catch (err) {
+		try {
+			unlinkSync(tmp);
+		} catch {}
+		throw err;
+	}
 }
 
 //#endregion
@@ -1258,6 +2043,8 @@ function failureText(o) {
 		case "not-a-repo": return "project scope needs a git repository (run from inside one)";
 		case "scope-collision": return `${r.scope} scope resolves to the same file as ${r.collidesWith ?? "another"} scope here — refusing rather than overwriting it`;
 		case "url-mismatch": return "already configured with a different URL" + (r.currentUrl ? ` (${r.currentUrl})` : "") + "; remove it first, then re-run";
+		case "write-failed": return `its config could not be written` + (r.detail ? ` (${r.detail})` : "") + `; check the file's permissions and re-run`;
+		case "unsupported-config-shape": return `its config could not be edited safely` + (r.detail ? ` (${r.detail})` : "") + `; fix the file or add the entry by hand`;
 		default:
 			if (r.commandError) return `\`${r.command}\` (${r.commandError})`;
 			return "no config location on this platform";
@@ -1268,14 +2055,15 @@ function outcomeLine(o, dryRun) {
 	const r = o.result;
 	const note = o.fallbackFrom ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]` : "";
 	const where = r.path ? ` → ${r.path}` : "";
+	const backup = r.backupPath ? dryRun ? ` [original would be backed up to ${r.backupPath}]` : ` [original backed up to ${r.backupPath}]` : "";
 	if (!r.ok) return `${o.label}: failed — ${failureText(o)}`;
 	if (r.alreadyConfigured) return `${o.label}: already set up (${r.scope})${where}${note}`;
 	if (r.command) {
 		if (r.executed) return `${o.label}: installed (${r.scope}) via \`${r.command}\`${note}`;
 		return `${o.label} (${r.scope}): run \`${r.command}\`${note}`;
 	}
-	if (dryRun) return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${note}`;
-	if (r.wrote) return `${o.label}: installed (${r.scope})${where}${note}`;
+	if (dryRun) return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${note}`;
+	if (r.wrote) return `${o.label}: installed (${r.scope})${where}${backup}${note}`;
 	return `${o.label}: no change (${r.scope})${where}${note}`;
 }
 /** Render a report as a plain multi-line summary (used by the CLI + tests). */

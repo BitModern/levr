@@ -1,6 +1,6 @@
 {
   "name": "@levr-one/cli",
-  "version": "0.9.12",
+  "version": "0.9.13",
   "description": "The command-line interface for Levr",
   "type": "module",
   "license": "MIT",
@@ -31,6 +31,7 @@
     "jsonc-parser": "^3.3.1",
     "open": "^10.1.0",
     "ora": "^9.0.0",
+    "smol-toml": "^1.8.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {

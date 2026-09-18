@@ -139,6 +139,17 @@ describe('runNonInteractive', () => {
     ]);
   });
 
+  it('--all attempts exactly the available, not-coming-soon fixtures — derived, not listed', () => {
+    const installable = DETECTED.filter(
+      (d) => d.available && !d.comingSoon,
+    ).map((d) => d.id);
+    // Guard the fixture: below this floor the derived comparison proves
+    // nothing, and a fixture edit must fail here rather than pass quietly.
+    expect(installable.length).toBeGreaterThanOrEqual(3);
+    const report = runNonInteractive(options({ all: true }), URL, SOURCE, deps);
+    expect(report.outcomes.map((o) => o.id)).toEqual(installable);
+  });
+
   it('with only --yes, auto-selects detected clients', () => {
     const report = runNonInteractive(options({ yes: true }), URL, SOURCE, deps);
     expect(report.outcomes.map((o) => o.id)).toEqual(['cursor']);
@@ -432,6 +443,86 @@ describe('cli-command execution reporting (D5)', () => {
     expect(nextStepsText(report(cmdResult({ executed: true })))).toContain(
       'restart the client(s)',
     );
+  });
+});
+
+describe('config-file failure and backup reporting (internal D5)', () => {
+  function fileResult(over: Partial<InstallResult> = {}): InstallResult {
+    return {
+      ok: true,
+      wrote: true,
+      path: '/home/.codex/config.toml',
+      alreadyConfigured: false,
+      dryRun: false,
+      scope: 'user',
+      ...over,
+    };
+  }
+  const report = (result: InstallResult, dryRun = false): RunReport => ({
+    url: URL,
+    urlSource: SOURCE,
+    scope: 'user',
+    outcomes: [{ id: 'codex', label: 'Codex CLI', result }],
+    unknownClients: [],
+    comingSoonClients: [],
+    dryRun,
+  });
+
+  it('reports a refused config shape as a failure carrying the adapter detail', () => {
+    const line = formatReport(
+      report(
+        fileResult({
+          ok: false,
+          wrote: false,
+          reason: 'unsupported-config-shape',
+          detail: 'mcp_servers.levr exists but not as a standalone table',
+        }),
+      ),
+    );
+    expect(line).toContain('Codex CLI: failed');
+    expect(line).toContain('could not be edited safely');
+    expect(line).toContain('not as a standalone table');
+  });
+
+  it('reports a filesystem refusal per client instead of aborting the run', () => {
+    const line = formatReport(
+      report(
+        fileResult({
+          ok: false,
+          wrote: false,
+          reason: 'write-failed',
+          detail: 'EACCES: permission denied',
+        }),
+      ),
+    );
+    expect(line).toContain('Codex CLI: failed');
+    expect(line).toContain('could not be written');
+    expect(line).toContain('EACCES');
+  });
+
+  it('names the backup it took on a real write', () => {
+    const line = formatReport(
+      report(fileResult({ backupPath: '/home/.codex/config.toml.levr-bak' })),
+    );
+    expect(line).toContain(
+      'original backed up to /home/.codex/config.toml.levr-bak',
+    );
+  });
+
+  it('does not claim a backup on a dry run — nothing was copied', () => {
+    const line = formatReport(
+      report(
+        fileResult({
+          wrote: false,
+          dryRun: true,
+          backupPath: '/home/.codex/config.toml.levr-bak',
+        }),
+        true,
+      ),
+    );
+    expect(line).toContain('dry run');
+    expect(line).toContain('would be backed up to');
+    expect(line).not.toContain('original backed up to');
   });
 });
 
