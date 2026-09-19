@@ -2795,10 +2795,9 @@ const zCreateAutomationRunDto = z.object({
 		"skipped",
 		"pending",
 		"todo",
-		"timed_out",
-		"interrupted",
 		"unknown"
 	]).optional().describe(""),
+	blocked_by_flaky: z.boolean().optional().describe(""),
 	raw_status: z.string().nullable().optional().describe(""),
 	total_tests: z.number().optional().describe(""),
 	passed_count: z.number().optional().describe(""),
@@ -2850,10 +2849,9 @@ const zResponseAutomationRunDto = z.object({
 		"skipped",
 		"pending",
 		"todo",
-		"timed_out",
-		"interrupted",
 		"unknown"
 	]).optional().describe(""),
+	blocked_by_flaky: z.boolean().optional().describe(""),
 	raw_status: z.string().nullable().optional().describe(""),
 	total_tests: z.number().optional().describe(""),
 	passed_count: z.number().optional().describe(""),
@@ -2916,10 +2914,9 @@ const zUpdateAutomationRunDto = z.object({
 		"skipped",
 		"pending",
 		"todo",
-		"timed_out",
-		"interrupted",
 		"unknown"
 	]).optional().describe(""),
+	blocked_by_flaky: z.boolean().optional().describe(""),
 	raw_status: z.string().nullable().optional().describe(""),
 	total_tests: z.number().optional().describe(""),
 	passed_count: z.number().optional().describe(""),
@@ -3004,6 +3001,7 @@ const zAutomationRunFindAllV1Data = z.object({
 		"filter.ended_at": z.array(z.string()).optional(),
 		"filter.total_duration_ms": z.array(z.string()).optional(),
 		"filter.is_complete": z.array(z.string()).optional(),
+		"filter.blocked_by_flaky": z.array(z.string()).optional(),
 		"filter.raw_status": z.array(z.string()).optional(),
 		"filter.total_tests": z.array(z.string()).optional(),
 		"filter.passed_count": z.array(z.string()).optional(),
@@ -4099,6 +4097,11 @@ const zCreateAutomationTestDto = z.object({
 		"unknown"
 	]).nullable().optional().describe(""),
 	flake_score: z.number().nullable().optional().describe(""),
+	health_status: z.enum([
+		"healthy",
+		"flaky",
+		"broken"
+	]).nullable().optional().describe(""),
 	is_dormant: z.boolean().optional().describe(""),
 	extra: z.unknown().optional().describe(""),
 	team_id: z.string(),
@@ -4141,6 +4144,11 @@ const zResponseAutomationTestDto = z.object({
 		"unknown"
 	]).nullable().optional().describe(""),
 	flake_score: z.number().nullable().optional().describe(""),
+	health_status: z.enum([
+		"healthy",
+		"flaky",
+		"broken"
+	]).nullable().optional().describe(""),
 	is_dormant: z.boolean().optional().describe(""),
 	extra: z.unknown().optional().describe(""),
 	team_id: z.string(),
@@ -4191,6 +4199,11 @@ const zUpdateAutomationTestDto = z.object({
 		"unknown"
 	]).nullable().optional().describe(""),
 	flake_score: z.number().nullable().optional().describe(""),
+	health_status: z.enum([
+		"healthy",
+		"flaky",
+		"broken"
+	]).nullable().optional().describe(""),
 	is_dormant: z.boolean().optional().describe(""),
 	extra: z.unknown().optional().describe(""),
 	team_id: z.string().optional(),
