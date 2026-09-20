@@ -24309,6 +24309,7 @@ const zRunNodeDto = z.object({
 	original_parent_run_id: z.string().nullable(),
 	name: z.string(),
 	key: z.number().optional(),
+	identifier: z.string().nullable(),
 	triggered_by: z.enum([
 		"user",
 		"ci",
@@ -24407,6 +24408,7 @@ const zRunWithContentDto = z.object({
 	original_parent_run_id: z.string().nullable(),
 	name: z.string(),
 	key: z.number().optional(),
+	identifier: z.string().nullable(),
 	triggered_by: z.enum([
 		"user",
 		"ci",
