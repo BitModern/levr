@@ -37,6 +37,7 @@ const zResponseIssueDto = z.object({
 	gate_set_id: z.string().nullable().optional().describe(""),
 	milestone_id: z.string().nullable().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
+	gate_run_id: z.string().nullable().optional().describe(""),
 	project_id: z.string().nullable().optional(),
 	assignee_id: z.string().nullable().optional(),
 	parent_id: z.string().nullable().optional(),
@@ -13845,6 +13846,7 @@ const zCreateGateInstanceDto = z.object({
 	required: z.boolean().optional().describe(""),
 	last_checked_at: z.unknown().optional().describe(""),
 	issue_id: z.string(),
+	issue_test_link_id: z.string().nullable().optional(),
 	gate_definition_id: z.string(),
 	gate_set_id: z.string().nullable().optional(),
 	verified_by: z.string().nullable().optional(),
@@ -13862,6 +13864,7 @@ const zResponseGateInstanceDto = z.object({
 	required: z.boolean().optional().describe(""),
 	last_checked_at: z.unknown().optional().describe(""),
 	issue_id: z.string(),
+	issue_test_link_id: z.string().nullable().optional(),
 	gate_definition_id: z.string(),
 	gate_set_id: z.string().nullable().optional(),
 	verified_by: z.string().nullable().optional(),
@@ -13887,6 +13890,7 @@ const zUpdateGateInstanceDto = z.object({
 	required: z.boolean().optional().describe(""),
 	last_checked_at: z.unknown().optional().describe(""),
 	issue_id: z.string().optional(),
+	issue_test_link_id: z.string().nullable().optional(),
 	gate_definition_id: z.string().optional(),
 	gate_set_id: z.string().nullable().optional(),
 	verified_by: z.string().nullable().optional(),
@@ -13923,15 +13927,6 @@ const zBulkGateInstanceResponseDto = z.object({
 		savepoints_used: z.number().describe("")
 	}).describe("")
 });
-const zGateInstanceWaiveGateV1Data = z.object({
-	body: zGateInstanceWaiveGateV1Body,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-instance/{id}/waive")
-});
-const zGateInstanceRevokeWaiverV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-instance/{id}/revoke-waiver")
-});
 const zGateInstanceCreateV1Data = z.object({
 	body: zCreateGateInstanceDto,
 	url: z.literal("/v1/gate-instance")
@@ -13951,6 +13946,7 @@ const zGateInstanceFindAllV1Data = z.object({
 		"filter.required": z.array(z.string()).optional(),
 		"filter.last_checked_at": z.array(z.string()).optional(),
 		"filter.issue_id": z.array(z.string()).optional(),
+		"filter.issue_test_link_id": z.array(z.string()).optional(),
 		"filter.gate_definition_id": z.array(z.string()).optional(),
 		"filter.gate_set_id": z.array(z.string()).optional(),
 		"filter.verified_by": z.array(z.string()).optional(),
@@ -13975,6 +13971,8 @@ const zGateInstanceFindAllV1Data = z.object({
 			"consecutive_fails:DESC",
 			"last_checked_at:ASC",
 			"last_checked_at:DESC",
+			"issue_test_link_id:ASC",
+			"issue_test_link_id:DESC",
 			"gate_set_id:ASC",
 			"gate_set_id:DESC",
 			"verified_by:ASC",
@@ -14014,6 +14012,15 @@ const zGateInstanceBulkOperationV1Data = z.object({
 const zGateInstanceRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/gate-instance/{id}/restore")
+});
+const zGateInstanceWaiveGateV1Data = z.object({
+	body: zGateInstanceWaiveGateV1Body,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/gate-instance/{id}/waive")
+});
+const zGateInstanceRevokeWaiverV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/gate-instance/{id}/revoke-waiver")
 });
 
 //#endregion
@@ -15790,6 +15797,7 @@ const zIssueFindAllV1Data = z.object({
 		"filter.gate_set_id": z.array(z.string()).optional(),
 		"filter.milestone_id": z.array(z.string()).optional(),
 		"filter.spoke_key": z.array(z.string()).optional(),
+		"filter.gate_run_id": z.array(z.string()).optional(),
 		"filter.assignee_id": z.array(z.string()).optional(),
 		"filter.parent_id": z.array(z.string()).optional(),
 		"filter.cycle_id": z.array(z.string()).optional(),
@@ -15870,6 +15878,8 @@ const zIssueFindAllV1Data = z.object({
 			"gate_set_id:DESC",
 			"milestone_id:ASC",
 			"milestone_id:DESC",
+			"gate_run_id:ASC",
+			"gate_run_id:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
@@ -16237,8 +16247,24 @@ const zIssueGateVerificationReportGateResultsV1Body = z.object({ results: z.arra
 		"fail",
 		"error"
 	]),
-	output: z.string()
+	output: z.string(),
+	expected: z.string().optional(),
+	steps: z.array(z.object({
+		command: z.string(),
+		exit_code: z.number(),
+		stdout_tail: z.string(),
+		stderr_tail: z.string()
+	})).optional()
 })) });
+const zIssueGateVerificationGateStatusV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	query: z.object({ "executor_type": z.enum([
+		"human",
+		"agent",
+		"ci"
+	]).optional() }).optional(),
+	url: z.literal("/v1/issue/{id}/gate-status")
+});
 const zIssueGateVerificationVerifyGatesV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/issue/{id}/verify-gates")
@@ -16775,6 +16801,11 @@ const zResponseIssueTestEvidenceDto = z.object({
 		"blocked"
 	]).describe(""),
 	status_id: z.string().describe(""),
+	executor_type: z.enum([
+		"human",
+		"agent",
+		"ci"
+	]).nullable().optional().describe(""),
 	context: z.unknown().optional().describe(""),
 	recorded_at: z.unknown().describe(""),
 	reason: z.string().nullable().optional().describe(""),
@@ -16913,7 +16944,8 @@ const zCreateIssueTestLinkDto = z.object({
 		"reproduces",
 		"verifies",
 		"accepts",
-		"regresses"
+		"regresses",
+		"gates"
 	]).describe(""),
 	verification_rule: z.unknown().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
@@ -16924,7 +16956,10 @@ const zCreateIssueTestLinkDto = z.object({
 	automation_test_id: z.string().nullable().optional(),
 	created_by_user_id: z.string().nullable().optional(),
 	origin_automation_run_result_id: z.string().nullable().optional(),
-	latest_automation_run_result_id: z.string().nullable().optional()
+	latest_automation_run_result_id: z.string().nullable().optional(),
+	gate_definition_id: z.string().nullable().optional(),
+	waived_by: z.string().nullable().optional(),
+	verified_by_user_id: z.string().nullable().optional()
 });
 const zResponseIssueTestLinkDto = z.object({
 	id: z.string().describe(""),
@@ -16932,7 +16967,8 @@ const zResponseIssueTestLinkDto = z.object({
 		"reproduces",
 		"verifies",
 		"accepts",
-		"regresses"
+		"regresses",
+		"gates"
 	]).describe(""),
 	verification_rule: z.unknown().optional().describe(""),
 	current_status: z.string().optional().describe(""),
@@ -16943,12 +16979,24 @@ const zResponseIssueTestLinkDto = z.object({
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	latest_run_result_id: z.string().nullable().optional().describe(""),
 	verified_at: z.unknown().optional().describe(""),
+	gate_slot: z.string().nullable().optional().describe(""),
+	gate_content_hash: z.string().nullable().optional().describe(""),
+	gate_drifted: z.boolean().nullable().optional().describe(""),
+	required: z.boolean().nullable().optional().describe(""),
+	required_override: z.boolean().nullable().optional().describe(""),
+	waived_reason: z.string().nullable().optional().describe(""),
+	waived_at: z.unknown().optional().describe(""),
+	last_attempt_at: z.unknown().optional().describe(""),
+	last_executor_type: z.string().nullable().optional().describe(""),
 	issue_id: z.string(),
 	test_id: z.string().nullable().optional(),
 	automation_test_id: z.string().nullable().optional(),
 	created_by_user_id: z.string().nullable().optional(),
 	origin_automation_run_result_id: z.string().nullable().optional(),
 	latest_automation_run_result_id: z.string().nullable().optional(),
+	gate_definition_id: z.string().nullable().optional(),
+	waived_by: z.string().nullable().optional(),
+	verified_by_user_id: z.string().nullable().optional(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -16962,7 +17010,8 @@ const zUpdateIssueTestLinkDto = z.object({
 		"reproduces",
 		"verifies",
 		"accepts",
-		"regresses"
+		"regresses",
+		"gates"
 	]).optional().describe(""),
 	verification_rule: z.unknown().optional().describe(""),
 	origin_run_result_id: z.string().nullable().optional().describe(""),
@@ -16973,7 +17022,10 @@ const zUpdateIssueTestLinkDto = z.object({
 	automation_test_id: z.string().nullable().optional(),
 	created_by_user_id: z.string().nullable().optional(),
 	origin_automation_run_result_id: z.string().nullable().optional(),
-	latest_automation_run_result_id: z.string().nullable().optional()
+	latest_automation_run_result_id: z.string().nullable().optional(),
+	gate_definition_id: z.string().nullable().optional(),
+	waived_by: z.string().nullable().optional(),
+	verified_by_user_id: z.string().nullable().optional()
 });
 const zIssueTestLinkBulkOperationDto = z.object({
 	op: z.enum([
@@ -17024,12 +17076,24 @@ const zIssueTestLinkFindAllV1Data = z.object({
 		"filter.origin_run_result_id": z.array(z.string()).optional(),
 		"filter.latest_run_result_id": z.array(z.string()).optional(),
 		"filter.verified_at": z.array(z.string()).optional(),
+		"filter.gate_slot": z.array(z.string()).optional(),
+		"filter.gate_content_hash": z.array(z.string()).optional(),
+		"filter.gate_drifted": z.array(z.string()).optional(),
+		"filter.required": z.array(z.string()).optional(),
+		"filter.required_override": z.array(z.string()).optional(),
+		"filter.waived_reason": z.array(z.string()).optional(),
+		"filter.waived_at": z.array(z.string()).optional(),
+		"filter.last_attempt_at": z.array(z.string()).optional(),
+		"filter.last_executor_type": z.array(z.string()).optional(),
 		"filter.issue_id": z.array(z.string()).optional(),
 		"filter.test_id": z.array(z.string()).optional(),
 		"filter.automation_test_id": z.array(z.string()).optional(),
 		"filter.created_by_user_id": z.array(z.string()).optional(),
 		"filter.origin_automation_run_result_id": z.array(z.string()).optional(),
 		"filter.latest_automation_run_result_id": z.array(z.string()).optional(),
+		"filter.gate_definition_id": z.array(z.string()).optional(),
+		"filter.waived_by": z.array(z.string()).optional(),
+		"filter.verified_by_user_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
@@ -17047,6 +17111,18 @@ const zIssueTestLinkFindAllV1Data = z.object({
 			"verified_by:DESC",
 			"verified_at:ASC",
 			"verified_at:DESC",
+			"gate_slot:ASC",
+			"gate_slot:DESC",
+			"gate_content_hash:ASC",
+			"gate_content_hash:DESC",
+			"waived_reason:ASC",
+			"waived_reason:DESC",
+			"waived_at:ASC",
+			"waived_at:DESC",
+			"last_attempt_at:ASC",
+			"last_attempt_at:DESC",
+			"last_executor_type:ASC",
+			"last_executor_type:DESC",
 			"test_id:ASC",
 			"test_id:DESC",
 			"automation_test_id:ASC",
@@ -17061,6 +17137,12 @@ const zIssueTestLinkFindAllV1Data = z.object({
 			"origin_automation_run_result_id:DESC",
 			"latest_automation_run_result_id:ASC",
 			"latest_automation_run_result_id:DESC",
+			"gate_definition_id:ASC",
+			"gate_definition_id:DESC",
+			"waived_by:ASC",
+			"waived_by:DESC",
+			"verified_by_user_id:ASC",
+			"verified_by_user_id:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
@@ -28110,6 +28192,7 @@ const zTestResponseDto = z.object({
 	folder_id: z.string().nullable().optional().describe(""),
 	sequence: z.string().nullable().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
+	content_hash: z.string().nullable().optional().describe(""),
 	team_id: z.string().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -28180,8 +28263,10 @@ const zCreateTestDto = z.object({
 	folder_id: z.string().optional(),
 	sequence: z.string().nullable().optional().describe(""),
 	spoke_key: z.string().nullable().optional().describe(""),
+	content_hash: z.string().nullable().optional().describe(""),
 	team_id: z.string().optional().describe(""),
 	steps: z.array(z.object({
+		type: z.enum(["guided"]).optional(),
 		step: z.string().optional(),
 		expected_result: z.string().optional(),
 		sequence: z.string().optional(),
@@ -28224,27 +28309,37 @@ const zUpdateTestDto = z.object({
 			]).optional(),
 			data_table: z.object({ rows: z.array(z.array(z.string())) }).optional()
 		})).optional(),
-		steps: z.array(z.union([z.object({
-			id: z.string().optional(),
-			method: z.string(),
-			expected_result: z.string().optional(),
-			shared_step_id: z.string().optional(),
-			keyword: z.enum([
-				"Given",
-				"When",
-				"Then",
-				"And",
-				"But",
-				"*"
-			]).optional(),
-			data_table: z.object({ rows: z.array(z.array(z.string())) }).optional()
-		}), z.object({
-			id: z.string().optional(),
-			type: z.string(),
-			params: z.record(z.string(), z.unknown()).optional(),
-			expected_result: z.string().optional(),
-			layer: z.string().optional()
-		})])).optional()
+		steps: z.array(z.union([
+			z.object({
+				id: z.string().optional(),
+				type: z.enum(["guided"]),
+				step: z.string(),
+				expected_result: z.string().optional(),
+				result: z.string().optional()
+			}),
+			z.object({
+				id: z.string().optional(),
+				method: z.string(),
+				expected_result: z.string().optional(),
+				shared_step_id: z.string().optional(),
+				keyword: z.enum([
+					"Given",
+					"When",
+					"Then",
+					"And",
+					"But",
+					"*"
+				]).optional(),
+				data_table: z.object({ rows: z.array(z.array(z.string())) }).optional()
+			}),
+			z.object({
+				id: z.string().optional(),
+				type: z.string(),
+				params: z.record(z.string(), z.unknown()).optional(),
+				expected_result: z.string().optional(),
+				layer: z.string().optional()
+			})
+		])).optional()
 	}).optional(),
 	priority: z.number().optional(),
 	case_type_id: z.string().nullable().optional(),
