@@ -106,8 +106,8 @@ const mcpAddCommand = buildCommand({
 	docs: {
 		brief: "Add the Levr MCP server to installed AI clients",
 		fullDescription: `Detect MCP-capable clients on this machine (Claude Desktop,
-Claude Code, Cursor, Windsurf, Zed, Gemini CLI, Codex CLI, Grok Build,
-Antigravity) and write the Levr MCP server into each one's config. The entry is credential-free — the client opens a browser to
+Claude Code, Cursor, Windsurf, Zed, VS Code, Gemini CLI, Codex CLI,
+Grok Build, Antigravity) and write the Levr MCP server into each one's config. The entry is credential-free — the client opens a browser to
 authorize with Levr the first time it connects.
 
 --scope decides where the entry lands:
@@ -562,7 +562,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.9.19";
+var version = "0.9.20";
 
 //#endregion
 //#region src/app.ts
