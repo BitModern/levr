@@ -114,7 +114,7 @@ async function interactive(
   p.note(`${url}\n(${urlSource})`, 'MCP endpoint');
 
   const detected = defaultDeps.detect();
-  const installable = detected.filter((d) => d.available && !d.comingSoon);
+  const installable = detected.filter((d) => d.available);
   if (installable.length === 0) {
     p.outro('No supported MCP clients found on this machine.');
     return;
@@ -194,7 +194,6 @@ async function interactive(
     scope,
     outcomes,
     unknownClients: [],
-    comingSoonClients: [],
     dryRun,
   };
   p.note(formatReport(report), 'Results');

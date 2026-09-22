@@ -36,7 +36,6 @@ function det(id: string, over: Partial<DetectedHarness> = {}): DetectedHarness {
     alreadyConfigured: false,
     configPath: `/fake/${id}.json`,
     available: true,
-    comingSoon: false,
     ...over,
   };
   return {

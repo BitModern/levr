@@ -82,7 +82,6 @@ export interface RunReport {
   scope: HarnessScope;
   outcomes: InstalledOutcome[];
   unknownClients: string[];
-  comingSoonClients: string[];
   dryRun: boolean;
 }
 
@@ -95,7 +94,7 @@ export function autoSelectIds(
 ): string[] {
   return detected
     .filter((d) => {
-      if (!d.available || d.comingSoon || !d.installed) return false;
+      if (!d.available || !d.installed) return false;
       const inScope = scope
         ? d.scopes.find((s) => s.scope === scope)
         : undefined;
@@ -130,7 +129,7 @@ export function clientChoices(
 ): ClientChoice[] {
   const preselect = new Set(autoSelectIds(detected, scope));
   return detected
-    .filter((d) => d.available && !d.comingSoon)
+    .filter((d) => d.available)
     .map((d) => {
       const inScope = d.scopes.find((s) => s.scope === scope);
       const harness = getHarness(d.id);
@@ -173,7 +172,6 @@ export function offerableScopes(
 export interface RequestedSelection {
   ids: string[];
   unknown: string[];
-  comingSoon: string[];
 }
 
 /** Resolve `--all` / `--client` into concrete, installable harness ids. */
@@ -183,24 +181,19 @@ export function resolveRequestedIds(
 ): RequestedSelection {
   if (options.all) {
     return {
-      ids: detected
-        .filter((d) => d.available && !d.comingSoon)
-        .map((d) => d.id),
+      ids: detected.filter((d) => d.available).map((d) => d.id),
       unknown: [],
-      comingSoon: [],
     };
   }
 
   const ids: string[] = [];
   const unknown: string[] = [];
-  const comingSoon: string[] = [];
   for (const c of options.clients ?? []) {
     const harness = getHarness(c);
     if (!harness) unknown.push(c);
-    else if (harness.comingSoon) comingSoon.push(c);
     else ids.push(c);
   }
-  return { ids, unknown, comingSoon };
+  return { ids, unknown };
 }
 
 /**
@@ -256,13 +249,11 @@ export function runNonInteractive(
 
   let ids: string[];
   let unknown: string[] = [];
-  let comingSoon: string[] = [];
   const byName = !options.all && (options.clients?.length ?? 0) > 0;
   if (options.all || byName) {
     const requested = resolveRequestedIds(options, detected);
     ids = requested.ids;
     unknown = requested.unknown;
-    comingSoon = requested.comingSoon;
   } else {
     // `--yes` (or non-TTY) with no explicit selection: take what we detected.
     ids = autoSelectIds(detected, scope);
@@ -284,7 +275,6 @@ export function runNonInteractive(
       deps.install,
     ),
     unknownClients: unknown,
-    comingSoonClients: comingSoon,
     dryRun: options.dryRun,
   };
 }
@@ -393,9 +383,6 @@ export function formatReport(report: RunReport): string {
     lines.push(
       `Unknown clients (skipped): ${report.unknownClients.join(', ')}`,
     );
-  }
-  if (report.comingSoonClients.length > 0) {
-    lines.push(`Coming soon (skipped): ${report.comingSoonClients.join(', ')}`);
   }
   return lines.join('\n');
 }

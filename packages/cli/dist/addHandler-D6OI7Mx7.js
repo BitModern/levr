@@ -155,12 +155,15 @@ const CLAUDE_CODE_LOCATIONS = [
 /**
 * The catalog. Order is presentation order (most common first).
 *
-* `comingSoon` clients (VS Code) are listed but not installable: their config
-* format differs enough (VS Code's `servers`/native-http schema) that a
-* faithful write is deferred. Their SCOPES are declared as data regardless, so
-* the support matrix stays complete and turning them on later is a builder
-* change, not a catalog change. Codex left this list in ENG-5264 once the TOML
-* adapter existed.
+* Every entry is installable, and there is no deferral flag: the old
+* coming-soon flag was retired in ENG-5558 once its last member left. Codex
+* became installable in ENG-5264 when the TOML adapter existed, and VS Code
+* in ENG-5558 when its file was observed — its `servers` key and native-http
+* entry were already expressible as declared data (`serverPropertyName`,
+* {@link DEFAULT_NATIVE_HTTP_ENTRY}), so enabling it was a catalog change and
+* nothing under `src/node/` moved. A client whose file cannot be written
+* faithfully yet does not belong in this list; add it when its bytes have
+* been observed, born with real provenance.
 */
 const HARNESSES = [
 	{
@@ -174,7 +177,6 @@ const HARNESSES = [
 		serverPropertyName: "mcpServers",
 		transport: "mcp-remote",
 		docsUrl: "https://modelcontextprotocol.io/quickstart/user",
-		comingSoon: false,
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
@@ -222,7 +224,6 @@ const HARNESSES = [
 		serverPropertyName: "mcpServers",
 		transport: "native-http",
 		docsUrl: "https://docs.anthropic.com/en/docs/claude-code/mcp",
-		comingSoon: false,
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
@@ -279,7 +280,6 @@ const HARNESSES = [
 		serverPropertyName: "mcpServers",
 		transport: "mcp-remote",
 		docsUrl: "https://cursor.com/docs/mcp",
-		comingSoon: false,
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
@@ -330,7 +330,6 @@ const HARNESSES = [
 		serverPropertyName: "mcpServers",
 		transport: "mcp-remote",
 		docsUrl: "https://docs.windsurf.com/windsurf/mcp",
-		comingSoon: false,
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
@@ -377,7 +376,6 @@ const HARNESSES = [
 		serverPropertyName: "context_servers",
 		transport: "mcp-remote",
 		docsUrl: "https://zed.dev/docs/ai/mcp",
-		comingSoon: false,
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
 		detectSignals: [
@@ -428,7 +426,6 @@ const HARNESSES = [
 		serverPropertyName: "mcpServers",
 		transport: "native-http",
 		docsUrl: "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md",
-		comingSoon: false,
 		verifiedVersion: "0.35.1",
 		verifiedOn: "2026-09-17",
 		detectSignals: [
@@ -480,7 +477,6 @@ const HARNESSES = [
 		},
 		configFormat: "toml",
 		docsUrl: "https://docs.x.ai/build/overview",
-		comingSoon: false,
 		verifiedVersion: "1.0.34",
 		verifiedOn: "2026-09-17",
 		detectSignals: [
@@ -531,7 +527,6 @@ const HARNESSES = [
 			constants: { disabled: false }
 		},
 		docsUrl: "https://antigravity.google/docs/mcp",
-		comingSoon: false,
 		verifiedVersion: "1.2.5",
 		verifiedOn: "2026-09-17",
 		detectSignals: [
@@ -584,10 +579,11 @@ const HARNESSES = [
 			"vs code",
 			"visual studio code"
 		],
-		serverPropertyName: "mcpServers",
-		transport: "mcp-remote",
+		serverPropertyName: "servers",
+		transport: "native-http",
 		docsUrl: "https://code.visualstudio.com/docs/copilot/chat/mcp-servers",
-		comingSoon: true,
+		verifiedVersion: "1.111.0",
+		verifiedOn: "2026-09-21",
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -634,7 +630,6 @@ const HARNESSES = [
 		nativeHttpEntry: { urlKey: "url" },
 		configFormat: "toml",
 		docsUrl: "https://github.com/openai/codex",
-		comingSoon: false,
 		verifiedVersion: "0.154.0",
 		verifiedOn: "2026-09-17",
 		detectSignals: [
@@ -1453,8 +1448,7 @@ function detectOne(harness, env) {
 		scopes,
 		alreadyConfigured: fallback?.alreadyConfigured ?? false,
 		configPath: fallback?.configPath ?? "",
-		available,
-		comingSoon: harness.comingSoon
+		available
 	};
 }
 /** Synchronous detection over the whole catalog. Exported for tests. */
@@ -1912,7 +1906,7 @@ const DEFAULT_SCOPE = "user";
 * about to install into, not the harness's default one. */
 function autoSelectIds(detected, scope) {
 	return detected.filter((d) => {
-		if (!d.available || d.comingSoon || !d.installed) return false;
+		if (!d.available || !d.installed) return false;
 		const inScope = scope ? d.scopes.find((s) => s.scope === scope) : void 0;
 		return !(inScope ? inScope.alreadyConfigured : d.alreadyConfigured);
 	}).map((d) => d.id);
@@ -1928,7 +1922,7 @@ function autoSelectIds(detected, scope) {
 */
 function clientChoices(detected, scope) {
 	const preselect = new Set(autoSelectIds(detected, scope));
-	return detected.filter((d) => d.available && !d.comingSoon).map((d) => {
+	return detected.filter((d) => d.available).map((d) => {
 		const inScope = d.scopes.find((s) => s.scope === scope);
 		const harness = getHarness(d.id);
 		let hint;
@@ -1952,23 +1946,16 @@ function offerableScopes(selectedIds, detected) {
 /** Resolve `--all` / `--client` into concrete, installable harness ids. */
 function resolveRequestedIds(options, detected) {
 	if (options.all) return {
-		ids: detected.filter((d) => d.available && !d.comingSoon).map((d) => d.id),
-		unknown: [],
-		comingSoon: []
+		ids: detected.filter((d) => d.available).map((d) => d.id),
+		unknown: []
 	};
 	const ids = [];
 	const unknown = [];
-	const comingSoon = [];
-	for (const c of options.clients ?? []) {
-		const harness = getHarness(c);
-		if (!harness) unknown.push(c);
-		else if (harness.comingSoon) comingSoon.push(c);
-		else ids.push(c);
-	}
+	for (const c of options.clients ?? []) if (!getHarness(c)) unknown.push(c);
+	else ids.push(c);
 	return {
 		ids,
-		unknown,
-		comingSoon
+		unknown
 	};
 }
 /**
@@ -2011,13 +1998,11 @@ function runNonInteractive(options, url, urlSource, deps) {
 	const scope = options.scope ?? DEFAULT_SCOPE;
 	let ids;
 	let unknown = [];
-	let comingSoon = [];
 	const byName = !options.all && (options.clients?.length ?? 0) > 0;
 	if (options.all || byName) {
 		const requested = resolveRequestedIds(options, detected);
 		ids = requested.ids;
 		unknown = requested.unknown;
-		comingSoon = requested.comingSoon;
 	} else ids = autoSelectIds(detected, scope);
 	return {
 		url,
@@ -2030,7 +2015,6 @@ function runNonInteractive(options, url, urlSource, deps) {
 			namedIds: new Set(byName ? ids : [])
 		}, deps.install),
 		unknownClients: unknown,
-		comingSoonClients: comingSoon,
 		dryRun: options.dryRun
 	};
 }
@@ -2073,7 +2057,6 @@ function formatReport(report) {
 	if (report.outcomes.length === 0) lines.push("No clients selected.");
 	else for (const o of report.outcomes) lines.push(outcomeLine(o, report.dryRun));
 	if (report.unknownClients.length > 0) lines.push(`Unknown clients (skipped): ${report.unknownClients.join(", ")}`);
-	if (report.comingSoonClients.length > 0) lines.push(`Coming soon (skipped): ${report.comingSoonClients.join(", ")}`);
 	return lines.join("\n");
 }
 /** Next-steps blurb after a run. */
@@ -2145,7 +2128,7 @@ async function interactive(ctx, dryRun, url, urlSource, requestedScope) {
 	p.intro("Levr MCP setup");
 	p.note(`${url}\n(${urlSource})`, "MCP endpoint");
 	const detected = defaultDeps.detect();
-	const installable = detected.filter((d) => d.available && !d.comingSoon);
+	const installable = detected.filter((d) => d.available);
 	if (installable.length === 0) {
 		p.outro("No supported MCP clients found on this machine.");
 		return;
@@ -2204,7 +2187,6 @@ async function interactive(ctx, dryRun, url, urlSource, requestedScope) {
 		scope,
 		outcomes,
 		unknownClients: [],
-		comingSoonClients: [],
 		dryRun
 	};
 	p.note(formatReport(report), "Results");

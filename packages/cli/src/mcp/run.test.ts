@@ -43,7 +43,6 @@ function det(id: string, over: Partial<DetectedHarness> = {}): DetectedHarness {
     alreadyConfigured: false,
     configPath: `/fake/${id}.json`,
     available: true,
-    comingSoon: false,
     ...over,
   };
   return {
@@ -59,12 +58,11 @@ function det(id: string, over: Partial<DetectedHarness> = {}): DetectedHarness {
 }
 
 // cursor: detected & fresh · claude: already set up · zed: not detected
-// vscode: coming soon · windsurf: unavailable on this platform
+// windsurf: unavailable on this platform
 const DETECTED: DetectedHarness[] = [
   det('cursor', { installed: true }),
   det('claude', { installed: true, alreadyConfigured: true }),
   det('zed', { installed: false }),
-  det('vscode', { installed: true, comingSoon: true }),
   det('windsurf', { available: false }),
 ];
 
@@ -95,7 +93,7 @@ describe('selection', () => {
     expect(autoSelectIds(DETECTED)).toEqual(['cursor']);
   });
 
-  it('resolveRequestedIds --all takes every available, non-coming-soon', () => {
+  it('resolveRequestedIds --all takes every available client', () => {
     expect(resolveRequestedIds({ all: true }, DETECTED).ids).toEqual([
       'cursor',
       'claude',
@@ -103,13 +101,23 @@ describe('selection', () => {
     ]);
   });
 
-  it('resolveRequestedIds --client splits unknown and coming-soon', () => {
+  it('resolveRequestedIds --client splits known from unknown', () => {
     expect(
       resolveRequestedIds(
-        { all: false, clients: ['cursor', 'vscode', 'bogus'] },
+        { all: false, clients: ['cursor', 'bogus'] },
         DETECTED,
       ),
-    ).toEqual({ ids: ['cursor'], unknown: ['bogus'], comingSoon: ['vscode'] });
+    ).toEqual({ ids: ['cursor'], unknown: ['bogus'] });
+  });
+
+  it('resolveRequestedIds --client accepts VS Code as installable (internal)', () => {
+    // The regression this guards: VS Code sat in a coming-soon bucket for as
+    // long as its catalog entry was deferred, and `mcp add --client vscode`
+    // silently skipped it. It is a real, installable id now — and since
+    // internal retired the bucket, a known id can only ever be installable.
+    expect(
+      resolveRequestedIds({ all: false, clients: ['vscode'] }, DETECTED),
+    ).toEqual({ ids: ['vscode'], unknown: [] });
   });
 });
 
@@ -139,10 +147,8 @@ describe('runNonInteractive', () => {
     ]);
   });
 
-  it('--all attempts exactly the available, not-coming-soon fixtures — derived, not listed', () => {
-    const installable = DETECTED.filter(
-      (d) => d.available && !d.comingSoon,
-    ).map((d) => d.id);
+  it('--all attempts exactly the available fixtures — derived, not listed', () => {
+    const installable = DETECTED.filter((d) => d.available).map((d) => d.id);
     // Guard the fixture: below this floor the derived comparison proves
     // nothing, and a fixture edit must fail here rather than pass quietly.
     expect(installable.length).toBeGreaterThanOrEqual(3);
@@ -155,15 +161,14 @@ describe('runNonInteractive', () => {
     expect(report.outcomes.map((o) => o.id)).toEqual(['cursor']);
   });
 
-  it('reports unknown + coming-soon clients', () => {
+  it('reports unknown clients', () => {
     const report = runNonInteractive(
-      options({ clients: ['cursor', 'vscode', 'bogus'] }),
+      options({ clients: ['cursor', 'bogus'] }),
       URL,
       SOURCE,
       deps,
     );
     expect(report.unknownClients).toEqual(['bogus']);
-    expect(report.comingSoonClients).toEqual(['vscode']);
   });
 });
 
@@ -202,7 +207,6 @@ describe('formatReport', () => {
         },
       ],
       unknownClients: ['bogus'],
-      comingSoonClients: ['vscode'],
     };
     expect(formatReport(report)).toBe(
       [
@@ -210,7 +214,6 @@ describe('formatReport', () => {
         'Cursor: installed (user) → /home/.cursor/mcp.json',
         'Claude Code (user): run `claude mcp add --transport http --scope user levr URL`',
         'Unknown clients (skipped): bogus',
-        'Coming soon (skipped): vscode',
       ].join('\n'),
     );
   });
@@ -411,7 +414,6 @@ describe('cli-command execution reporting (D5)', () => {
     scope: 'user',
     outcomes: [{ id: 'claude-code', label: 'Claude Code', result }],
     unknownClients: [],
-    comingSoonClients: [],
     dryRun: false,
   });
 
@@ -464,7 +466,6 @@ describe('config-file failure and backup reporting (internal D5)', () => {
     scope: 'user',
     outcomes: [{ id: 'codex', label: 'Codex CLI', result }],
     unknownClients: [],
-    comingSoonClients: [],
     dryRun,
   });
 
@@ -568,13 +569,9 @@ describe('F-007 · the client picker is resolved for the scope in use', () => {
     ).toBe('no project scope — will use user');
   });
 
-  it('omits unavailable and coming-soon clients', () => {
+  it('omits unavailable clients', () => {
     const rows = clientChoices(
-      [
-        ...detected,
-        det('vscode', { comingSoon: true }),
-        det('zed', { available: false }),
-      ],
+      [...detected, det('zed', { available: false })],
       'user',
     );
     expect(rows.map((r) => r.value)).toEqual(['cursor', 'windsurf']);

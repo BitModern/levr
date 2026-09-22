@@ -12913,8 +12913,7 @@ const zFirstRunStatusDto = z.object({
 		label: z.string(),
 		installKind: z.enum(["config-file", "cli-command"]),
 		snippet: z.string(),
-		docsUrl: z.string(),
-		comingSoon: z.boolean()
+		docsUrl: z.string()
 	}))
 });
 const zFirstRunGetStatusV1Data = z.object({ url: z.literal("/v1/first-run/mcp") });
