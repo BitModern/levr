@@ -12920,6 +12920,8 @@ const zFirstRunGetStatusV1Data = z.object({ url: z.literal("/v1/first-run/mcp") 
 const zFirstRunMarkSeenV1Data = z.object({ url: z.literal("/v1/first-run/mcp/seen") });
 const zFirstRunDeclineV1Data = z.object({ url: z.literal("/v1/first-run/mcp/decline") });
 const zFirstRunHideReminderV1Data = z.object({ url: z.literal("/v1/first-run/mcp/hide-reminder") });
+const zFirstRunHideLearnReminderV1Data = z.object({ url: z.literal("/v1/first-run/mcp/hide-learn-reminder") });
+const zFirstRunRetireLearnReminderV1Data = z.object({ url: z.literal("/v1/first-run/mcp/retire-learn-reminder") });
 const zFirstRunMarkLandedV1Data = z.object({ url: z.literal("/v1/first-run/mcp/landed") });
 
 //#endregion
