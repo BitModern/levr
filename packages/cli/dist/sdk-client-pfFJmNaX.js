@@ -11363,7 +11363,8 @@ const zExplorationWithContentDto = z.object({
 			url: z.string().nullable(),
 			defect_status_id: z.string().nullable(),
 			defect_res_id: z.string().nullable()
-		})).optional()
+		})).optional(),
+		linked_issue_ids: z.array(z.string()).optional().describe("")
 	}))
 });
 const zExplorationItemNodeDto = z.object({
@@ -11402,7 +11403,8 @@ const zExplorationItemNodeDto = z.object({
 		url: z.string().nullable(),
 		defect_status_id: z.string().nullable(),
 		defect_res_id: z.string().nullable()
-	})).optional()
+	})).optional(),
+	linked_issue_ids: z.array(z.string()).optional().describe("")
 });
 const zCreateExplorationItemDto = z.object({
 	exploration_id: z.string().optional(),
@@ -11488,6 +11490,7 @@ const zBulkExplorationOperationResultDto = z.object({
 	success: z.boolean().describe(""),
 	data: zExplorationNodeDto.optional().describe(""),
 	error: z.string().optional().describe(""),
+	status: z.number().optional().describe(""),
 	index: z.number().describe("")
 });
 const zBulkExplorationSummaryDto = z.object({

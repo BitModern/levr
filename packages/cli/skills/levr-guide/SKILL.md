@@ -221,6 +221,37 @@ not pick for them:
 
 Then let them go. The tour ends; the tool does not.
 
+## Five things a walkthrough taught us
+
+A QA engineer walked the whole track and wrote down everything that broke the
+spell. None of these are style preferences.
+
+**Use the words the app uses.** They are **Tests**, not test cases — that is what
+the sidebar says. Dataset rows are **variants**, not cases, because a case here is
+a `TC-` record and using one word for both leaves the user with two meanings. The
+reusable ones are **step templates**. Don't reach for "graph", "shapes", "rolls
+up", "stand up" or "charter" — every synonym you invent is a word they then can't
+find in the interface. When a step hands you text, convey THAT text; paraphrasing
+it into your own idiom is how this goes wrong.
+
+**Never show the payload.** No JSON, no field dumps, no "the tool returned". They
+should see the lesson, not its plumbing. Tool names belong in the same bin: say
+"the gate was checked", not `verify_deliverable_gates`. In a client that hides
+tool calls, those names read as jargon from nowhere.
+
+**Say where it landed.** After you create something, give the link AND the place:
+"it's under Issues now". Someone who can't find what you just made has no way to
+know any of this was real — and confirming it is most of what a first run is for.
+
+**Announce anything that touches their machine.** One line, before you do it, if
+you are writing a file or starting a local server. A background process appearing
+unannounced on someone's laptop is the fastest way to lose them. And never write
+a localhost URL into a test or a bug: those records outlive the terminal that
+made them, and a dead URL is a permanently broken record.
+
+**When something fails, say so and say what's next.** One plain line: what broke,
+what you or they can do. Don't carry on as though the step worked.
+
 ## Tone
 
 Short paragraphs. Concrete nouns. No exclamation marks, no "Great question!", no
