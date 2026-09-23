@@ -17904,9 +17904,21 @@ const zJiraSettingsPutStatusMapV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/jira/projects/{id}/status-map")
 });
+const zJiraSettingsDeleteStatusMapRowV1Data = z.object({
+	path: z.object({
+		"id": z.string(),
+		"rowId": z.string()
+	}),
+	url: z.literal("/v1/jira/projects/{id}/status-map/{rowId}")
+});
 const zJiraSettingsGetJiraStatusesV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/jira/projects/{id}/jira-statuses")
+});
+const zJiraSettingsGetJiraTransitionsV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	query: z.object({ "refresh": z.string() }).optional(),
+	url: z.literal("/v1/jira/projects/{id}/jira-transitions")
 });
 
 //#endregion
