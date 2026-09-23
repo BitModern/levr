@@ -24698,6 +24698,7 @@ const zRunResultVariantNodeDto = z.object({
 const zUpdateRunResultVariantDto = z.object({
 	status_id: z.string().optional(),
 	actual_result: z.string().nullable(),
+	append_actual_result: z.string().optional(),
 	started_at: z.unknown(),
 	ended_at: z.unknown(),
 	duration_ms: z.number().nullable()
