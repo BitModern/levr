@@ -1,5 +1,5 @@
 /**
- * OAuth 2.0 client for TQ MCP servers
+ * OAuth 2.0 client for Levr MCP servers
  * Implements authorization code flow with PKCE (RFC 7636)
  */
 

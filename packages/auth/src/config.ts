@@ -1,5 +1,5 @@
 /**
- * Unified environment configuration for TQ.AI
+ * Unified environment configuration for Levr
  *
  * Single source of truth for backend URLs, auth URLs, and OAuth client IDs.
  * Precedence: TQ_BACKEND_URL env var > ~/.tq/config.json > token apiBaseUrl > staging default

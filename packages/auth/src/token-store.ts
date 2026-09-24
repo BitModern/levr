@@ -392,7 +392,7 @@ export function getTokenFilePath(): string {
 }
 
 /**
- * Get TQ directory path
+ * Get the `~/.tq` directory path
  */
 export function getTqDir(): string {
   return TQ_DIR;
