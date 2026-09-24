@@ -30588,7 +30588,13 @@ const zUserPreferenceRestoreV1Data = z.object({
 //#region ../sdk/dist/gen/verify/zod.js
 const zVerifyDigestRequestDto = z.object({
 	entity: z.string().describe(""),
-	level: z.union([z.number(), z.number()]).optional().describe("")
+	level: z.union([z.number(), z.number()]).optional().describe(""),
+	due_reason: z.enum([
+		"interval",
+		"dirty",
+		"never_stamped"
+	]).optional().describe(""),
+	pass_id: z.string().optional().describe("")
 });
 const zFoldedDigestDto = z.object({
 	n: z.number().describe(""),
