@@ -20031,7 +20031,6 @@ const zCreateNotificationDto = z.object({
 	snoozed_until: z.unknown().optional().describe(""),
 	archived_at: z.unknown().optional().describe(""),
 	data: z.unknown().optional().describe(""),
-	reason: z.string().nullable().optional().describe(""),
 	grouping_key: z.string().nullable().optional().describe(""),
 	grouping_priority: z.number().optional().describe(""),
 	user_id: z.string(),
@@ -20051,6 +20050,8 @@ const zResponseNotificationDto = z.object({
 	archived_at: z.unknown().optional().describe(""),
 	data: z.unknown().optional().describe(""),
 	reason: z.string().nullable().optional().describe(""),
+	category: z.string().describe(""),
+	watch_id: z.string().nullable().optional().describe(""),
 	grouping_key: z.string().nullable().optional().describe(""),
 	grouping_priority: z.number().optional().describe(""),
 	user_id: z.string(),
@@ -20075,7 +20076,6 @@ const zUpdateNotificationDto = z.object({
 	snoozed_until: z.unknown().optional().describe(""),
 	archived_at: z.unknown().optional().describe(""),
 	data: z.unknown().optional().describe(""),
-	reason: z.string().nullable().optional().describe(""),
 	grouping_key: z.string().nullable().optional().describe(""),
 	grouping_priority: z.number().optional().describe(""),
 	user_id: z.string().optional(),
@@ -20133,6 +20133,8 @@ const zNotificationFindAllV1Data = z.object({
 		"filter.snoozed_until": z.array(z.string()).optional(),
 		"filter.archived_at": z.array(z.string()).optional(),
 		"filter.reason": z.array(z.string()).optional(),
+		"filter.category": z.array(z.string()).optional(),
+		"filter.watch_id": z.array(z.string()).optional(),
 		"filter.grouping_key": z.array(z.string()).optional(),
 		"filter.grouping_priority": z.array(z.string()).optional(),
 		"filter.user_id": z.array(z.string()).optional(),
@@ -20160,6 +20162,10 @@ const zNotificationFindAllV1Data = z.object({
 			"archived_at:DESC",
 			"reason:ASC",
 			"reason:DESC",
+			"category:ASC",
+			"category:DESC",
+			"watch_id:ASC",
+			"watch_id:DESC",
 			"grouping_key:ASC",
 			"grouping_key:DESC",
 			"grouping_priority:ASC",
@@ -20206,12 +20212,9 @@ const zNotificationBulkOperationV1Data = z.object({
 //#region ../sdk/dist/gen/notification-preference/zod.js
 const zCreateNotificationPreferenceDto = z.object({
 	id: z.string().optional().describe(""),
-	inbox_enabled: z.boolean().optional().describe(""),
+	channels: z.unknown().describe(""),
 	email_enabled: z.boolean().optional().describe(""),
 	email_digest_frequency: z.string().optional().describe(""),
-	desktop_enabled: z.boolean().optional().describe(""),
-	slack_enabled: z.boolean().optional().describe(""),
-	type_overrides: z.unknown().optional().describe(""),
 	work_hours_start: z.string().optional().describe(""),
 	work_hours_end: z.string().optional().describe(""),
 	timezone: z.string().optional().describe(""),
@@ -20219,16 +20222,14 @@ const zCreateNotificationPreferenceDto = z.object({
 	auto_subscribe_created: z.boolean().optional().describe(""),
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
+	auto_subscribe_commented: z.boolean().optional().describe(""),
 	user_id: z.string()
 });
 const zResponseNotificationPreferenceDto = z.object({
 	id: z.string().describe(""),
-	inbox_enabled: z.boolean().optional().describe(""),
+	channels: z.unknown().describe(""),
 	email_enabled: z.boolean().optional().describe(""),
 	email_digest_frequency: z.string().optional().describe(""),
-	desktop_enabled: z.boolean().optional().describe(""),
-	slack_enabled: z.boolean().optional().describe(""),
-	type_overrides: z.unknown().optional().describe(""),
 	work_hours_start: z.string().optional().describe(""),
 	work_hours_end: z.string().optional().describe(""),
 	timezone: z.string().optional().describe(""),
@@ -20236,6 +20237,7 @@ const zResponseNotificationPreferenceDto = z.object({
 	auto_subscribe_created: z.boolean().optional().describe(""),
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
+	auto_subscribe_commented: z.boolean().optional().describe(""),
 	user_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -20248,12 +20250,9 @@ const zResponseNotificationPreferenceDto = z.object({
 });
 const zUpdateNotificationPreferenceDto = z.object({
 	id: z.string().optional().describe(""),
-	inbox_enabled: z.boolean().optional().describe(""),
+	channels: z.unknown().optional().describe(""),
 	email_enabled: z.boolean().optional().describe(""),
 	email_digest_frequency: z.string().optional().describe(""),
-	desktop_enabled: z.boolean().optional().describe(""),
-	slack_enabled: z.boolean().optional().describe(""),
-	type_overrides: z.unknown().optional().describe(""),
 	work_hours_start: z.string().optional().describe(""),
 	work_hours_end: z.string().optional().describe(""),
 	timezone: z.string().optional().describe(""),
@@ -20261,6 +20260,7 @@ const zUpdateNotificationPreferenceDto = z.object({
 	auto_subscribe_created: z.boolean().optional().describe(""),
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
+	auto_subscribe_commented: z.boolean().optional().describe(""),
 	user_id: z.string().optional()
 });
 const zNotificationPreferenceBulkOperationDto = z.object({
@@ -20304,11 +20304,8 @@ const zNotificationPreferenceFindAllV1Data = z.object({
 		"page": z.number().optional(),
 		"limit": z.number().optional(),
 		"filter.id": z.array(z.string()).optional(),
-		"filter.inbox_enabled": z.array(z.string()).optional(),
 		"filter.email_enabled": z.array(z.string()).optional(),
 		"filter.email_digest_frequency": z.array(z.string()).optional(),
-		"filter.desktop_enabled": z.array(z.string()).optional(),
-		"filter.slack_enabled": z.array(z.string()).optional(),
 		"filter.work_hours_start": z.array(z.string()).optional(),
 		"filter.work_hours_end": z.array(z.string()).optional(),
 		"filter.timezone": z.array(z.string()).optional(),
@@ -20316,6 +20313,7 @@ const zNotificationPreferenceFindAllV1Data = z.object({
 		"filter.auto_subscribe_created": z.array(z.string()).optional(),
 		"filter.auto_subscribe_assigned": z.array(z.string()).optional(),
 		"filter.auto_subscribe_mentioned": z.array(z.string()).optional(),
+		"filter.auto_subscribe_commented": z.array(z.string()).optional(),
 		"filter.user_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
@@ -30767,7 +30765,9 @@ const zCreateWatchDto = z.object({
 	related_id: z.string().describe(""),
 	key: z.number().optional().describe(""),
 	scope: z.string().optional().describe(""),
-	thread_id: z.string().nullable().optional().describe("")
+	thread_id: z.string().nullable().optional().describe(""),
+	muted_at: z.unknown().optional().describe(""),
+	events: z.unknown().optional().describe("")
 });
 const zResponseWatchDto = z.object({
 	id: z.string().describe(""),
@@ -30776,6 +30776,8 @@ const zResponseWatchDto = z.object({
 	key: z.number().optional().describe(""),
 	scope: z.string().optional().describe(""),
 	thread_id: z.string().nullable().optional().describe(""),
+	muted_at: z.unknown().optional().describe(""),
+	events: z.unknown().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -30791,7 +30793,9 @@ const zUpdateWatchDto = z.object({
 	related_id: z.string().optional().describe(""),
 	key: z.number().optional().describe(""),
 	scope: z.string().optional().describe(""),
-	thread_id: z.string().nullable().optional().describe("")
+	thread_id: z.string().nullable().optional().describe(""),
+	muted_at: z.unknown().optional().describe(""),
+	events: z.unknown().optional().describe("")
 });
 const zWatchBulkOperationDto = z.object({
 	op: z.enum([
@@ -30839,6 +30843,7 @@ const zWatchFindAllV1Data = z.object({
 		"filter.key": z.array(z.string()).optional(),
 		"filter.scope": z.array(z.string()).optional(),
 		"filter.thread_id": z.array(z.string()).optional(),
+		"filter.muted_at": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
 		"filter.deleted_at": z.array(z.string()).optional(),
@@ -30855,6 +30860,8 @@ const zWatchFindAllV1Data = z.object({
 			"scope:DESC",
 			"thread_id:ASC",
 			"thread_id:DESC",
+			"muted_at:ASC",
+			"muted_at:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
