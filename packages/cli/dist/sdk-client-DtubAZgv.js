@@ -17662,6 +17662,10 @@ const zIssueViewRestoreV1Data = z.object({
 
 //#endregion
 //#region ../sdk/dist/gen/jira/zod.js
+const zCatalogueMapBodyDto = z.object({
+	team_id: z.string(),
+	is_primary: z.boolean().optional()
+});
 const zJiraStatusV1Data = z.object({ url: z.literal("/v1/jira/status") });
 const zJiraLinkV1Data = z.object({ url: z.literal("/v1/jira/link") });
 const zJiraInstallationsV1Data = z.object({
@@ -17677,9 +17681,22 @@ const zJiraRefreshProjectsV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/jira/installations/{id}/refresh-projects")
 });
-const zJiraListInstallationProjectsV1Data = z.object({
+const zJiraSearchCatalogueV1Data = z.object({
 	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/jira/installations/{id}/projects")
+	query: z.object({
+		"query": z.string().optional(),
+		"page": z.number().optional(),
+		"limit": z.number().optional()
+	}).optional(),
+	url: z.literal("/v1/jira/installations/{id}/catalogue")
+});
+const zJiraMapCatalogueProjectV1Data = z.object({
+	body: zCatalogueMapBodyDto,
+	path: z.object({
+		"id": z.string(),
+		"catalogueId": z.string()
+	}),
+	url: z.literal("/v1/jira/installations/{id}/catalogue/{catalogueId}/map")
 });
 
 //#endregion
