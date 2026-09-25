@@ -215,6 +215,12 @@ const zCascadeSkipDto = z.object({
 	issue: zCascadeIssueRefDto,
 	reason: z.string()
 });
+const zCompletedLinkedRunDto = z.object({
+	id: z.string(),
+	name: z.record(z.string(), z.unknown()).nullable(),
+	is_gate_run: z.boolean(),
+	advisory_not_run: z.number().describe("")
+});
 
 //#endregion
 //#region ../sdk/dist/runtime/client.js
@@ -14269,7 +14275,6 @@ const zGateSetRestoreV1Data = z.object({
 //#region ../sdk/dist/gen/gate-set-definition/zod.js
 const zCreateGateSetDefinitionDto = z.object({
 	id: z.string().optional().describe(""),
-	required: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
 	override_verification_rule: z.unknown().optional().describe(""),
 	gate_set_id: z.string(),
@@ -14277,7 +14282,6 @@ const zCreateGateSetDefinitionDto = z.object({
 });
 const zResponseGateSetDefinitionDto = z.object({
 	id: z.string().describe(""),
-	required: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
 	override_verification_rule: z.unknown().optional().describe(""),
 	gate_set_id: z.string(),
@@ -14293,7 +14297,6 @@ const zResponseGateSetDefinitionDto = z.object({
 });
 const zUpdateGateSetDefinitionDto = z.object({
 	id: z.string().optional().describe(""),
-	required: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
 	override_verification_rule: z.unknown().optional().describe(""),
 	gate_set_id: z.string().optional(),
@@ -14340,7 +14343,6 @@ const zGateSetDefinitionFindAllV1Data = z.object({
 		"page": z.number().optional(),
 		"limit": z.number().optional(),
 		"filter.id": z.array(z.string()).optional(),
-		"filter.required": z.array(z.string()).optional(),
 		"filter.sort_order": z.array(z.string()).optional(),
 		"filter.gate_set_id": z.array(z.string()).optional(),
 		"filter.gate_definition_id": z.array(z.string()).optional(),
@@ -16250,13 +16252,35 @@ const zIssueGateVerificationReportGateResultsV1Body = z.object({ results: z.arra
 	]),
 	output: z.string(),
 	expected: z.string().optional(),
+	step_id: z.string().optional().describe(""),
+	rule_hash: z.string().optional().describe(""),
 	steps: z.array(z.object({
 		command: z.string(),
 		exit_code: z.number(),
 		stdout_tail: z.string(),
-		stderr_tail: z.string()
+		stderr_tail: z.string(),
+		step_id: z.string().optional().describe("")
 	})).optional()
 })) });
+const zIssueGateVerificationDeployGatesV1Body = z.object({
+	root_folder_name: z.string(),
+	child_folders: z.array(z.object({
+		deliverable: z.number(),
+		name: z.string()
+	})),
+	tests_by_deliverable: z.record(z.string(), z.array(z.object({
+		name: z.string(),
+		required: z.boolean().optional().describe(""),
+		advisory_reason: z.string().optional().describe(""),
+		data: z.record(z.string(), z.unknown()).optional()
+	}))).describe(""),
+	link_template: z.record(z.string(), z.string()),
+	verification_rule: z.record(z.string(), z.unknown()).optional(),
+	replace_existing: z.boolean().optional(),
+	rename_reused: z.boolean().optional(),
+	test_origin: z.string().optional(),
+	validate: z.boolean().optional()
+});
 const zIssueGateVerificationGateStatusV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	query: z.object({ "executor_type": z.enum([
@@ -16280,7 +16304,10 @@ const zIssueGateVerificationReportGateResultsV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/issue/{id}/gate-results")
 });
-const zIssueGateVerificationDeployGatesV1Data = z.object({ url: z.literal("/v1/issue/deploy-gates") });
+const zIssueGateVerificationDeployGatesV1Data = z.object({
+	body: zIssueGateVerificationDeployGatesV1Body,
+	url: z.literal("/v1/issue/deploy-gates")
+});
 
 //#endregion
 //#region ../sdk/dist/gen/issue-history/zod.js
@@ -16952,6 +16979,7 @@ const zCreateIssueTestLinkDto = z.object({
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	latest_run_result_id: z.string().nullable().optional().describe(""),
 	verified_at: z.unknown().optional().describe(""),
+	required: z.boolean().optional().describe(""),
 	issue_id: z.string(),
 	test_id: z.string().nullable().optional(),
 	automation_test_id: z.string().nullable().optional(),
@@ -16983,8 +17011,10 @@ const zResponseIssueTestLinkDto = z.object({
 	gate_slot: z.string().nullable().optional().describe(""),
 	gate_content_hash: z.string().nullable().optional().describe(""),
 	gate_drifted: z.boolean().nullable().optional().describe(""),
-	required: z.boolean().nullable().optional().describe(""),
-	required_override: z.boolean().nullable().optional().describe(""),
+	required: z.boolean().optional().describe(""),
+	advisory_reason: z.string().nullable().optional().describe(""),
+	required_set_at: z.unknown().optional().describe(""),
+	required_set_by: z.string().nullable().optional().describe(""),
 	waived_reason: z.string().nullable().optional().describe(""),
 	waived_at: z.unknown().optional().describe(""),
 	last_attempt_at: z.unknown().optional().describe(""),
@@ -17018,6 +17048,7 @@ const zUpdateIssueTestLinkDto = z.object({
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	latest_run_result_id: z.string().nullable().optional().describe(""),
 	verified_at: z.unknown().optional().describe(""),
+	required: z.boolean().optional().describe(""),
 	issue_id: z.string().optional(),
 	test_id: z.string().nullable().optional(),
 	automation_test_id: z.string().nullable().optional(),
@@ -17081,7 +17112,9 @@ const zIssueTestLinkFindAllV1Data = z.object({
 		"filter.gate_content_hash": z.array(z.string()).optional(),
 		"filter.gate_drifted": z.array(z.string()).optional(),
 		"filter.required": z.array(z.string()).optional(),
-		"filter.required_override": z.array(z.string()).optional(),
+		"filter.advisory_reason": z.array(z.string()).optional(),
+		"filter.required_set_at": z.array(z.string()).optional(),
+		"filter.required_set_by": z.array(z.string()).optional(),
 		"filter.waived_reason": z.array(z.string()).optional(),
 		"filter.waived_at": z.array(z.string()).optional(),
 		"filter.last_attempt_at": z.array(z.string()).optional(),
@@ -17116,6 +17149,10 @@ const zIssueTestLinkFindAllV1Data = z.object({
 			"gate_slot:DESC",
 			"gate_content_hash:ASC",
 			"gate_content_hash:DESC",
+			"advisory_reason:ASC",
+			"advisory_reason:DESC",
+			"required_set_at:ASC",
+			"required_set_at:DESC",
 			"waived_reason:ASC",
 			"waived_reason:DESC",
 			"waived_at:ASC",
@@ -17142,6 +17179,8 @@ const zIssueTestLinkFindAllV1Data = z.object({
 			"gate_definition_id:DESC",
 			"waived_by:ASC",
 			"waived_by:DESC",
+			"required_set_by:ASC",
+			"required_set_by:DESC",
 			"verified_by_user_id:ASC",
 			"verified_by_user_id:DESC",
 			"created_at:ASC",
@@ -17173,6 +17212,14 @@ const zIssueTestLinkBulkOperationV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/issue-test-link-waiver/zod.js
+const zRevokeLinkWaiverResponseDto = z.object({ evidence_id: z.string().describe("") });
+const zIssueTestLinkWaiverRevokeWaiverV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/issue-test-link/{id}/revoke-waiver")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/issue-transition/zod.js
 const zTransitionIssueDto = z.object({
 	workflow_state_id: z.string().describe(""),
@@ -17180,6 +17227,11 @@ const zTransitionIssueDto = z.object({
 		"require_children",
 		"leave_children",
 		"cascade_children"
+	]).optional().describe(""),
+	run_completion: z.enum([
+		"require_runs",
+		"complete_runs",
+		"leave_runs"
 	]).optional().describe(""),
 	verification_override: z.array(z.object({
 		link_id: z.string(),
@@ -24478,10 +24530,14 @@ const zCreateRunDto = z.object({
 	environment_ids: z.array(z.string()).optional(),
 	test_inclusions: z.array(z.object({
 		test_id: z.string(),
-		folder_id: z.string().optional()
+		folder_id: z.string().optional(),
+		required: z.boolean().optional()
 	})).optional(),
 	folder_id: z.string().nullable(),
-	sequence: z.string().optional()
+	sequence: z.string().optional(),
+	required: z.enum(["all", "none"]).optional(),
+	required_test_ids: z.array(z.string()).optional(),
+	not_required_test_ids: z.array(z.string()).optional()
 });
 const zUpdateRunDto = z.object({
 	name: z.string().optional(),
@@ -24570,6 +24626,7 @@ const zRunWithContentDto = z.object({
 		assignee_id: z.string().nullable(),
 		flakiness: z.number().nullable(),
 		priority: z.number().nullable(),
+		required: z.boolean().optional(),
 		failure_signature_id: z.string().nullable(),
 		test_snapshot: z.record(z.string(), z.unknown()).nullable(),
 		test_data: z.record(z.string(), z.unknown()).nullable(),
@@ -24619,6 +24676,7 @@ const zRunResultNodeDto = z.object({
 	assignee_id: z.string().nullable(),
 	flakiness: z.number().nullable(),
 	priority: z.number().nullable(),
+	required: z.boolean().optional(),
 	failure_signature_id: z.string().nullable(),
 	test_snapshot: z.record(z.string(), z.unknown()).nullable(),
 	test_data: z.record(z.string(), z.unknown()).nullable(),
@@ -24659,7 +24717,8 @@ const zRunResultNodeDto = z.object({
 const zUpdateRunResultDto = z.object({
 	status_id: z.string().optional(),
 	assignee_id: z.string().nullable(),
-	flakiness: z.number().nullable()
+	flakiness: z.number().nullable(),
+	required: z.boolean().optional().describe("")
 });
 const zBulkRemoveRunResultsDto = z.object({ run_result_ids: z.array(z.string()) });
 const zBulkAssignRunResultsDto = z.object({
@@ -24719,11 +24778,16 @@ const zUpdateExecutionStepDto = z.object({
 	elapsed_time: z.number().nullable()
 });
 const zAddTestsToRunDto = z.object({
-	tests: z.array(z.object({ test_id: z.string() })),
+	tests: z.array(z.object({
+		test_id: z.string(),
+		required: z.boolean().optional()
+	})),
 	environment_ids: z.array(z.string()).optional(),
-	auto_add_tests_to_team: z.boolean().optional()
+	auto_add_tests_to_team: z.boolean().optional(),
+	required: z.enum(["all", "none"]).optional(),
+	required_test_ids: z.array(z.string()).optional(),
+	not_required_test_ids: z.array(z.string()).optional()
 });
-const zUpdateTestsEpochDto = z.object({ run_result_ids: z.array(z.string()).optional() });
 const zRefreshFolderDto = z.object({
 	folder_id: z.string(),
 	auto_add_tests_to_team: z.boolean().optional()
@@ -24905,11 +24969,6 @@ const zRunApiAddTestsToRunV1Data = z.object({
 	body: zAddTestsToRunDto,
 	path: z.object({ "runId": z.string() }),
 	url: z.literal("/v1/run/{runId}/tests")
-});
-const zRunApiUpdateTestsEpochV1Data = z.object({
-	body: zUpdateTestsEpochDto,
-	path: z.object({ "runId": z.string() }),
-	url: z.literal("/v1/run/{runId}/tests/update-epoch")
 });
 const zRunApiRefreshRunResultV1Data = z.object({
 	path: z.object({
