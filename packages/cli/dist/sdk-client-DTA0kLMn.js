@@ -13246,6 +13246,7 @@ const zBulkFolderResponseDto = z.object({
 			folder_path: z.string().optional()
 		}).optional(),
 		error: z.string().optional(),
+		code: z.string().optional(),
 		index: z.number()
 	})),
 	summary: z.object({
