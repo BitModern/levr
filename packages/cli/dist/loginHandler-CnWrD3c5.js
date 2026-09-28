@@ -1,7 +1,7 @@
 import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-CHeKHu5S.js";
-import { configureClient } from "./sdk-client-DtubAZgv.js";
+import { configureClient } from "./sdk-client-4ILxBaMA.js";
 import "./workspace-store-DDOxnut1.js";
-import { autoSelectWorkspace } from "./resolve-workspace-CLhu0X0z.js";
+import { autoSelectWorkspace } from "./resolve-workspace-BbprgqcC.js";
 import chalk from "chalk";
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";

@@ -1,7 +1,7 @@
 import { getApiUrl, getAutomationSourceIdOverride, getSourceOverride, getTeamId } from "./env-CHeKHu5S.js";
-import { client, configureClient, uploadAutomationIngest, uploadImport } from "./sdk-client-DtubAZgv.js";
+import { client, configureClient, uploadImport } from "./sdk-client-4ILxBaMA.js";
 import "./workspace-store-DDOxnut1.js";
-import { resolveWorkspace } from "./resolve-workspace-CLhu0X0z.js";
+import { resolveWorkspace } from "./resolve-workspace-BbprgqcC.js";
 import "./token-refresh-Cu5RpkLJ.js";
 import { resolveToken } from "./resolve-token-DbQsmn03.js";
 import { readFileSync, statSync } from "node:fs";
@@ -412,24 +412,26 @@ async function pushHandler(flags, file) {
 	if (flags.source) sourceOrigin = "explicit";
 	else if (getSourceOverride()) sourceOrigin = "LEVR_SOURCE";
 	else if (sourceName) sourceOrigin = "auto-detected";
-	if (!sourceName) {
-		this.logger.error("Error: --source is required. Provide it explicitly with --source, set the LEVR_SOURCE env var, or run in a supported CI environment for auto-detection.");
+	const automationSourceId = flags["automation-source"] ?? getAutomationSourceIdOverride();
+	const automationSourceOrigin = flags["automation-source"] ? "explicit" : automationSourceId ? "LEVR_AUTOMATION_SOURCE_ID" : void 0;
+	if (!sourceName && !automationSourceId) {
+		this.logger.error("Error: --source is required. Provide it explicitly with --source (or an existing source UUID with --automation-source), set the LEVR_SOURCE env var, or run in a supported CI environment for auto-detection.");
 		this.logger.error("");
 		this.logger.error("Example:");
 		this.logger.error("  levr push results.xml --source backend-unit-tests");
 		this.process.exitCode = 1;
 		return;
 	}
-	const automationSourceId = flags["automation-source"] ?? getAutomationSourceIdOverride();
-	const automationSourceOrigin = flags["automation-source"] ? "explicit" : automationSourceId ? "LEVR_AUTOMATION_SOURCE_ID" : void 0;
+	if (automationSourceId && sourceName && sourceOrigin !== "auto-detected") this.logger.warning(`--automation-source (${automationSourceOrigin}) takes precedence; ignoring source name "${sourceName}" (${sourceOrigin}).`);
+	const uploadTeamId = automationSourceId && !flags["team-id"] ? void 0 : teamId;
 	const ciMeta = getCiMetadata();
 	if (flags.verbose) {
-		this.logger.debug(`Team: ${teamId ?? "(server default)"}`);
+		this.logger.debug(`Team: ${uploadTeamId ?? (automationSourceId ? "(automation source's team)" : "(server default)")}`);
 		this.logger.debug(`File: ${file} (${formatBytes(fileStat.size)})`);
 		if (flags.format) this.logger.debug(`Format: ${flags.format}`);
 		if (flags["update-mode"]) this.logger.debug(`Update mode: ${flags["update-mode"]}`);
-		if (sourceName) this.logger.debug(`Source: ${sourceName} (${sourceOrigin})`);
-		if (automationSourceId) this.logger.debug(`Automation source: ${automationSourceId} (${automationSourceOrigin}) → POST /v1/automation-run/ingest`);
+		if (automationSourceId) this.logger.debug(`Automation source: ${automationSourceId} (${automationSourceOrigin})`);
+		else if (sourceName) this.logger.debug(`Source: ${sourceName} (${sourceOrigin})`);
 		if (ciMeta) {
 			this.logger.debug(`CI detected: ${ciMeta.ci_provider?.replace(/_/g, " ") ?? "unknown"}`);
 			if (ciMeta.branch) this.logger.debug(`Branch: ${ciMeta.branch}`);
@@ -445,39 +447,15 @@ async function pushHandler(flags, file) {
 	}).start();
 	try {
 		const fileBuffer = readFileSync(file);
-		const fileObj = new File([fileBuffer], fileName);
-		if (automationSourceId) {
-			const ingestResult = await uploadAutomationIngest({
-				file: fileObj,
-				fileName,
-				automationSourceId,
-				runName: flags["run-name"],
-				format: flags.format,
-				externalRunKey: ciMeta?.ci_build_id,
-				importMetadata: ciMeta
-			});
-			spinner.stop();
-			this.process.stdout.write("\nAutomation run ingested!\n\n");
-			this.process.stdout.write(`  Run ID:   ${ingestResult.automation_run_id}\n`);
-			this.process.stdout.write(`  Source:   ${automationSourceId}\n`);
-			this.process.stdout.write(`  Results:  ${ingestResult.passed} passed, ${ingestResult.failed} failed, ${ingestResult.errored} errored, ${ingestResult.skipped} skipped\n`);
-			this.process.stdout.write(`  Total:    ${ingestResult.total_tests}\n`);
-			if (ciMeta) {
-				const prettyProvider = ciMeta.ci_provider?.replace(/_/g, " ") ?? "CI";
-				const ciLabel = ciMeta.ci_build_id ? `${prettyProvider} #${ciMeta.ci_build_id}` : prettyProvider;
-				this.process.stdout.write(`  CI:       ${ciLabel}\n`);
-			}
-			return;
-		}
 		const result = await uploadImport({
-			teamId,
-			file: fileObj,
+			teamId: uploadTeamId,
+			file: new File([fileBuffer], fileName),
 			fileName,
 			format: flags.format,
 			parentFolderId: flags["parent-folder-id"],
 			runName: flags["run-name"],
 			updateMode: flags["update-mode"],
-			automationSource: sourceName,
+			...automationSourceId ? { automationSourceId } : { automationSource: sourceName },
 			importMetadata: ciMeta
 		});
 		spinner.stop();
@@ -491,12 +469,19 @@ async function pushHandler(flags, file) {
 		if (result) {
 			if (result.team_id) this.process.stdout.write(`  Team:     ${result.team_id}\n`);
 			if (result.format) this.process.stdout.write(`  Format:   ${result.format}\n`);
-			if (sourceName) this.process.stdout.write(`  Source:   ${sourceName}${sourceOrigin ? ` (${sourceOrigin})` : ""}\n`);
+			if (automationSourceId) this.process.stdout.write(`  Source:   ${result.automation_source_name ?? automationSourceId} (${automationSourceOrigin})\n`);
+			else if (sourceName) this.process.stdout.write(`  Source:   ${sourceName}${sourceOrigin ? ` (${sourceOrigin})` : ""}\n`);
 			if (result.result?.stats) {
 				const { tests_created, tests_updated } = result.result.stats;
 				this.process.stdout.write(`  Tests:    ${tests_created} created, ${tests_updated} updated\n`);
 			}
-			if (result.result?.run_id) this.process.stdout.write(`  Run:      ${result.result.run_id}\n`);
+			if (result.result?.run_id) {
+				this.process.stdout.write(`  Run:      ${result.result.run_id}\n`);
+				if (result.result.stats) {
+					const s = result.result.stats;
+					this.process.stdout.write(`  Results:  ${s.passed} passed, ${s.failed} failed, ${s.errored} errored, ${s.skipped} skipped\n`);
+				}
+			}
 			if (result.status === "completed_with_warnings" && result.result?.warnings?.length) {
 				this.process.stdout.write("\n");
 				const warnings = result.result.warnings;

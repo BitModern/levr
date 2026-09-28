@@ -1,8 +1,4 @@
-import {
-  client,
-  importCreateV1,
-  automationRunIngestIngestV1,
-} from '@levr/sdk';
+import { client, importCreateV1 } from '@levr/sdk';
 import { getApiUrl } from './env.js';
 import type { ResolvedAuth } from '../types/auth-types.js';
 
@@ -25,6 +21,8 @@ export interface ImportResult {
   error?: { message?: string };
   team_id?: string;
   format?: string;
+  automation_source_id?: string;
+  automation_source_name?: string;
   result?: {
     run_id?: string;
     // internal R6 — unified on AutomationBuildResult.stats shape.
@@ -59,7 +57,10 @@ export interface ImportOptions {
   // internal R3: createRun option removed. Run creation is driven by the
   // parsed file's `hasResults` shape, not by a caller flag.
   updateMode?: 'update' | 'create_new';
+  /** Source name (find-or-create). Mutually exclusive with automationSourceId. */
   automationSource?: string;
+  /** UUID of an existing source (internal). Mutually exclusive with automationSource. */
+  automationSourceId?: string;
   importMetadata?: Record<string, unknown>;
 }
 
@@ -81,6 +82,7 @@ export async function uploadImport(options: ImportOptions) {
       run_name: options.runName,
       update_mode: options.updateMode,
       automation_source: options.automationSource,
+      automation_source_id: options.automationSourceId,
       import_metadata: options.importMetadata
         ? JSON.stringify(options.importMetadata)
         : undefined,
@@ -97,6 +99,11 @@ export async function uploadImport(options: ImportOptions) {
         );
       case 403:
         throw new Error('Permission denied. Check your team access.');
+      case 404:
+        throw new Error(
+          tryReadMessage(result.error) ??
+            'Not found. Check --automation-source and --team-id.',
+        );
       case 422:
         throw new Error('File could not be processed. Check the file format.');
       case 429:
@@ -109,82 +116,6 @@ export async function uploadImport(options: ImportOptions) {
   }
 
   return result.data as ImportResult;
-}
-
-export interface AutomationIngestOptions {
-  file: Blob;
-  fileName: string;
-  automationSourceId: string;
-  runName?: string;
-  format?: 'junit' | 'ctrf-json' | 'gherkin' | 'cucumber-json';
-  externalRunKey?: string;
-  importMetadata?: Record<string, unknown>;
-}
-
-export interface AutomationIngestResult {
-  automation_run_id: string;
-  passed: number;
-  failed: number;
-  errored: number;
-  skipped: number;
-  total_tests: number;
-}
-
-/**
- * Direct synchronous automation run ingest. Bypasses the ImportJob queue
- * used by uploadImport — calls POST /v1/automation-run/ingest and returns
- * the created automation_run_id immediately. Use when an
- * automation_source_id is known (from --automation-source flag or
- * LEVR_AUTOMATION_SOURCE_ID env var).
- */
-export async function uploadAutomationIngest(
-  options: AutomationIngestOptions,
-): Promise<AutomationIngestResult> {
-  const result = await automationRunIngestIngestV1({
-    body: {
-      file: options.file,
-      automation_source_id: options.automationSourceId,
-      run_name: options.runName,
-      format: options.format,
-      external_run_key: options.externalRunKey,
-      import_metadata: options.importMetadata
-        ? JSON.stringify(options.importMetadata)
-        : undefined,
-    },
-    requestValidator: undefined,
-  });
-
-  if (result.error) {
-    const status = result.response?.status;
-    switch (status) {
-      case 400:
-        throw new Error(
-          `Bad request: ${tryReadMessage(result.error) ?? 'check --automation-source value and file'}`,
-        );
-      case 401:
-        throw new Error(
-          "Authentication failed. Check your token or run 'levr auth login'.",
-        );
-      case 403:
-        throw new Error('Permission denied. Check your workspace access.');
-      case 404:
-        throw new Error(
-          `automation_source ${options.automationSourceId} not found in your workspace.`,
-        );
-      case 422:
-        throw new Error(
-          `File could not be parsed: ${tryReadMessage(result.error) ?? 'check the file and --format hint'}`,
-        );
-      case 429:
-        throw new Error('Rate limited. Please try again later.');
-      default:
-        throw new Error(
-          `Automation ingest failed (${String(status ?? 'unknown')}): ${JSON.stringify(result.error)}`,
-        );
-    }
-  }
-
-  return result.data as AutomationIngestResult;
 }
 
 function tryReadMessage(err: unknown): string | undefined {

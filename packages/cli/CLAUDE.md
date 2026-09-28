@@ -45,6 +45,7 @@ so. Never make a fallback silent.
 | `LEVR_MCP_URL`  | MCP server URL written by `levr mcp add` (internal). Derived from the API URL when unset: known hosts map to the app-host OAuth resource (`ai.levr.<env>/api/v1/mcp` — NOT the bare api host, RFC 9728 resource-identity), others get `<api-url>/v1/mcp` | derived                |
 | `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default)                                                                                                                                                                  |                        |
 | `LEVR_SOURCE`   | Default automation source name                                                                                                                                                                                                                           |                        |
+| `LEVR_AUTOMATION_SOURCE_ID` | UUID of an existing automation source (`levr push -a`). Sent to `POST /v1/imports` as `automation_source_id` INSTEAD of the name — the server takes exactly one; never creates a source (internal) | |
 | `LEVR_ENV_FILE` | Path to a `.env` to read instead of `./.env` (absolute, or relative to cwd). Unlike the implicit `.env`, a path named here that does not exist is an ERROR, not a silent skip                                                                            | `.env`                 |
 
 ### `.env` loading

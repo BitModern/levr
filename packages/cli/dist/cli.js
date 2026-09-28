@@ -213,7 +213,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-CLyQKoYe.js");
+		const { loginHandler } = await import("./loginHandler-CnWrD3c5.js");
 		return loginHandler;
 	}
 });
@@ -252,7 +252,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-DUW3yPTK.js");
+		const { statusHandler } = await import("./statusHandler-BnmpOhLi.js");
 		return statusHandler;
 	}
 });
@@ -264,18 +264,23 @@ const pushCommand = buildCommand({
 		brief: "Push test results to Levr",
 		fullDescription: `Upload a test result file to Levr.
 
-The backend auto-detects the file format (JUnit XML, Gherkin, Cucumber JSON).
+The backend auto-detects the file format (JUnit XML, Gherkin, Cucumber JSON, CTRF JSON).
 In CI environments, the automation source name and CI metadata are auto-detected.
+
+An automation source is required: a name (--source, LEVR_SOURCE, or CI
+auto-detection; created on first use) or the UUID of an existing source
+(--automation-source or LEVR_AUTOMATION_SOURCE_ID). The UUID wins if both are set.
 
 Team ID is optional. When omitted, the server resolves the team from:
   1. The existing automation source's team (if --source matches a known source)
   2. The workspace's default team
+With --automation-source the team is always that source's team.
 
 Examples:
-  levr push ./test-results.xml
   levr push ./results.xml --source "backend-unit-tests"
-  levr push ./report.json --team-id <uuid>   # explicit team
-  levr push ./report.json   # uses LEVR_TOKEN env var, default team`
+  levr push ./results.xml --automation-source <uuid>
+  levr push ./report.json --source e2e --team-id <uuid>   # explicit team
+  levr push ./test-results.xml   # in CI: source auto-detected`
 	},
 	parameters: {
 		positional: {
@@ -312,7 +317,7 @@ Examples:
 			"automation-source": {
 				kind: "parsed",
 				parse: String,
-				brief: "Automation source UUID. When set, routes to POST /v1/automation-run/ingest (synchronous, bypasses ImportJob queue) instead of POST /v1/imports.",
+				brief: "UUID of an existing automation source (never creates one). Used instead of --source.",
 				placeholder: "uuid",
 				optional: true
 			},
@@ -364,7 +369,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-anBd1pkW.js");
+		const { pushHandler } = await import("./pushHandler-Bjy-AQQ2.js");
 		return pushHandler;
 	}
 });
@@ -484,7 +489,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-B1CGwwkp.js");
+		const { importHandler } = await import("./importHandler-CpkiXbDN.js");
 		return importHandler;
 	}
 });
@@ -505,7 +510,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-Dymi1kt4.js");
+		const { listHandler } = await import("./listHandler-l2hVaVtR.js");
 		return listHandler;
 	}
 });
@@ -538,7 +543,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-DSNQdwPV.js");
+		const { selectHandler } = await import("./selectHandler-FnEPzYTj.js");
 		return selectHandler;
 	}
 });
@@ -562,7 +567,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.9.27";
+var version = "0.9.28";
 
 //#endregion
 //#region src/app.ts

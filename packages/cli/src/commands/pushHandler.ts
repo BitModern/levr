@@ -13,11 +13,7 @@ import {
   getApiUrl,
 } from '../utils/env.js';
 import { detectSource, getCiMetadata } from '../utils/ci-detect.js';
-import {
-  configureClient,
-  uploadImport,
-  uploadAutomationIngest,
-} from '../utils/sdk-client.js';
+import { configureClient, uploadImport } from '../utils/sdk-client.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -105,26 +101,11 @@ export async function pushHandler(
     sourceOrigin = 'auto-detected';
   }
 
-  // internal R2 — source is required. Guard on the resolved `sourceName`
-  // (post all three tiers: flag → LEVR_SOURCE → CI auto-detect), NOT on the
-  // raw `flags.source`. CI users who rely on auto-detection don't pass
-  // `--source` explicitly; guarding only the flag would falsely reject
-  // them. Local reject before HTTP for a fast, descriptive error.
-  if (!sourceName) {
-    this.logger.error(
-      'Error: --source is required. Provide it explicitly with --source, set the LEVR_SOURCE env var, or run in a supported CI environment for auto-detection.',
-    );
-    this.logger.error('');
-    this.logger.error('Example:');
-    this.logger.error('  levr push results.xml --source backend-unit-tests');
-    this.process.exitCode = 1;
-    return;
-  }
-
   // 4b. Resolve automation-source UUID: flag > env (no auto-detect — UUIDs
-  // require an explicit caller decision). When set, routes the upload to
-  // the synchronous /v1/automation-run/ingest endpoint instead of the
-  // legacy /v1/imports queue.
+  // require an explicit caller decision). internal: the UUID names an
+  // existing source and is sent to POST /v1/imports as
+  // `automation_source_id` INSTEAD of the name — the server accepts exactly
+  // one of the two.
   const automationSourceId =
     flags['automation-source'] ?? getAutomationSourceIdOverride();
   const automationSourceOrigin = flags['automation-source']
@@ -133,12 +114,47 @@ export async function pushHandler(
       ? 'LEVR_AUTOMATION_SOURCE_ID'
       : undefined;
 
+  // internal R2 — a source is required: a name (resolved post all three
+  // tiers: flag → LEVR_SOURCE → CI auto-detect, NOT the raw `flags.source`,
+  // so CI users relying on auto-detection pass) or a UUID. internal: the
+  // UUID satisfies it on its own — this guard used to run before the UUID
+  // was read, so `-a` alone failed everywhere except CI. Local reject before
+  // HTTP for a fast, descriptive error.
+  if (!sourceName && !automationSourceId) {
+    this.logger.error(
+      'Error: --source is required. Provide it explicitly with --source (or an existing source UUID with --automation-source), set the LEVR_SOURCE env var, or run in a supported CI environment for auto-detection.',
+    );
+    this.logger.error('');
+    this.logger.error('Example:');
+    this.logger.error('  levr push results.xml --source backend-unit-tests');
+    this.process.exitCode = 1;
+    return;
+  }
+
+  // The UUID wins over a name. An auto-detected name is dropped silently
+  // (it was never the caller's choice); an explicit one is reported, since
+  // it will not be used.
+  if (automationSourceId && sourceName && sourceOrigin !== 'auto-detected') {
+    this.logger.warning(
+      `--automation-source (${automationSourceOrigin}) takes precedence; ignoring source name "${sourceName}" (${sourceOrigin}).`,
+    );
+  }
+
+  // A source addressed by UUID already has a team, and the server rejects a
+  // team_id that differs from it. Forward only an EXPLICIT --team-id: a
+  // workspace-wide LEVR_TEAM_ID was never sent on this path before internal,
+  // and forwarding it would break pipelines whose source lives elsewhere.
+  const uploadTeamId =
+    automationSourceId && !flags['team-id'] ? undefined : teamId;
+
   // 5. CI metadata
   const ciMeta = getCiMetadata();
 
   // Verbose: pre-upload diagnostics
   if (flags.verbose) {
-    this.logger.debug(`Team: ${teamId ?? '(server default)'}`);
+    this.logger.debug(
+      `Team: ${uploadTeamId ?? (automationSourceId ? "(automation source's team)" : '(server default)')}`,
+    );
 
     this.logger.debug(`File: ${file} (${formatBytes(fileStat.size)})`);
     if (flags.format) {
@@ -147,13 +163,12 @@ export async function pushHandler(
     if (flags['update-mode']) {
       this.logger.debug(`Update mode: ${flags['update-mode']}`);
     }
-    if (sourceName) {
-      this.logger.debug(`Source: ${sourceName} (${sourceOrigin})`);
-    }
     if (automationSourceId) {
       this.logger.debug(
-        `Automation source: ${automationSourceId} (${automationSourceOrigin}) → POST /v1/automation-run/ingest`,
+        `Automation source: ${automationSourceId} (${automationSourceOrigin})`,
       );
+    } else if (sourceName) {
+      this.logger.debug(`Source: ${sourceName} (${sourceOrigin})`);
     }
     if (ciMeta) {
       this.logger.debug(
@@ -182,57 +197,17 @@ export async function pushHandler(
     const fileBuffer = readFileSync(file);
     const fileObj = new File([fileBuffer], fileName);
 
-    // internal D9 routing fork: when an automation_source UUID is in scope,
-    // route to the synchronous /v1/automation-run/ingest endpoint and emit
-    // a streamlined automation result. Otherwise fall through to the legacy
-    // /v1/imports queue (which routes server-side to AutomationBuilder when
-    // a source NAME is present, via the D3 fork).
-    if (automationSourceId) {
-      // Map non-junit/ctrf-json formats from the legacy enum to ctrf-json
-      // shouldn't happen — automation ingest only supports junit/ctrf-json.
-      // For 'gherkin' / 'cucumber-json' format hints with an automation
-      // source set, the server will reject with a parse error. Pass the
-      // hint through and let the server respond with a 422.
-      const ingestResult = await uploadAutomationIngest({
-        file: fileObj,
-        fileName,
-        automationSourceId,
-        runName: flags['run-name'],
-        format: flags.format,
-        externalRunKey: ciMeta?.ci_build_id,
-        importMetadata: ciMeta as Record<string, unknown> | undefined,
-      });
-
-      spinner.stop();
-
-      this.process.stdout.write('\nAutomation run ingested!\n\n');
-      this.process.stdout.write(
-        `  Run ID:   ${ingestResult.automation_run_id}\n`,
-      );
-      this.process.stdout.write(`  Source:   ${automationSourceId}\n`);
-      this.process.stdout.write(
-        `  Results:  ${ingestResult.passed} passed, ${ingestResult.failed} failed, ${ingestResult.errored} errored, ${ingestResult.skipped} skipped\n`,
-      );
-      this.process.stdout.write(`  Total:    ${ingestResult.total_tests}\n`);
-      if (ciMeta) {
-        const prettyProvider = ciMeta.ci_provider?.replace(/_/g, ' ') ?? 'CI';
-        const ciLabel = ciMeta.ci_build_id
-          ? `${prettyProvider} #${ciMeta.ci_build_id}`
-          : prettyProvider;
-        this.process.stdout.write(`  CI:       ${ciLabel}\n`);
-      }
-      return;
-    }
-
     const result = await uploadImport({
-      teamId,
+      teamId: uploadTeamId,
       file: fileObj,
       fileName,
       format: flags.format,
       parentFolderId: flags['parent-folder-id'],
       runName: flags['run-name'],
       updateMode: flags['update-mode'],
-      automationSource: sourceName,
+      ...(automationSourceId
+        ? { automationSourceId }
+        : { automationSource: sourceName }),
       importMetadata: ciMeta as Record<string, unknown> | undefined,
     });
 
@@ -255,7 +230,11 @@ export async function pushHandler(
       if (result.format) {
         this.process.stdout.write(`  Format:   ${result.format}\n`);
       }
-      if (sourceName) {
+      if (automationSourceId) {
+        this.process.stdout.write(
+          `  Source:   ${result.automation_source_name ?? automationSourceId} (${automationSourceOrigin})\n`,
+        );
+      } else if (sourceName) {
         this.process.stdout.write(
           `  Source:   ${sourceName}${sourceOrigin ? ` (${sourceOrigin})` : ''}\n`,
         );
@@ -268,6 +247,12 @@ export async function pushHandler(
       }
       if (result.result?.run_id) {
         this.process.stdout.write(`  Run:      ${result.result.run_id}\n`);
+        if (result.result.stats) {
+          const s = result.result.stats;
+          this.process.stdout.write(
+            `  Results:  ${s.passed} passed, ${s.failed} failed, ${s.errored} errored, ${s.skipped} skipped\n`,
+          );
+        }
       }
 
       if (

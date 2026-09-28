@@ -176,9 +176,10 @@ CLI                                 Backender
 │     → server fallback: automation source │    │                                     │
 │       team > workspace default team      │    │                                     │
 │                                          │    │                                     │
-│  4. Resolve source name                  │    │                                     │
-│     → --source flag > LEVR_SOURCE env    │    │                                     │
-│       > CI auto-detect > undefined       │    │                                     │
+│  4. Resolve source (required)            │    │                                     │
+│     → UUID: -a flag > LEVR_AUTOMATION_   │    │                                     │
+│       SOURCE_ID env; else name: --source │    │                                     │
+│       > LEVR_SOURCE > CI auto-detect     │    │                                     │
 │                                          │    │                                     │
 │  5. Collect CI metadata                  │    │                                     │
 │     → getCiMetadata() from env vars      │    │                                     │
@@ -196,9 +197,9 @@ CLI                                 Backender
 │                                          │    │  8. Parse file (JUnit/Gherkin/      │
 │     - parent_folder_id?                  │    │     Cucumber JSON)                   │
 │     - run_name?                          │    │                                     │
-│     - create_run?                        │    │  9. Build import:                    │
-│     - update_mode                        │    │     - Create/match folders + tests   │
-│     - automation_source?                 │    │     - Create run + run_results       │
+│     - update_mode                        │    │  9. Build import:                    │
+│     - automation_source (name) OR        │    │     - Create/match folders + tests   │
+│       automation_source_id (UUID)        │    │     - Create run + run_results       │
 │     - import_metadata? (JSON string)     │    │     - Link automation_source         │
 │                                          │    │     - Store import_metadata →        │
 │                                          │    │       run.source JSONB               │
@@ -257,7 +258,7 @@ Lightweight detection via environment variables (no runtime dependency). Support
 | Azure Pipelines | `TF_BUILD=True`       | `BUILD_REPOSITORY_URI` + `BUILD_DEFINITIONNAME`                  |
 | Generic         | `CI=true` or `CI=1`   | "CI"                                                             |
 
-Source name resolution order: `--source` flag > `LEVR_SOURCE` env > CI auto-detect > undefined.
+Source resolution: a UUID (`--automation-source` flag > `LEVR_AUTOMATION_SOURCE_ID` env) is sent as `automation_source_id` and wins; otherwise the name (`--source` flag > `LEVR_SOURCE` env > CI auto-detect) is sent as `automation_source`. With neither, `levr push` exits 1 before uploading (internal R2, internal). Both go to `POST /v1/imports`; the old `POST /v1/automation-run/ingest` is a deprecated server-side adapter the CLI no longer calls.
 
 CI metadata (`CiMetadata`) is sent as `import_metadata` (JSON string) and stored on `run.source` JSONB in the database.
 

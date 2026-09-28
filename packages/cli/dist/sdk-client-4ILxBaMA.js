@@ -3167,30 +3167,6 @@ const zAutomationRunUnarchiveV1Data = z.object({
 });
 
 //#endregion
-//#region ../sdk/dist/gen/automation-run-ingest/functions.js
-/**
-* Accepts a CTRF/JUnit file plus an automation_source_id and writes automation_run + automation_run_result rows directly. Bypasses the ImportJob queue used by POST /v1/imports — returns the created automation_run_id synchronously. Use this from CI when you want a direct, non-queued ingest.
-*/
-const automationRunIngestIngestV1 = (options) => {
-	return (options?.client ?? client).post({
-		security: [{
-			scheme: "bearer",
-			type: "http"
-		}],
-		url: "/v1/automation-run/ingest",
-		bodySerializer: (body) => {
-			const fd = new FormData();
-			if (body && typeof body === "object") for (const [k, v] of Object.entries(body)) {
-				if (v == null) continue;
-				fd.append(k, v instanceof Blob ? v : String(v));
-			}
-			return fd;
-		},
-		...options
-	});
-};
-
-//#endregion
 //#region ../sdk/dist/gen/automation-run-ingest/zod.js
 const zAutomationRunIngestIngestV1Body = z.object({
 	file: z.instanceof(Blob),
@@ -15152,6 +15128,7 @@ const zImportCreateV1Body = z.object({
 	run_name: z.string().optional().describe(""),
 	update_mode: z.enum(["update", "create_new"]).optional().describe(""),
 	automation_source: z.string().optional().describe(""),
+	automation_source_id: z.string().optional().describe(""),
 	import_metadata: z.string().optional().describe("")
 });
 const zImportResponseDto = z.object({
@@ -31991,6 +31968,7 @@ async function uploadImport(options) {
 			run_name: options.runName,
 			update_mode: options.updateMode,
 			automation_source: options.automationSource,
+			automation_source_id: options.automationSourceId,
 			import_metadata: options.importMetadata ? JSON.stringify(options.importMetadata) : void 0
 		},
 		requestValidator: void 0
@@ -32000,42 +31978,10 @@ async function uploadImport(options) {
 		switch (status) {
 			case 401: throw new Error("Authentication failed. Check your token or run 'levr auth login'.");
 			case 403: throw new Error("Permission denied. Check your team access.");
+			case 404: throw new Error(tryReadMessage(result.error) ?? "Not found. Check --automation-source and --team-id.");
 			case 422: throw new Error("File could not be processed. Check the file format.");
 			case 429: throw new Error("Rate limited. Please try again later.");
 			default: throw new Error(`Import failed (${String(status ?? "unknown")}): ${JSON.stringify(result.error)}`);
-		}
-	}
-	return result.data;
-}
-/**
-* Direct synchronous automation run ingest. Bypasses the ImportJob queue
-* used by uploadImport — calls POST /v1/automation-run/ingest and returns
-* the created automation_run_id immediately. Use when an
-* automation_source_id is known (from --automation-source flag or
-* LEVR_AUTOMATION_SOURCE_ID env var).
-*/
-async function uploadAutomationIngest(options) {
-	const result = await automationRunIngestIngestV1({
-		body: {
-			file: options.file,
-			automation_source_id: options.automationSourceId,
-			run_name: options.runName,
-			format: options.format,
-			external_run_key: options.externalRunKey,
-			import_metadata: options.importMetadata ? JSON.stringify(options.importMetadata) : void 0
-		},
-		requestValidator: void 0
-	});
-	if (result.error) {
-		const status = result.response?.status;
-		switch (status) {
-			case 400: throw new Error(`Bad request: ${tryReadMessage(result.error) ?? "check --automation-source value and file"}`);
-			case 401: throw new Error("Authentication failed. Check your token or run 'levr auth login'.");
-			case 403: throw new Error("Permission denied. Check your workspace access.");
-			case 404: throw new Error(`automation_source ${options.automationSourceId} not found in your workspace.`);
-			case 422: throw new Error(`File could not be parsed: ${tryReadMessage(result.error) ?? "check the file and --format hint"}`);
-			case 429: throw new Error("Rate limited. Please try again later.");
-			default: throw new Error(`Automation ingest failed (${String(status ?? "unknown")}): ${JSON.stringify(result.error)}`);
 		}
 	}
 	return result.data;
@@ -32048,4 +31994,4 @@ function tryReadMessage(err) {
 }
 
 //#endregion
-export { authGetProfileV1, authGetSitesV1, client, configureClient, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1, uploadAutomationIngest, uploadImport };
+export { authGetProfileV1, authGetSitesV1, client, configureClient, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1, uploadImport };

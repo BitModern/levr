@@ -5,18 +5,23 @@ export const pushCommand = buildCommand({
     brief: 'Push test results to Levr',
     fullDescription: `Upload a test result file to Levr.
 
-The backend auto-detects the file format (JUnit XML, Gherkin, Cucumber JSON).
+The backend auto-detects the file format (JUnit XML, Gherkin, Cucumber JSON, CTRF JSON).
 In CI environments, the automation source name and CI metadata are auto-detected.
+
+An automation source is required: a name (--source, LEVR_SOURCE, or CI
+auto-detection; created on first use) or the UUID of an existing source
+(--automation-source or LEVR_AUTOMATION_SOURCE_ID). The UUID wins if both are set.
 
 Team ID is optional. When omitted, the server resolves the team from:
   1. The existing automation source's team (if --source matches a known source)
   2. The workspace's default team
+With --automation-source the team is always that source's team.
 
 Examples:
-  levr push ./test-results.xml
   levr push ./results.xml --source "backend-unit-tests"
-  levr push ./report.json --team-id <uuid>   # explicit team
-  levr push ./report.json   # uses LEVR_TOKEN env var, default team`,
+  levr push ./results.xml --automation-source <uuid>
+  levr push ./report.json --source e2e --team-id <uuid>   # explicit team
+  levr push ./test-results.xml   # in CI: source auto-detected`,
   },
   parameters: {
     positional: {
@@ -56,7 +61,7 @@ Examples:
         kind: 'parsed',
         parse: String,
         brief:
-          'Automation source UUID. When set, routes to POST /v1/automation-run/ingest (synchronous, bypasses ImportJob queue) instead of POST /v1/imports.',
+          'UUID of an existing automation source (never creates one). Used instead of --source.',
         placeholder: 'uuid',
         optional: true,
       },
