@@ -142,16 +142,15 @@ levr push ./results.xml --source "backend-unit-tests" --run-name "nightly"
 
 **Flags:**
 
-| Flag                        | Alias | Description                                                                                |
-| --------------------------- | ----- | ------------------------------------------------------------------------------------------ |
-| `--team-id <uuid>`          | `-t`  | Team ID (optional; server resolves default if omitted. Or set `LEVR_TEAM_ID`)              |
-| `--source <name>`           | `-s`  | Automation source name — groups recurring imports and remembers team (auto-detected in CI) |
-| `--run-name <name>`         | `-r`  | Name for the test run                                                                      |
-| `--format <type>`           | `-f`  | File format: `junit`, `gherkin`, `cucumber-json`, `ctrf-json` (auto-detected if omitted)   |
-| `--parent-folder-id <uuid>` |       | Destination folder ID                                                                      |
-| `--create-run`              |       | Force run creation for structure-only imports                                              |
-| `--update-mode <mode>`      |       | `update` (default) or `create_new`                                                         |
-| `--verbose`                 | `-v`  | Show detailed output                                                                       |
+| Flag                         | Alias | Description                                                                                                  |
+| ---------------------------- | ----- | ------------------------------------------------------------------------------------------------------------ |
+| `--workspace-id <uuid>`      | `-w`  | Workspace ID (required for multi-workspace JWT auth)                                                         |
+| `--team-id <uuid>`           | `-t`  | Team ID (optional; server resolves default if omitted. Or set `LEVR_TEAM_ID`)                                |
+| `--source <name>`            | `-s`  | Automation source name — groups recurring imports and remembers team (auto-detected in CI). Required unless `--automation-source` is set |
+| `--automation-source <uuid>` | `-a`  | UUID of an existing automation source (never creates one). Used instead of `--source`. Or set `LEVR_AUTOMATION_SOURCE_ID` |
+| `--run-name <name>`          | `-r`  | Name for the test run                                                                                        |
+| `--format <type>`            | `-f`  | File format: `junit`, `gherkin`, `cucumber-json`, `ctrf-json` (auto-detected if omitted)                     |
+| `--verbose`                  | `-v`  | Show detailed output                                                                                         |
 
 ### Automation sources
 
@@ -352,6 +351,7 @@ All configuration is via environment variables. Flags take precedence.
 | `LEVR_MCP_URL`  | MCP server URL written by `levr mcp add` (derived from the API URL when unset)          | derived                |
 | `LEVR_TEAM_ID`  | Default team ID (optional; server resolves from automation source or workspace default) |                        |
 | `LEVR_SOURCE`   | Automation source name override (groups imports, remembers team)                        |                        |
+| `LEVR_AUTOMATION_SOURCE_ID` | UUID of an existing automation source; used instead of the source name (same as `--automation-source`) |            |
 
 ## Troubleshooting
 

@@ -45,4 +45,20 @@ describe('uploadImport request body', () => {
     expect(body.automation_source).toBe('backend-unit');
     expect(body.automation_source_id).toBeUndefined();
   });
+
+  // internal: ignored server-side since internal, so never sent.
+  it('never sends parent_folder_id or update_mode', async () => {
+    await uploadImport({
+      file,
+      fileName: 'r.xml',
+      automationSource: 'backend-unit',
+    });
+
+    const body = mockImportCreate.mock.calls[0]![0].body as Record<
+      string,
+      unknown
+    >;
+    expect(body).not.toHaveProperty('parent_folder_id');
+    expect(body).not.toHaveProperty('update_mode');
+  });
 });

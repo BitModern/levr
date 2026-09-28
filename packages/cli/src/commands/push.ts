@@ -78,23 +78,14 @@ Examples:
         brief: 'File format (auto-detected if omitted)',
         optional: true,
       },
-      'parent-folder-id': {
-        kind: 'parsed',
-        parse: String,
-        brief: 'Destination folder ID',
-        placeholder: 'uuid',
-        optional: true,
-      },
       // internal R3: --create-run dropped. Run creation is driven entirely by
       // file content (`parsed.hasResults`). The flag was a legacy escape
       // hatch with no real use case — manufacturing an empty Run row carries
       // no value.
-      'update-mode': {
-        kind: 'enum',
-        values: ['update', 'create_new'] as const,
-        default: 'update',
-        brief: 'How to handle existing tests',
-      },
+      // internal: --parent-folder-id and --update-mode dropped too. Neither
+      // had an effect since internal: automation results have no folder tree,
+      // and tests are namespaced by source (use another --source for a fresh
+      // set).
       verbose: {
         kind: 'boolean',
         default: false,

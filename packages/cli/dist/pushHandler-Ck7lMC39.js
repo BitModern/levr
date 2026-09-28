@@ -1,7 +1,7 @@
 import { getApiUrl, getAutomationSourceIdOverride, getSourceOverride, getTeamId } from "./env-CHeKHu5S.js";
-import { client, configureClient, uploadImport } from "./sdk-client-M5r7px3O.js";
+import { client, configureClient, uploadImport } from "./sdk-client-DHD7tgY0.js";
 import "./workspace-store-DDOxnut1.js";
-import { resolveWorkspace } from "./resolve-workspace-Lsb77Zgi.js";
+import { resolveWorkspace } from "./resolve-workspace-Ba9NuCRq.js";
 import "./token-refresh-Cu5RpkLJ.js";
 import { resolveToken } from "./resolve-token-DbQsmn03.js";
 import { readFileSync, statSync } from "node:fs";
@@ -429,7 +429,6 @@ async function pushHandler(flags, file) {
 		this.logger.debug(`Team: ${uploadTeamId ?? (automationSourceId ? "(automation source's team)" : "(server default)")}`);
 		this.logger.debug(`File: ${file} (${formatBytes(fileStat.size)})`);
 		if (flags.format) this.logger.debug(`Format: ${flags.format}`);
-		if (flags["update-mode"]) this.logger.debug(`Update mode: ${flags["update-mode"]}`);
 		if (automationSourceId) this.logger.debug(`Automation source: ${automationSourceId} (${automationSourceOrigin})`);
 		else if (sourceName) this.logger.debug(`Source: ${sourceName} (${sourceOrigin})`);
 		if (ciMeta) {
@@ -452,9 +451,7 @@ async function pushHandler(flags, file) {
 			file: new File([fileBuffer], fileName),
 			fileName,
 			format: flags.format,
-			parentFolderId: flags["parent-folder-id"],
 			runName: flags["run-name"],
-			updateMode: flags["update-mode"],
 			...automationSourceId ? { automationSourceId } : { automationSource: sourceName },
 			importMetadata: ciMeta
 		});

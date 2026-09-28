@@ -1,4 +1,4 @@
-import { authGetSitesV1 } from "./sdk-client-M5r7px3O.js";
+import { authGetSitesV1 } from "./sdk-client-DHD7tgY0.js";
 import { clearWorkspace, loadWorkspace, saveWorkspace } from "./workspace-store-DDOxnut1.js";
 
 //#region src/workspace/resolve-workspace.ts

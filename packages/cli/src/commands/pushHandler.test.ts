@@ -109,7 +109,7 @@ describe('pushHandler routing', () => {
   }
 
   function flags(extra: Partial<PushCommandFlags> = {}): PushCommandFlags {
-    return { 'update-mode': 'update', verbose: false, ...extra };
+    return { verbose: false, ...extra };
   }
 
   beforeEach(() => {

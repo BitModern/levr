@@ -192,15 +192,18 @@ CLI                                 Backender
 │     - file (Blob)                        │    │                                     │
 │     - team_id? (optional)                │    │  7b. Resolve team_id:                │
 │     - format? (auto-detect if omitted)   │    │      explicit > automation source >  │
-│                                          │    │      workspace default               │
-│                                          │    │                                     │
-│                                          │    │  8. Parse file (JUnit/Gherkin/      │
-│     - parent_folder_id?                  │    │     Cucumber JSON)                   │
-│     - run_name?                          │    │                                     │
-│     - update_mode                        │    │  9. Build import:                    │
-│     - automation_source (name) OR        │    │     - Create/match folders + tests   │
-│       automation_source_id (UUID)        │    │     - Create run + run_results       │
-│     - import_metadata? (JSON string)     │    │     - Link automation_source         │
+│     - run_name?                          │    │      workspace default               │
+│     - automation_source (name) OR        │    │                                      │
+│       automation_source_id (UUID)        │    │  8. Parse file (JUnit/Gherkin/       │
+│     - import_metadata? (JSON string)     │    │     Cucumber JSON, CTRF)             │
+│                                          │    │                                      │
+│                                          │    │  8b. Resolve source: by id (must     │
+│                                          │    │      exist), or find-or-create by    │
+│                                          │    │      name only AFTER the parse       │
+│                                          │    │                                      │
+│                                          │    │  9. Build import:                    │
+│                                          │    │     - Create/match suites + tests    │
+│                                          │    │     - Create run + run_results       │
 │                                          │    │     - Store import_metadata →        │
 │                                          │    │       run.source JSONB               │
 │                                          │    │                                     │

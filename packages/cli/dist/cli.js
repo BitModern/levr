@@ -213,7 +213,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-DS9P6oO_.js");
+		const { loginHandler } = await import("./loginHandler-CX2L4fjs.js");
 		return loginHandler;
 	}
 });
@@ -252,7 +252,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-CoVkm9zn.js");
+		const { statusHandler } = await import("./statusHandler-BvK4zSEf.js");
 		return statusHandler;
 	}
 });
@@ -339,19 +339,6 @@ Examples:
 				brief: "File format (auto-detected if omitted)",
 				optional: true
 			},
-			"parent-folder-id": {
-				kind: "parsed",
-				parse: String,
-				brief: "Destination folder ID",
-				placeholder: "uuid",
-				optional: true
-			},
-			"update-mode": {
-				kind: "enum",
-				values: ["update", "create_new"],
-				default: "update",
-				brief: "How to handle existing tests"
-			},
 			verbose: {
 				kind: "boolean",
 				default: false,
@@ -369,7 +356,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-BKHPXveG.js");
+		const { pushHandler } = await import("./pushHandler-Ck7lMC39.js");
 		return pushHandler;
 	}
 });
@@ -489,7 +476,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-r9ynjdNv.js");
+		const { importHandler } = await import("./importHandler-TVAFta_i.js");
 		return importHandler;
 	}
 });
@@ -510,7 +497,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-D15Qm_g3.js");
+		const { listHandler } = await import("./listHandler-AYN1KpE-.js");
 		return listHandler;
 	}
 });
@@ -543,7 +530,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-CPEvi2Zm.js");
+		const { selectHandler } = await import("./selectHandler-CzolM41G.js");
 		return selectHandler;
 	}
 });
@@ -629,14 +616,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-844a5HNE.js");
+		const { gatesRunHandler } = await import("./runHandler-COp3W6GN.js");
 		return gatesRunHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.9.30";
+var version = "0.10.0";
 
 //#endregion
 //#region src/app.ts

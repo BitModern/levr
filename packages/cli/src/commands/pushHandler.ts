@@ -160,9 +160,6 @@ export async function pushHandler(
     if (flags.format) {
       this.logger.debug(`Format: ${flags.format}`);
     }
-    if (flags['update-mode']) {
-      this.logger.debug(`Update mode: ${flags['update-mode']}`);
-    }
     if (automationSourceId) {
       this.logger.debug(
         `Automation source: ${automationSourceId} (${automationSourceOrigin})`,
@@ -202,9 +199,7 @@ export async function pushHandler(
       file: fileObj,
       fileName,
       format: flags.format,
-      parentFolderId: flags['parent-folder-id'],
       runName: flags['run-name'],
-      updateMode: flags['update-mode'],
       ...(automationSourceId
         ? { automationSourceId }
         : { automationSource: sourceName }),

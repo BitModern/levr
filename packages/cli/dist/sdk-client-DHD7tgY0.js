@@ -15124,9 +15124,7 @@ const zImportCreateV1Body = z.object({
 		"cucumber-json",
 		"ctrf-json"
 	]).optional().describe(""),
-	parent_folder_id: z.string().optional().describe(""),
 	run_name: z.string().max(250).optional().describe(""),
-	update_mode: z.enum(["update", "create_new"]).optional().describe(""),
 	automation_source: z.string().max(100).optional().describe(""),
 	automation_source_id: z.string().optional().describe(""),
 	import_metadata: z.string().optional().describe("")
@@ -27787,9 +27785,6 @@ const zOpenStreamingRunDto = z.object({
 	team_id: z.string().optional().describe(""),
 	automation_source: z.string().max(100).describe(""),
 	run_name: z.string().max(250).optional().describe(""),
-	parent_folder_id: z.string().optional().describe(""),
-	parent_folder_name: z.string().max(250).optional().describe(""),
-	update_mode: z.enum(["update", "create_new"]).optional().describe(""),
 	metadata: z.record(z.string(), z.unknown()).optional().describe("")
 });
 const zStreamingRunResponseDto = z.object({
@@ -32035,9 +32030,7 @@ async function uploadImport(options) {
 			file: options.file,
 			team_id: options.teamId,
 			format: options.format,
-			parent_folder_id: options.parentFolderId,
 			run_name: options.runName,
-			update_mode: options.updateMode,
 			automation_source: options.automationSource,
 			automation_source_id: options.automationSourceId,
 			import_metadata: options.importMetadata ? JSON.stringify(options.importMetadata) : void 0

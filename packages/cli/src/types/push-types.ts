@@ -14,7 +14,5 @@ export interface PushCommandFlags {
   'automation-source'?: string;
   'run-name'?: string;
   format?: 'junit' | 'gherkin' | 'cucumber-json' | 'ctrf-json';
-  'parent-folder-id'?: string;
-  'update-mode': 'update' | 'create_new';
   verbose: boolean;
 }

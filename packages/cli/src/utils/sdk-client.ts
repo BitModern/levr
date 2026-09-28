@@ -52,11 +52,10 @@ export interface ImportOptions {
   file: Blob;
   fileName: string;
   format?: 'junit' | 'gherkin' | 'cucumber-json' | 'ctrf-json';
-  parentFolderId?: string;
   runName?: string;
   // internal R3: createRun option removed. Run creation is driven by the
-  // parsed file's `hasResults` shape, not by a caller flag.
-  updateMode?: 'update' | 'create_new';
+  // parsed file's `hasResults` shape, not by a caller flag. internal:
+  // parentFolderId / updateMode removed — ignored server-side since internal.
   /** Source name (find-or-create). Mutually exclusive with automationSourceId. */
   automationSource?: string;
   /** UUID of an existing source (internal). Mutually exclusive with automationSource. */
@@ -78,9 +77,7 @@ export async function uploadImport(options: ImportOptions) {
       file: options.file,
       team_id: options.teamId,
       format: options.format,
-      parent_folder_id: options.parentFolderId,
       run_name: options.runName,
-      update_mode: options.updateMode,
       automation_source: options.automationSource,
       automation_source_id: options.automationSourceId,
       import_metadata: options.importMetadata
