@@ -175,7 +175,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-D6OI7Mx7.js");
+		const { mcpAddHandler } = await import("./addHandler-uD4hQvb7.js");
 		return mcpAddHandler;
 	}
 });
@@ -213,7 +213,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-C2Ax94AS.js");
+		const { loginHandler } = await import("./loginHandler-DS9P6oO_.js");
 		return loginHandler;
 	}
 });
@@ -252,7 +252,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-BuAkYg-T.js");
+		const { statusHandler } = await import("./statusHandler-CoVkm9zn.js");
 		return statusHandler;
 	}
 });
@@ -369,7 +369,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-DEuoXQXJ.js");
+		const { pushHandler } = await import("./pushHandler-BKHPXveG.js");
 		return pushHandler;
 	}
 });
@@ -489,7 +489,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-B42PBtOB.js");
+		const { importHandler } = await import("./importHandler-r9ynjdNv.js");
 		return importHandler;
 	}
 });
@@ -510,7 +510,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-DmG_OvBC.js");
+		const { listHandler } = await import("./listHandler-D15Qm_g3.js");
 		return listHandler;
 	}
 });
@@ -543,7 +543,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-DmpxYqaN.js");
+		const { selectHandler } = await import("./selectHandler-CPEvi2Zm.js");
 		return selectHandler;
 	}
 });
@@ -560,14 +560,83 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-CHydiFui.js");
+		const { currentHandler } = await import("./currentHandler-BBHqC26D.js");
 		return currentHandler;
 	}
 });
 
 //#endregion
+//#region src/commands/gates/run.ts
+const gatesRunCommand = buildCommand({
+	docs: {
+		brief: "Run a deliverable's gate commands and report the raw results",
+		fullDescription: `Verify a deliverable's gates, run every local command EXACTLY as the
+server returned it (/bin/bash -c, from the current directory — run it from the
+repo root), and report the raw exit code and output tails so the server can
+derive each verdict.
+
+Each command is printed before it runs; use --dry-run to read them first. The
+server validates every local command before handing it out: a command that
+fails its check comes back as a verification error, never as a command to run.
+
+Guided gates are listed, not run: perform them and report what you observed
+with report_gate_results step_results[].
+
+Exit code 0 when every gate passes after the report, 1 otherwise.
+
+Examples:
+  levr gates run ENG-50
+  levr gates run ENG-50 --dry-run      # list the commands; run and report nothing
+  levr gates run <issue-uuid> --json`
+	},
+	parameters: {
+		positional: {
+			kind: "tuple",
+			parameters: [{
+				parse: String,
+				brief: "Deliverable issue identifier (ENG-50) or UUID",
+				placeholder: "issue",
+				optional: false
+			}]
+		},
+		flags: {
+			"workspace-id": {
+				kind: "parsed",
+				parse: String,
+				brief: "Workspace ID (required for multi-workspace JWT auth)",
+				placeholder: "uuid",
+				optional: true
+			},
+			"dry-run": {
+				kind: "boolean",
+				default: false,
+				brief: "List the commands and the report entries they would produce; run nothing"
+			},
+			json: {
+				kind: "boolean",
+				default: false,
+				brief: "Print machine-readable JSON"
+			},
+			verbose: {
+				kind: "boolean",
+				default: false,
+				brief: "Show detailed output"
+			}
+		},
+		aliases: {
+			w: "workspace-id",
+			v: "verbose"
+		}
+	},
+	loader: async () => {
+		const { gatesRunHandler } = await import("./runHandler-844a5HNE.js");
+		return gatesRunHandler;
+	}
+});
+
+//#endregion
 //#region package.json
-var version = "0.9.29";
+var version = "0.9.30";
 
 //#endregion
 //#region src/app.ts
@@ -587,6 +656,10 @@ const workspaceRoutes = buildRouteMap({
 	},
 	docs: { brief: "Manage workspace selection" }
 });
+const gatesRoutes = buildRouteMap({
+	routes: { run: gatesRunCommand },
+	docs: { brief: "Run a deliverable's gates and report the raw results" }
+});
 const routes = buildRouteMap({
 	routes: {
 		mcp: buildRouteMap({
@@ -595,6 +668,7 @@ const routes = buildRouteMap({
 		}),
 		auth: authRoutes,
 		workspace: workspaceRoutes,
+		gates: gatesRoutes,
 		push: pushCommand,
 		import: importCommand,
 		completion: completionCommand

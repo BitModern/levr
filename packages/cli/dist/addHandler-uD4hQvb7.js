@@ -2,9 +2,9 @@ import { getApiUrl } from "./env-CHeKHu5S.js";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
+import { execFileSync } from "node:child_process";
 import { applyEdits, modify, parse, printParseErrorCode } from "jsonc-parser";
 import { TomlError, parse as parse$1 } from "smol-toml";
-import { execFileSync } from "node:child_process";
 
 //#region ../mcp-harnesses/dist/format/toml-render.js
 /**

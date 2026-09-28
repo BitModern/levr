@@ -103,11 +103,11 @@ const zResponseLabelDto = z.object({
 	archived_by: z.string().nullable().describe("")
 });
 const zUpdateProfileDto = z.object({
-	profileName: z.string().optional(),
+	profileName: z.string().max(250).optional(),
 	providerType: z.number().optional(),
-	apiKey: z.string().optional(),
-	baseUrl: z.string().nullable().optional(),
-	modelName: z.string().optional(),
+	apiKey: z.string().max(1024).optional(),
+	baseUrl: z.string().max(1024).nullable().optional(),
+	modelName: z.string().max(1024).optional(),
 	temperature: z.number().nullable().optional()
 });
 const zSuccessResponseDto = z.object({ success: z.boolean() });
@@ -554,8 +554,8 @@ const zA2aMessageBulkOperationV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/admin-member-profile/zod.js
 const zUpdateMemberProfileDto = z.object({
-	name: z.string().nullable().optional(),
-	username: z.string().nullable().optional()
+	name: z.string().max(256).nullable().optional(),
+	username: z.string().max(39).nullable().optional()
 });
 const zAdminMemberProfileUpdateMemberProfileV1Data = z.object({
 	body: zUpdateMemberProfileDto,
@@ -2640,7 +2640,7 @@ const zSitesResponseDto = z.object({
 	current_workspace_id: z.string().describe("")
 });
 const zSwitchWorkspaceDto = z.object({ workspace_id: z.string() });
-const zCreateWorkspaceDto = z.object({ name: z.string() });
+const zCreateWorkspaceDto = z.object({ name: z.string().max(100) });
 const zAuthLoginV1Data = z.object({
 	body: zLoginDto,
 	url: z.literal("/v1/auth/login")
@@ -2664,8 +2664,8 @@ const zAuthCreateAdditionalWorkspaceV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/autocomplete/zod.js
 const zAutocompleteRequestDto = z.object({
-	prefix: z.string(),
-	suffix: z.string().optional(),
+	prefix: z.string().max(1e4),
+	suffix: z.string().max(1e4).optional(),
 	context: z.object({
 		files: z.array(z.string()).optional(),
 		threadId: z.string().optional(),
@@ -5612,14 +5612,14 @@ const zChatRestoreV1Data = z.object({
 //#region ../sdk/dist/gen/ci-build-event/zod.js
 const zCIBuildEventDto = z.object({
 	workspace_id: z.string(),
-	event_type: z.string(),
-	status: z.string(),
-	branch: z.string().optional(),
-	commit_sha: z.string().optional(),
+	event_type: z.string().max(30),
+	status: z.string().max(20),
+	branch: z.string().max(100).optional(),
+	commit_sha: z.string().max(40).optional(),
 	error_count: z.number().optional(),
 	duration_ms: z.number().optional(),
-	output: z.string().optional(),
-	triggered_by: z.string().optional(),
+	output: z.string().max(1e4).optional(),
+	triggered_by: z.string().max(50).optional(),
 	project_id: z.string().optional()
 });
 const zCIBuildEventResponseDto = z.object({
@@ -6527,7 +6527,7 @@ const zClaudeFileChangeBulkOperationV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/claude-hooks/zod.js
 const zCaptureDto = z.object({
-	session_id: z.string(),
+	session_id: z.string().max(100),
 	hook_type: z.enum([
 		"UserPromptSubmit",
 		"PreToolUse",
@@ -6536,7 +6536,7 @@ const zCaptureDto = z.object({
 	]),
 	prompt: z.string().optional(),
 	response: z.string().optional(),
-	tool_name: z.string().optional(),
+	tool_name: z.string().max(100).optional(),
 	tool_input: z.record(z.string(), z.unknown()).optional(),
 	tool_output: z.string().optional(),
 	input_tokens: z.number().optional(),
@@ -6544,19 +6544,19 @@ const zCaptureDto = z.object({
 	cache_creation_tokens: z.number().optional(),
 	cache_read_tokens: z.number().optional(),
 	raw_payload: z.record(z.string(), z.unknown()).optional(),
-	redirect_type: z.string().optional(),
-	error_type: z.string().optional()
+	redirect_type: z.string().max(50).optional(),
+	error_type: z.string().max(50).optional()
 });
 const zCheckToolDto = z.object({
-	session_id: z.string(),
-	tool_name: z.string()
+	session_id: z.string().max(100),
+	tool_name: z.string().max(100)
 });
 const zResolveCheckpointDto = z.object({
-	session_id: z.string(),
-	checkpoint_id: z.string()
+	session_id: z.string().max(100),
+	checkpoint_id: z.string().max(200)
 });
 const zCreateHookInjectionDto = z.object({
-	session_id: z.string().optional(),
+	session_id: z.string().max(100).optional(),
 	content: z.string(),
 	mode: z.enum([
 		"one_time",
@@ -6569,7 +6569,7 @@ const zCreateHookInjectionDto = z.object({
 });
 const zMarkUsedDto = z.object({ id: z.number() });
 const zRespondDto = z.object({
-	session_id: z.string(),
+	session_id: z.string().max(100),
 	content: z.string(),
 	priority: z.number().optional()
 });
@@ -11073,28 +11073,28 @@ const zEnvironmentNodeDto = z.object({
 	epoch: z.number().describe("")
 });
 const zCreateEnvironmentDto = z.object({
-	name: z.string(),
-	description: z.string().optional(),
-	location: z.string().optional(),
+	name: z.string().max(250),
+	description: z.string().max(65535).optional(),
+	location: z.string().max(250).optional(),
 	all_projects: z.boolean().optional(),
 	resources: z.array(z.object({
-		resource: z.string().describe(""),
-		value: z.string().describe("")
+		resource: z.string().max(250).describe(""),
+		value: z.string().max(4096).describe("")
 	})).optional(),
 	exploration_ids: z.array(z.string()).optional()
 });
 const zUpdateEnvironmentDto = z.object({
-	name: z.string().optional(),
-	description: z.string().nullable(),
-	location: z.string().nullable(),
+	name: z.string().max(250).optional(),
+	description: z.string().max(65535).nullable(),
+	location: z.string().max(250).nullable(),
 	all_projects: z.boolean().optional(),
 	add_resources: z.array(z.object({
-		resource: z.string().describe(""),
-		value: z.string().describe("")
+		resource: z.string().max(250).describe(""),
+		value: z.string().max(4096).describe("")
 	})).optional(),
 	remove_resources: z.array(z.object({
-		resource: z.string().describe(""),
-		value: z.string().describe("")
+		resource: z.string().max(250).describe(""),
+		value: z.string().max(4096).describe("")
 	})).optional(),
 	add_exploration_ids: z.array(z.string()).optional(),
 	remove_exploration_ids: z.array(z.string()).optional()
@@ -11258,7 +11258,7 @@ const zExplorationNodeDto = z.object({
 	}).optional()
 });
 const zCreateExplorationDto = z.object({
-	name: z.string(),
+	name: z.string().max(250),
 	mission: z.string().nullable(),
 	status_id: z.string().nullable(),
 	team_id: z.string().nullable(),
@@ -11266,7 +11266,7 @@ const zCreateExplorationDto = z.object({
 	virtual: z.unknown().optional()
 });
 const zUpdateExplorationDto = z.object({
-	name: z.string().optional(),
+	name: z.string().max(250).optional(),
 	mission: z.string().nullable(),
 	status_id: z.string().nullable(),
 	is_complete: z.boolean().optional(),
@@ -11393,7 +11393,7 @@ const zCreateExplorationItemDto = z.object({
 	exploration_id: z.string().optional(),
 	result: z.string().nullable(),
 	body_md: z.string().nullable(),
-	note_type: z.string().nullable(),
+	note_type: z.string().max(50).nullable(),
 	severity: z.number().nullable(),
 	elapsed: z.number().nullable(),
 	status_id: z.string().nullable(),
@@ -11403,7 +11403,7 @@ const zCreateExplorationItemDto = z.object({
 const zUpdateExplorationItemDto = z.object({
 	result: z.string().nullable(),
 	body_md: z.string().nullable(),
-	note_type: z.string().nullable(),
+	note_type: z.string().max(50).nullable(),
 	severity: z.number().nullable(),
 	elapsed: z.number().nullable(),
 	status_id: z.string().nullable(),
@@ -11436,7 +11436,7 @@ const zGenerateIssueDraftResponseDto = z.object({
 	priority: z.number()
 });
 const zPromoteItemToTestDto = z.object({
-	name: z.string().optional().describe(""),
+	name: z.string().max(500).optional().describe(""),
 	automation_type: z.enum([
 		"manual",
 		"check",
@@ -11452,7 +11452,7 @@ const zPromoteItemToTestDto = z.object({
 	})).optional().describe("")
 });
 const zPromoteItemToIssueDto = z.object({
-	title: z.string().optional().describe(""),
+	title: z.string().max(500).optional().describe(""),
 	description: z.string().optional().describe(""),
 	priority: z.number().optional().describe(""),
 	severity: z.number().optional().describe(""),
@@ -13178,25 +13178,25 @@ const zBulkFolderOperationDto = z.object({
 	]).describe(""),
 	id: z.string().optional().describe(""),
 	data: z.union([z.object({
-		name: z.string(),
+		name: z.string().max(250),
 		description: z.string().optional(),
 		virtual: z.unknown().optional(),
 		assignee_id: z.string().optional(),
 		parent_id: z.string().nullable().optional(),
 		sequence: z.string().optional(),
-		labels: z.array(z.string()).optional(),
+		labels: z.array(z.string().max(80)).optional(),
 		origin: z.enum(["authored", "automation"]).optional(),
 		entity_type: z.enum(["test", "run"]).optional(),
 		is_root: z.unknown().optional().describe("")
 	}), z.object({
-		name: z.string().optional(),
+		name: z.string().max(250).optional(),
 		description: z.string().optional(),
 		virtual: z.unknown().optional(),
 		assignee_id: z.string().optional(),
 		parent_id: z.string().nullable().optional(),
 		sequence: z.string().optional(),
-		add_labels: z.array(z.string()).optional(),
-		remove_labels: z.array(z.string()).optional(),
+		add_labels: z.array(z.string().max(80)).optional(),
+		remove_labels: z.array(z.string().max(80)).optional(),
 		is_root: z.unknown().optional().describe("")
 	})]).optional().describe(""),
 	tx_id: z.string().describe("")
@@ -13233,26 +13233,26 @@ const zBulkFolderResponseDto = z.object({
 	})
 });
 const zCreateFolderDto = z.object({
-	name: z.string(),
+	name: z.string().max(250),
 	description: z.string().optional(),
 	virtual: z.unknown().optional(),
 	assignee_id: z.string().optional(),
 	parent_id: z.string().nullable().optional(),
 	sequence: z.string().optional(),
-	labels: z.array(z.string()).optional(),
+	labels: z.array(z.string().max(80)).optional(),
 	origin: z.enum(["authored", "automation"]).optional(),
 	entity_type: z.enum(["test", "run"]).optional(),
 	is_root: z.unknown().optional().describe("")
 });
 const zUpdateFolderDto = z.object({
-	name: z.string().optional(),
+	name: z.string().max(250).optional(),
 	description: z.string().optional(),
 	virtual: z.unknown().optional(),
 	assignee_id: z.string().optional(),
 	parent_id: z.string().nullable().optional(),
 	sequence: z.string().optional(),
-	add_labels: z.array(z.string()).optional(),
-	remove_labels: z.array(z.string()).optional(),
+	add_labels: z.array(z.string().max(80)).optional(),
+	remove_labels: z.array(z.string().max(80)).optional(),
 	is_root: z.unknown().optional().describe("")
 });
 const zFolderFindAllV1Data = z.object({
@@ -15060,9 +15060,9 @@ const zHealthMemoryDiagnosticsData = z.object({ url: z.literal("/health/memory")
 //#region ../sdk/dist/gen/help/zod.js
 const zHelpSearchV1Data = z.object({
 	query: z.object({
-		"q": z.string(),
+		"q": z.string().max(200),
 		"limit": z.number().optional(),
-		"category": z.string().optional(),
+		"category": z.string().max(100).optional(),
 		"mode": z.enum([
 			"hybrid",
 			"semantic",
@@ -15125,9 +15125,9 @@ const zImportCreateV1Body = z.object({
 		"ctrf-json"
 	]).optional().describe(""),
 	parent_folder_id: z.string().optional().describe(""),
-	run_name: z.string().optional().describe(""),
+	run_name: z.string().max(250).optional().describe(""),
 	update_mode: z.enum(["update", "create_new"]).optional().describe(""),
-	automation_source: z.string().optional().describe(""),
+	automation_source: z.string().max(100).optional().describe(""),
 	automation_source_id: z.string().optional().describe(""),
 	import_metadata: z.string().optional().describe("")
 });
@@ -15629,6 +15629,22 @@ const zIntegrationTokenGetStatusV1Data = z.object({ url: z.literal("/v1/integrat
 const zIntegrationTokenDisconnectGithubV1Data = z.object({ url: z.literal("/v1/integrations/github") });
 const zIntegrationTokenDisconnectGithubUserV1Data = z.object({ url: z.literal("/v1/integrations/github/disconnect_user") });
 const zIntegrationTokenIssueConnectIntentV1Data = z.object({ url: z.literal("/v1/integrations/github/connect-intent") });
+
+//#endregion
+//#region ../sdk/dist/gen/issue/functions.js
+/**
+* Retrieve a paginated list of issues with optional filtering, sorting, and searching capabilities.
+*/
+const issueFindAllV1 = (options) => {
+	return (options?.client ?? client).get({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/issue",
+		...options
+	});
+};
 
 //#endregion
 //#region ../sdk/dist/gen/issue/zod.js
@@ -16169,7 +16185,7 @@ const zIssueAutomationTestEvidenceBulkOperationV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/issue-deduplicate/zod.js
 const zMergeIntoDto = z.object({ patch: z.object({
-	title: z.string().optional(),
+	title: z.string().max(500).optional(),
 	description: z.string().nullable().optional(),
 	priority: z.number().optional(),
 	due_date: z.string().nullable().optional(),
@@ -16211,6 +16227,35 @@ const zIssueDeduplicateDuplicateVerdictV1Data = z.object({
 const zIssueExportExportIssueV1Data = z.object({ url: z.literal("/v1/issue/export") });
 
 //#endregion
+//#region ../sdk/dist/gen/issue-gate-verification/functions.js
+/**
+* Split execution model: API gates run server-side, shell gates are returned as local_commands for the caller to execute locally and report back via POST /v1/issue/:id/gate-results.
+*/
+const issueGateVerificationVerifyGatesV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/issue/{id}/verify-gates",
+		...options
+	});
+};
+/**
+* After executing local_commands from verify-gates, report results here. Updates gate_instance records, creates gate_result audit trail, and posts verification summary comment to the issue. Report RAW per-step facts in `steps` (exit code, stdout/stderr tails); the server derives the verdict from them. `levr gates run <issue>` does verify → run → report for you.
+*/
+const issueGateVerificationReportGateResultsV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/issue/{id}/gate-results",
+		...options
+	});
+};
+
+//#endregion
 //#region ../sdk/dist/gen/issue-gate-verification/zod.js
 const zIssueGateVerificationBatchVerifyGatesV1Body = z.object({
 	issue_ids: z.array(z.string()),
@@ -16249,7 +16294,7 @@ const zIssueGateVerificationDeployGatesV1Body = z.object({
 	tests_by_deliverable: z.record(z.string(), z.array(z.object({
 		name: z.string(),
 		required: z.boolean().optional().describe(""),
-		advisory_reason: z.string().optional().describe(""),
+		advisory_reason: z.string().max(2e3).optional().describe(""),
 		data: z.record(z.string(), z.unknown()).optional()
 	}))).describe(""),
 	link_template: z.record(z.string(), z.string()),
@@ -16257,7 +16302,8 @@ const zIssueGateVerificationDeployGatesV1Body = z.object({
 	replace_existing: z.boolean().optional(),
 	rename_reused: z.boolean().optional(),
 	test_origin: z.string().optional(),
-	validate: z.boolean().optional()
+	validate: z.boolean().optional(),
+	change_reason: z.string().max(2e3).optional().describe("")
 });
 const zIssueGateVerificationGateStatusV1Data = z.object({
 	path: z.object({ "id": z.string() }),
@@ -17214,7 +17260,7 @@ const zTransitionIssueDto = z.object({
 	verification_override: z.array(z.object({
 		link_id: z.string(),
 		kind: z.enum(["override", "not_applicable"]),
-		reason: z.string()
+		reason: z.string().max(2e3)
 	})).optional().describe(""),
 	batch_scope: z.array(z.string()).optional().describe("")
 });
@@ -17661,7 +17707,7 @@ const zJiraRefreshProjectsV1Data = z.object({
 const zJiraSearchCatalogueV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	query: z.object({
-		"query": z.string().optional(),
+		"query": z.string().max(250).optional(),
 		"page": z.number().optional(),
 		"limit": z.number().optional()
 	}).optional(),
@@ -19419,7 +19465,7 @@ const zLabelAssignedTestBulkOperationV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/layer0/zod.js
 const zStartLayer0RunDto = z.object({ topic_id: z.string().describe("") });
-const zPlanTopicDto = z.object({ questions: z.array(z.string()).describe("") });
+const zPlanTopicDto = z.object({ questions: z.array(z.string().max(2e3)).describe("") });
 const zQueryCorpusDto = z.object({
 	query: z.string().describe(""),
 	query_type: z.enum([
@@ -19495,7 +19541,7 @@ const zRecordCaptureDto = z.object({
 	confidence_source: z.number().optional().describe(""),
 	recency: z.string().optional().describe(""),
 	provenance_chain: z.string().optional().describe(""),
-	title: z.string().optional().describe("")
+	title: z.string().max(500).optional().describe("")
 });
 const zAcknowledgeDimensionDto = z.object({
 	capture_ids: z.array(z.string()).optional().describe(""),
@@ -20619,7 +20665,7 @@ const zPasswordResetCompleteResetV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/pat/zod.js
 const zCreatePatDto = z.object({
-	name: z.string(),
+	name: z.string().max(250),
 	expires_in_days: z.number().optional().describe("")
 });
 const zPatCreatedResponseDto = z.object({
@@ -21432,11 +21478,11 @@ const zProductPlanFindOneV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/profile/zod.js
 const zCreateProfileDto = z.object({
-	profileName: z.string(),
+	profileName: z.string().max(250),
 	providerType: z.number(),
-	apiKey: z.string(),
-	baseUrl: z.string().optional(),
-	modelName: z.string(),
+	apiKey: z.string().max(1024),
+	baseUrl: z.string().max(1024).optional(),
+	modelName: z.string().max(1024),
 	temperature: z.number().optional()
 });
 const zCreateProfileResponseDto = z.object({
@@ -22926,19 +22972,19 @@ const zInternalRcaConfigBulkOperationV1Data = z.object({
 //#region ../sdk/dist/gen/qinetic-signal/zod.js
 const zQSignalDto = z.object({
 	workspace_id: z.string(),
-	signal_type: z.string(),
+	signal_type: z.string().max(50),
 	severity: z.enum([
 		"critical",
 		"high",
 		"medium",
 		"low"
 	]),
-	source: z.string(),
-	message: z.string(),
+	source: z.string().max(100),
+	message: z.string().max(1e3),
 	context: z.record(z.string(), z.unknown()).optional(),
-	fingerprint: z.string().optional(),
-	commit_sha: z.string().optional(),
-	branch: z.string().optional(),
+	fingerprint: z.string().max(64).optional(),
+	commit_sha: z.string().max(40).optional(),
+	branch: z.string().max(100).optional(),
 	project_id: z.string().optional()
 });
 const zQSignalResponseDto = z.object({
@@ -24514,14 +24560,14 @@ const zCreateRunDto = z.object({
 	test_scope_id: z.string().nullable(),
 	cycle_id: z.string().nullable(),
 	auto_add_tests_to_team: z.boolean().optional(),
-	name: z.string().optional(),
+	name: z.string().max(250).optional(),
 	triggered_by: z.enum([
 		"user",
 		"ci",
 		"schedule",
 		"pr"
 	]).optional(),
-	host_name: z.string().nullable(),
+	host_name: z.string().max(250).nullable(),
 	environment_ids: z.array(z.string()).optional(),
 	test_inclusions: z.array(z.object({
 		test_id: z.string(),
@@ -24529,19 +24575,19 @@ const zCreateRunDto = z.object({
 		required: z.boolean().optional()
 	})).optional(),
 	folder_id: z.string().nullable(),
-	sequence: z.string().optional(),
+	sequence: z.string().max(255).optional(),
 	required: z.enum(["all", "none"]).optional(),
 	required_test_ids: z.array(z.string()).optional(),
 	not_required_test_ids: z.array(z.string()).optional()
 });
 const zUpdateRunDto = z.object({
-	name: z.string().optional(),
-	host_name: z.string().nullable(),
+	name: z.string().max(250).optional(),
+	host_name: z.string().max(250).nullable(),
 	is_complete: z.boolean().optional(),
 	project_id: z.string().nullable(),
 	cycle_id: z.string().nullable(),
 	folder_id: z.string().nullable().optional(),
-	sequence: z.string().optional(),
+	sequence: z.string().max(255).optional(),
 	parent_run_id: z.unknown().optional()
 });
 const zRunWithContentDto = z.object({
@@ -24794,8 +24840,8 @@ const zRefreshFolderResultDto = z.object({
 	unchanged: z.number()
 });
 const zCloneRunDto = z.object({
-	name: z.string(),
-	note: z.string().optional(),
+	name: z.string().max(250),
+	note: z.string().max(250).optional(),
 	scope_mode: z.enum(["snapshot", "rescope"])
 });
 const zBulkRunOperationDto = z.object({
@@ -25758,7 +25804,7 @@ const zSchemaBrowserClearErdPositionsV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/search/zod.js
 const zSemanticSearchDto = z.object({
-	query: z.string(),
+	query: z.string().max(2e3),
 	workspace_id: z.string(),
 	entity_type: z.enum([
 		"issue",
@@ -25796,7 +25842,7 @@ const zSearchSemanticSearchV1Data = z.object({
 });
 const zSearchFindUserV1Data = z.object({
 	query: z.object({
-		"query": z.string(),
+		"query": z.string().max(200),
 		"team_id": z.string().optional(),
 		"include_inactive": z.boolean().optional()
 	}).optional(),
@@ -27739,10 +27785,10 @@ const zOmittedHandleQueryV1Data = z.object({ url: z.literal("/v1/cde/steward/que
 const zOpenStreamingRunDto = z.object({
 	id: z.string().optional().describe(""),
 	team_id: z.string().optional().describe(""),
-	automation_source: z.string().describe(""),
-	run_name: z.string().optional().describe(""),
+	automation_source: z.string().max(100).describe(""),
+	run_name: z.string().max(250).optional().describe(""),
 	parent_folder_id: z.string().optional().describe(""),
-	parent_folder_name: z.string().optional().describe(""),
+	parent_folder_name: z.string().max(250).optional().describe(""),
 	update_mode: z.enum(["update", "create_new"]).optional().describe(""),
 	metadata: z.record(z.string(), z.unknown()).optional().describe("")
 });
@@ -28369,7 +28415,7 @@ const zCreateTestDto = z.object({
 	labels: z.array(z.string()).optional()
 });
 const zUpdateTestDto = z.object({
-	name: z.string().optional(),
+	name: z.string().max(250).optional(),
 	automation_status: z.enum([
 		"not_automated",
 		"to_automate",
@@ -28449,8 +28495,8 @@ const zUpdateTestDto = z.object({
 		link_to_id: z.string().optional(),
 		unlink: z.boolean().optional()
 	}).optional(),
-	add_labels: z.array(z.string()).optional(),
-	remove_labels: z.array(z.string()).optional()
+	add_labels: z.array(z.string().max(80)).optional(),
+	remove_labels: z.array(z.string().max(80)).optional()
 });
 const zTestBulkOperationDto = z.object({
 	op: z.enum([
@@ -28773,9 +28819,9 @@ const zPreviewImportResponseDto = z.object({
 			"boolean",
 			"unknown"
 		]).optional(),
-		labelPrefix: z.string().optional().describe(""),
-		descriptionHeading: z.string().optional().describe(""),
-		teamQualifier: z.string().optional().describe(""),
+		labelPrefix: z.string().max(60).optional().describe(""),
+		descriptionHeading: z.string().max(80).optional().describe(""),
+		teamQualifier: z.string().max(80).optional().describe(""),
 		team_id: z.string().optional().describe("")
 	})),
 	missing_required: z.array(z.string()),
@@ -28890,9 +28936,9 @@ const zCommitImportDto = z.object({
 			"boolean",
 			"unknown"
 		]).optional(),
-		labelPrefix: z.string().optional().describe(""),
-		descriptionHeading: z.string().optional().describe(""),
-		teamQualifier: z.string().optional().describe(""),
+		labelPrefix: z.string().max(60).optional().describe(""),
+		descriptionHeading: z.string().max(80).optional().describe(""),
+		teamQualifier: z.string().max(80).optional().describe(""),
 		team_id: z.string().optional().describe("")
 	})).optional().describe(""),
 	assignee_plan: z.object({
@@ -29775,12 +29821,12 @@ const zCaptureEventDto = z.object({
 	}).optional().describe(""),
 	raw_payload: z.record(z.string(), z.unknown()).optional().describe(""),
 	duration_ms: z.number().optional().describe(""),
-	agent_key: z.string().optional().describe(""),
-	agent_id: z.string().optional().describe(""),
-	parent_session_id: z.string().optional().describe(""),
+	agent_key: z.string().max(100).optional().describe(""),
+	agent_id: z.string().max(100).optional().describe(""),
+	parent_session_id: z.string().max(100).optional().describe(""),
 	is_sub_agent: z.boolean().optional().describe(""),
-	model_name: z.string().optional().describe(""),
-	issue_identifier: z.string().optional().describe("")
+	model_name: z.string().max(100).optional().describe(""),
+	issue_identifier: z.string().max(50).optional().describe("")
 });
 const zCaptureResultDto = z.object({
 	capture_id: z.string().describe(""),
@@ -30666,14 +30712,14 @@ const zUserPreferenceRestoreV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/verify/zod.js
 const zVerifyDigestRequestDto = z.object({
-	entity: z.string().describe(""),
+	entity: z.string().max(100).describe(""),
 	level: z.union([z.number(), z.number()]).optional().describe(""),
 	due_reason: z.enum([
 		"interval",
 		"dirty",
 		"never_stamped"
 	]).optional().describe(""),
-	pass_id: z.string().optional().describe("")
+	pass_id: z.string().max(64).optional().describe("")
 });
 const zFoldedDigestDto = z.object({
 	n: z.number().describe(""),
@@ -30695,9 +30741,9 @@ const zVerifyDigestResponseDto = z.object({
 	cached: z.boolean().describe("")
 });
 const zVerifyBucketRowsRequestDto = z.object({
-	entity: z.string().describe(""),
+	entity: z.string().max(100).describe(""),
 	buckets: z.array(z.string()).describe(""),
-	after: z.string().optional().describe(""),
+	after: z.string().max(64).optional().describe(""),
 	limit: z.number().optional().describe("")
 });
 const zRowRefDto = z.object({
@@ -30709,7 +30755,7 @@ const zVerifyBucketRowsResponseDto = z.object({
 	next: z.string().nullable().describe("")
 });
 const zVerifyRowsRequestDto = z.object({
-	entity: z.string().describe(""),
+	entity: z.string().max(100).describe(""),
 	ids: z.array(z.string()).describe("")
 });
 const zVerifyRowsResponseDto = z.object({
@@ -31550,9 +31596,9 @@ const zWorkspaceDataGetDataV1Data = z.object({ url: z.literal("/v1/workspace-dat
 //#endregion
 //#region ../sdk/dist/gen/workspace-description/zod.js
 const zSuggestDescriptionRequestDto = z.object({
-	workspace_name: z.string(),
-	company_name: z.string().optional(),
-	company_url: z.string().optional(),
+	workspace_name: z.string().max(250),
+	company_name: z.string().max(250).optional(),
+	company_url: z.string().max(250).optional(),
 	existing_descriptions: z.array(z.string()).optional()
 });
 const zSuggestDescriptionResponseDto = z.object({ suggestion: z.string().nullable() });
@@ -32019,4 +32065,4 @@ function tryReadMessage(err) {
 }
 
 //#endregion
-export { authGetProfileV1, authGetSitesV1, client, configureClient, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1, uploadImport };
+export { authGetProfileV1, authGetSitesV1, client, configureClient, issueFindAllV1, issueGateVerificationReportGateResultsV1, issueGateVerificationVerifyGatesV1, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1, uploadImport };

@@ -9,6 +9,7 @@ import { importCommand } from './commands/import.js';
 import { listCommand } from './commands/workspace/list.js';
 import { selectCommand } from './commands/workspace/select.js';
 import { currentCommand } from './commands/workspace/current.js';
+import { gatesRunCommand } from './commands/gates/run.js';
 import { version } from '../package.json' with { type: 'json' };
 
 const authRoutes = buildRouteMap({
@@ -33,6 +34,16 @@ const workspaceRoutes = buildRouteMap({
   },
 });
 
+// internal F — the supported runner for a deliverable's gate local_commands.
+const gatesRoutes = buildRouteMap({
+  routes: {
+    run: gatesRunCommand,
+  },
+  docs: {
+    brief: "Run a deliverable's gates and report the raw results",
+  },
+});
+
 const mcpRoutes = buildRouteMap({
   routes: {
     add: mcpAddCommand,
@@ -47,6 +58,7 @@ const routes = buildRouteMap({
     mcp: mcpRoutes,
     auth: authRoutes,
     workspace: workspaceRoutes,
+    gates: gatesRoutes,
     push: pushCommand,
     import: importCommand,
     // Visible on purpose (internal). This replaced hidden `install`/`uninstall`
