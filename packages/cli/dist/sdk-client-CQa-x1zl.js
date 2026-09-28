@@ -27845,6 +27845,29 @@ const zIngestRequestDto = z.object({
 	advance_cursor_to: z.string().optional(),
 	force_upsert: z.boolean().optional()
 });
+const zSyncRoleResponseDto = z.object({
+	role: z.enum(["hub", "spoke"]),
+	spoke_key: z.string().nullable(),
+	claimed_spoke_key: z.string().nullable(),
+	reason_code: z.enum([
+		"spoke_registered",
+		"not_set_up",
+		"self_row_not_a_spoke",
+		"no_hub_row",
+		"spokes_registered_here"
+	]),
+	reason: z.string(),
+	remedy: z.string().nullable(),
+	instance_id: z.string(),
+	sync_sequence_head: z.string(),
+	caller_is_workspace_admin: z.boolean(),
+	hub_peer: z.object({
+		peer_url: z.string().nullable(),
+		hub_instance_id: z.string().nullable(),
+		pull_cursor: z.string().nullable(),
+		push_cursor: z.string().nullable()
+	}).nullable()
+});
 const zSyncGetSseContextV1Data = z.object({ url: z.literal("/v1/sync/sse-context") });
 const zSyncGetLastSyncIdV1Data = z.object({ url: z.literal("/v1/sync/last-sync-id") });
 const zSyncBootstrapV1Data = z.object({
@@ -27881,6 +27904,8 @@ const zSyncAdvancePushCursorV1Data = z.object({ url: z.literal("/v1/sync/advance
 const zSyncCheckSpokeKeyV1Data = z.object({ url: z.literal("/v1/sync/check-spoke-key") });
 const zSyncRegisterSpokeV1Data = z.object({ url: z.literal("/v1/sync/register-spoke") });
 const zSyncRegisterPeerV1Data = z.object({ url: z.literal("/v1/sync/register-peer") });
+const zSyncGetSyncRoleV1Data = z.object({ url: z.literal("/v1/sync/role") });
+const zSyncUnregisterSpokeV1Data = z.object({ url: z.literal("/v1/sync/unregister-spoke") });
 const zSyncStampSpokeKeyV1Data = z.object({ url: z.literal("/v1/sync/stamp-spoke-key") });
 const zSyncRewriteIdentifiersV1Data = z.object({ url: z.literal("/v1/sync/rewrite-identifiers") });
 const zSyncGetStaticInventoryV1Data = z.object({ url: z.literal("/v1/sync/static-inventory") });
