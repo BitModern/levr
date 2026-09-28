@@ -30597,12 +30597,14 @@ const zCreateUserPreferenceDto = z.object({
 	id: z.string().optional().describe(""),
 	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
+	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
 	user_id: z.string()
 });
 const zResponseUserPreferenceDto = z.object({
 	id: z.string().describe(""),
 	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
+	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
 	user_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -30617,6 +30619,7 @@ const zUpdateUserPreferenceDto = z.object({
 	id: z.string().optional().describe(""),
 	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
+	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
 	user_id: z.string().optional()
 });
 const zUserPreferenceBulkOperationDto = z.object({
@@ -30662,6 +30665,7 @@ const zUserPreferenceFindAllV1Data = z.object({
 		"filter.id": z.array(z.string()).optional(),
 		"filter.auto_assign_on_start": z.array(z.string()).optional(),
 		"filter.auto_assign_on_result": z.array(z.string()).optional(),
+		"filter.auto_assign_on_done": z.array(z.string()).optional(),
 		"filter.user_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
