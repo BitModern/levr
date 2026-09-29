@@ -30718,7 +30718,9 @@ const zVerifyDigestRequestDto = z.object({
 		"dirty",
 		"never_stamped"
 	]).optional().describe(""),
-	pass_id: z.string().max(64).optional().describe("")
+	pass_id: z.string().max(64).optional().describe(""),
+	database_id: z.string().max(64).optional().describe(""),
+	storage: z.string().max(64).optional().describe("")
 });
 const zFoldedDigestDto = z.object({
 	n: z.number().describe(""),
