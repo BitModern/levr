@@ -20321,6 +20321,7 @@ const zCreateNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
+	auto_subscribe_agent_created: z.boolean().optional().describe(""),
 	user_id: z.string()
 });
 const zResponseNotificationPreferenceDto = z.object({
@@ -20336,6 +20337,7 @@ const zResponseNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
+	auto_subscribe_agent_created: z.boolean().optional().describe(""),
 	user_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -20359,6 +20361,7 @@ const zUpdateNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
+	auto_subscribe_agent_created: z.boolean().optional().describe(""),
 	user_id: z.string().optional()
 });
 const zNotificationPreferenceBulkOperationDto = z.object({
@@ -20412,6 +20415,7 @@ const zNotificationPreferenceFindAllV1Data = z.object({
 		"filter.auto_subscribe_assigned": z.array(z.string()).optional(),
 		"filter.auto_subscribe_mentioned": z.array(z.string()).optional(),
 		"filter.auto_subscribe_commented": z.array(z.string()).optional(),
+		"filter.auto_subscribe_agent_created": z.array(z.string()).optional(),
 		"filter.user_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
@@ -30917,6 +30921,7 @@ const zResponseWatchDto = z.object({
 	thread_id: z.string().nullable().optional().describe(""),
 	muted_at: z.unknown().optional().describe(""),
 	events: z.unknown().optional().describe(""),
+	source: z.string().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -30983,6 +30988,7 @@ const zWatchFindAllV1Data = z.object({
 		"filter.scope": z.array(z.string()).optional(),
 		"filter.thread_id": z.array(z.string()).optional(),
 		"filter.muted_at": z.array(z.string()).optional(),
+		"filter.source": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
 		"filter.deleted_at": z.array(z.string()).optional(),
@@ -31001,6 +31007,8 @@ const zWatchFindAllV1Data = z.object({
 			"thread_id:DESC",
 			"muted_at:ASC",
 			"muted_at:DESC",
+			"source:ASC",
+			"source:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
