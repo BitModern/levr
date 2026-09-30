@@ -1,0 +1,15 @@
+{
+  "name": "levr",
+  "displayName": "Levr",
+  "version": "0.1.0",
+  "description": "Work your Levr issues from Claude Code. Connects the Levr MCP server and adds /levr:work, /levr:file and /levr:done.",
+  "author": {
+    "name": "BitModern",
+    "email": "support@bitmodern.com",
+    "url": "https://levr.one"
+  },
+  "homepage": "https://levr.one",
+  "repository": "https://github.com/BitModern/levr",
+  "license": "MIT",
+  "keywords": ["levr", "issues", "issue-tracker", "testing", "mcp"]
+}

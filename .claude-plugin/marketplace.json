@@ -1,0 +1,20 @@
+{
+  "name": "levr",
+  "owner": {
+    "name": "BitModern",
+    "email": "support@bitmodern.com"
+  },
+  "metadata": {
+    "description": "Levr for Claude Code: the Levr MCP server plus /levr:work, /levr:file and /levr:done.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "levr",
+      "source": "./plugins/levr",
+      "description": "Work your Levr issues from Claude Code. Connects the Levr MCP server and adds /levr:work, /levr:file and /levr:done.",
+      "category": "productivity",
+      "tags": ["levr", "issues", "issue-tracker", "testing", "mcp"]
+    }
+  ]
+}

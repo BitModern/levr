@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "levr": {
+      "type": "http",
+      "url": "https://ai.levr.one/api/v1/mcp"
+    }
+  }
+}
