@@ -616,14 +616,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-BVIOalsP.js");
+		const { gatesRunHandler } = await import("./runHandler-D3tX1Com.js");
 		return gatesRunHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.10.8";
+var version = "0.10.9";
 
 //#endregion
 //#region src/app.ts

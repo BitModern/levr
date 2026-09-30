@@ -5,6 +5,7 @@ import { resolveWorkspace } from "./resolve-workspace-Bn3j_U7W.js";
 import "./token-refresh-Cu5RpkLJ.js";
 import { resolveToken } from "./resolve-token-DbQsmn03.js";
 import { existsSync } from "node:fs";
+import { constants } from "node:os";
 import { spawnSync } from "node:child_process";
 
 //#region src/commands/gates/gate-runner.ts
@@ -98,8 +99,12 @@ function shellExists(shell) {
 }
 /**
 * Run one command with the chosen shell (`chooseShell`), synchronously, in
-* the current directory. A command killed by a signal or a timeout reports
-* exit code 1 and says why on stderr — never 0.
+* the current directory. A command that was killed (a signal, our timeout,
+* ENOBUFS) or never started reports 128 + the signal number, else 126, and
+* says why at the END of stderr, where the reported tail keeps it — never 0
+* and never 1. A 1 reads as "grep matched nothing" on the server, and Node
+* can report ENOBUFS with a numeric status (ENG-5106 L1 review round 4
+* F-010/F-011).
 */
 const runInShell = (command) => {
 	const shell = chooseShell();
@@ -109,8 +114,10 @@ const runInShell = (command) => {
 		timeout: GATE_COMMAND_TIMEOUT_MS
 	});
 	const stderr = (r.stderr ?? "") + (r.error ? `\n[runner] ${r.error.message}` : "") + (r.signal ? `\n[runner] killed by ${r.signal}` : "");
+	const killed = r.error !== void 0 || r.signal !== null;
+	const signalNumber = r.signal ? constants.signals[r.signal] : void 0;
 	return {
-		exitCode: typeof r.status === "number" ? r.status : 1,
+		exitCode: killed ? typeof signalNumber === "number" ? 128 + signalNumber : 126 : r.status ?? 126,
 		stdout: r.stdout ?? "",
 		stderr
 	};

@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { constants as osConstants } from 'node:os';
 
 /**
  * internal F — run a deliverable's gate `local_commands` and build the
@@ -170,8 +171,12 @@ function shellExists(shell: string): boolean {
 
 /**
  * Run one command with the chosen shell (`chooseShell`), synchronously, in
- * the current directory. A command killed by a signal or a timeout reports
- * exit code 1 and says why on stderr — never 0.
+ * the current directory. A command that was killed (a signal, our timeout,
+ * ENOBUFS) or never started reports 128 + the signal number, else 126, and
+ * says why at the END of stderr, where the reported tail keeps it — never 0
+ * and never 1. A 1 reads as "grep matched nothing" on the server, and Node
+ * can report ENOBUFS with a numeric status (internal L1 review round 4
+ * F-010/F-011).
  */
 export const runInShell: ShellRunner = (command) => {
   const shell = chooseShell();
@@ -184,8 +189,14 @@ export const runInShell: ShellRunner = (command) => {
     (r.stderr ?? '') +
     (r.error ? `\n[runner] ${r.error.message}` : '') +
     (r.signal ? `\n[runner] killed by ${r.signal}` : '');
+  const killed = r.error !== undefined || r.signal !== null;
+  const signalNumber = r.signal ? osConstants.signals[r.signal] : undefined;
   return {
-    exitCode: typeof r.status === 'number' ? r.status : 1,
+    exitCode: killed
+      ? typeof signalNumber === 'number'
+        ? 128 + signalNumber
+        : 126
+      : (r.status ?? 126),
     stdout: r.stdout ?? '',
     stderr,
   };

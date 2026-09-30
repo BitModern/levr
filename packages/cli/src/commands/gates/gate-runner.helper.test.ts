@@ -67,6 +67,13 @@ const COMMANDS: GateLocalCommand[] = [
     expected: 'exit 0',
     link_id: '01a0d935-19fe-7b9d-9bde-20b20f8bfc01',
   },
+  {
+    // internal L1 round 4 F-010 — a killed command: 128 + signal, both sides.
+    gate_type: 'no_stubs',
+    command: 'kill -TERM $$',
+    expected: '0',
+    link_id: '01a0d935-19fe-7b9d-9bde-20b20f8bfc02',
+  },
 ];
 
 describe('internal F — the documented helper matches `levr gates run`', () => {
@@ -106,7 +113,9 @@ describe('internal F — the documented helper matches `levr gates run`', () => 
     }
     expect(fromDoc).toEqual({ results: fromCli });
     // And the facts are the raw ones.
-    expect(fromCli.map((r) => r.steps[0]!.exit_code)).toEqual([0, 1, 0, 7]);
+    expect(fromCli.map((r) => r.steps[0]!.exit_code)).toEqual([
+      0, 1, 0, 7, 143,
+    ]);
     expect(
       fromCli[2]!.steps[0]!.stdout_tail.endsWith('8 passed (2.0s)\n'),
     ).toBe(true);
@@ -119,7 +128,7 @@ describe('internal F — the documented helper matches `levr gates run`', () => 
       { cwd: dir, encoding: 'utf8' },
     );
     expect(helper.stderr).toContain(
-      '[1/4] file_exists: test -f present.txt && echo EXISTS',
+      '[1/5] file_exists: test -f present.txt && echo EXISTS',
     );
     expect(() => JSON.parse(helper.stdout) as unknown).not.toThrow();
   });

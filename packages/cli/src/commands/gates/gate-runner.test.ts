@@ -83,6 +83,25 @@ describe('internal F — the gate runner reports RAW facts', () => {
     expect(out.exitCode).not.toBe(0);
     expect(out.stderr).toMatch(/killed by SIGKILL/);
   });
+
+  it('…and never exit 1, which the server reads as "grep matched nothing" (internal L1 round 4 F-010)', () => {
+    expect(runInShell('kill -9 $$').exitCode).toBe(137);
+    expect(runInShell('kill -TERM $$').exitCode).toBe(143);
+    // The cause is the LAST line, where the reported tail keeps it.
+    expect(runInShell('echo x >&2; kill -9 $$').stderr).toMatch(
+      /killed by SIGKILL$/,
+    );
+  });
+
+  it('an output overflow (a spawn error, not a signal of its own) is never 0 or 1 (round 5 F-005)', () => {
+    // More than the 64 MiB buffer: Node reports ENOBUFS as `r.error` AND
+    // kills the child (SIGTERM), so the signal alone already catches it here.
+    // `r.error` without a signal is a shell that failed to spawn at all,
+    // which this runner cannot be made to hit; the branch stays, defensive.
+    const out = runInShell('head -c 70000000 /dev/zero');
+    expect([0, 1]).not.toContain(out.exitCode);
+    expect(out.stderr).toMatch(/\[runner\] .*ENOBUFS/);
+  });
 });
 
 describe('internal F-020 — gate commands run in bash, like the MCP executor', () => {
