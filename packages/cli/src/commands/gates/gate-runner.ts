@@ -51,7 +51,8 @@ export interface GateLocalCommand {
   expected?: string;
   link_id: string;
   test_name?: string;
-  layer?: number;
+  /** internal — the gate definition's verification technique (a label). */
+  technique?: string;
   step_id?: string;
   rule_hash?: string;
 }

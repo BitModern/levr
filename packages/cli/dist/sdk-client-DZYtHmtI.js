@@ -13650,7 +13650,7 @@ const zCreateGateDefinitionDto = z.object({
 	is_system: z.boolean().nullable().optional().describe(""),
 	is_default: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
-	layer: z.number().optional().describe(""),
+	technique: z.string().optional().describe(""),
 	estimated_cost: z.number().nullable().optional().describe(""),
 	estimated_duration_ms: z.number().nullable().optional().describe(""),
 	resolver_template: z.unknown().optional().describe("")
@@ -13669,7 +13669,7 @@ const zResponseGateDefinitionDto = z.object({
 	is_system: z.boolean().nullable().optional().describe(""),
 	is_default: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
-	layer: z.number().optional().describe(""),
+	technique: z.string().optional().describe(""),
 	estimated_cost: z.number().nullable().optional().describe(""),
 	estimated_duration_ms: z.number().nullable().optional().describe(""),
 	resolver_template: z.unknown().optional().describe(""),
@@ -13696,7 +13696,7 @@ const zUpdateGateDefinitionDto = z.object({
 	is_system: z.boolean().nullable().optional().describe(""),
 	is_default: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
-	layer: z.number().optional().describe(""),
+	technique: z.string().optional().describe(""),
 	estimated_cost: z.number().nullable().optional().describe(""),
 	estimated_duration_ms: z.number().nullable().optional().describe(""),
 	resolver_template: z.unknown().optional().describe("")
@@ -13753,7 +13753,7 @@ const zGateDefinitionFindAllV1Data = z.object({
 		"filter.is_system": z.array(z.string()).optional(),
 		"filter.is_default": z.array(z.string()).optional(),
 		"filter.sort_order": z.array(z.string()).optional(),
-		"filter.layer": z.array(z.string()).optional(),
+		"filter.technique": z.array(z.string()).optional(),
 		"filter.estimated_cost": z.array(z.string()).optional(),
 		"filter.estimated_duration_ms": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
@@ -13781,8 +13781,8 @@ const zGateDefinitionFindAllV1Data = z.object({
 			"color:DESC",
 			"sort_order:ASC",
 			"sort_order:DESC",
-			"layer:ASC",
-			"layer:DESC",
+			"technique:ASC",
+			"technique:DESC",
 			"estimated_cost:ASC",
 			"estimated_cost:DESC",
 			"estimated_duration_ms:ASC",
@@ -28473,7 +28473,15 @@ const zUpdateTestDto = z.object({
 				type: z.enum(["guided"]),
 				step: z.string(),
 				expected_result: z.string().optional(),
-				result: z.string().optional()
+				result: z.string().optional(),
+				technique: z.enum([
+					"presence",
+					"pattern",
+					"structure",
+					"semantic",
+					"execution",
+					"state"
+				]).optional()
 			}),
 			z.object({
 				id: z.string().optional(),
@@ -28488,14 +28496,29 @@ const zUpdateTestDto = z.object({
 					"But",
 					"*"
 				]).optional(),
-				data_table: z.object({ rows: z.array(z.array(z.string())) }).optional()
+				data_table: z.object({ rows: z.array(z.array(z.string())) }).optional(),
+				technique: z.enum([
+					"presence",
+					"pattern",
+					"structure",
+					"semantic",
+					"execution",
+					"state"
+				]).optional()
 			}),
 			z.object({
 				id: z.string().optional(),
 				type: z.string(),
 				params: z.record(z.string(), z.unknown()).optional(),
 				expected_result: z.string().optional(),
-				layer: z.string().optional()
+				technique: z.enum([
+					"presence",
+					"pattern",
+					"structure",
+					"semantic",
+					"execution",
+					"state"
+				]).optional()
 			})
 		])).optional()
 	}).optional(),
