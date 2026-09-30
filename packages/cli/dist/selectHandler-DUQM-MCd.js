@@ -1,5 +1,5 @@
 import "./env-CHeKHu5S.js";
-import { authGetSitesV1, configureClient } from "./sdk-client-DZYtHmtI.js";
+import { authGetSitesV1, configureClient } from "./sdk-client-DzIto-gE.js";
 import { saveWorkspace } from "./workspace-store-DDOxnut1.js";
 import "./token-refresh-Cu5RpkLJ.js";
 import { resolveToken } from "./resolve-token-DbQsmn03.js";

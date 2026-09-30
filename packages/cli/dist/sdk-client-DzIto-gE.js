@@ -23345,7 +23345,20 @@ const zWidgetQueryRequestDto = z.object({
 	}),
 	config: z.record(z.string(), z.unknown()).optional()
 });
-const zWidgetQueryResponseDto = z.object({ rows: z.array(z.record(z.string(), z.unknown())) });
+const zWidgetQueryResponseDto = z.object({
+	rows: z.array(z.record(z.string(), z.unknown())),
+	meta: z.object({
+		status: z.enum(["ok", "not_enough_data"]),
+		window: z.object({
+			start: z.string().describe(""),
+			end: z.string().describe("")
+		}).optional(),
+		closed: z.object({
+			start: z.string().describe(""),
+			end: z.string().describe("")
+		})
+	}).optional()
+});
 const zReportCustomWidgetQueryV1Data = z.object({
 	body: zWidgetQueryRequestDto,
 	url: z.literal("/v1/report/widget-query")
