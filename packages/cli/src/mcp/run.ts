@@ -384,8 +384,21 @@ export function formatReport(report: RunReport): string {
       `Unknown clients (skipped): ${report.unknownClients.join(', ')}`,
     );
   }
+  // internal D6: exactly one line, once per report, only when Claude Code
+  // was set up (ok, whether written now or already configured). The plugin
+  // is the richer path there — the same server plus /levr:work, /levr:file
+  // and /levr:done — and this is the one place a terminal user learns it
+  // exists. Never for other harnesses, and no plugin detection: Claude Code
+  // de-duplicates a same-URL plugin server against this entry on its own.
+  if (report.outcomes.some((o) => o.id === 'claude-code' && o.result.ok)) {
+    lines.push(PLUGIN_TIP);
+  }
   return lines.join('\n');
 }
+
+/** The one note about the Claude Code plugin (internal D6). */
+export const PLUGIN_TIP =
+  'Tip: the Levr plugin adds /levr:work, /levr:file and /levr:done. Run /plugin install levr@levr in Claude Code (marketplace: BitModern/levr).';
 
 /** Next-steps blurb after a run. */
 export function nextStepsText(report: RunReport): string {

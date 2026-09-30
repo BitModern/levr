@@ -8,6 +8,7 @@ import type {
 import { describe, expect, it } from 'vitest';
 
 import {
+  PLUGIN_TIP,
   autoSelectIds,
   clientChoices,
   formatReport,
@@ -214,8 +215,90 @@ describe('formatReport', () => {
         'Cursor: installed (user) → /home/.cursor/mcp.json',
         'Claude Code (user): run `claude mcp add --transport http --scope user levr URL`',
         'Unknown clients (skipped): bogus',
+        // internal D6: the golden report has an ok Claude Code outcome, so it
+        // ends with the one plugin line.
+        PLUGIN_TIP,
       ].join('\n'),
     );
+  });
+
+  // internal D6. The tip is keyed on the harness ID and the outcome being ok,
+  // not on installKind: Codex is also a cli-command harness and must not get
+  // a Claude Code plugin tip.
+  function reportFor(outcomes: RunReport['outcomes']): RunReport {
+    return {
+      url: 'https://ai.levr.now/api/v1/mcp',
+      urlSource: 'default',
+      scope: 'user',
+      dryRun: false,
+      outcomes,
+      unknownClients: [],
+    };
+  }
+  const okCommand = (id: string, label: string) => ({
+    id,
+    label,
+    result: {
+      ok: true,
+      wrote: false,
+      path: '',
+      command: `${id} mcp add levr URL`,
+      executed: true,
+      alreadyConfigured: false,
+      dryRun: false,
+      scope: 'user' as const,
+    },
+  });
+
+  it('prints the plugin tip once for claude-code', () => {
+    const out = formatReport(
+      reportFor([
+        okCommand('claude-code', 'Claude Code'),
+        // A second Claude Code outcome (project + user scope in one run) must
+        // not print the tip twice.
+        okCommand('claude-code', 'Claude Code'),
+      ]),
+    );
+    expect(out.split('\n').filter((l) => l === PLUGIN_TIP)).toHaveLength(1);
+    expect(out.endsWith(PLUGIN_TIP)).toBe(true);
+    expect(PLUGIN_TIP).toContain('/plugin install levr@levr');
+    expect(PLUGIN_TIP).toContain('BitModern/levr');
+  });
+
+  it('prints the tip when Claude Code was already configured', () => {
+    // "Already set up" is still a Claude Code user who may not know the
+    // plugin exists; the tip is about the plugin, not about this run.
+    const already = okCommand('claude-code', 'Claude Code');
+    already.result = { ...already.result, alreadyConfigured: true };
+    expect(formatReport(reportFor([already]))).toContain(PLUGIN_TIP);
+  });
+
+  it('omits the plugin tip for other harnesses', () => {
+    const out = formatReport(
+      reportFor([
+        okCommand('codex', 'Codex'),
+        {
+          id: 'cursor',
+          label: 'Cursor',
+          result: {
+            ok: true,
+            wrote: true,
+            path: '/home/.cursor/mcp.json',
+            alreadyConfigured: false,
+            dryRun: false,
+            scope: 'user',
+          },
+        },
+      ]),
+    );
+    expect(out).not.toContain(PLUGIN_TIP);
+    expect(out).not.toContain('/plugin install');
+  });
+
+  it('omits the plugin tip when the Claude Code install failed', () => {
+    const failed = okCommand('claude-code', 'Claude Code');
+    failed.result = { ...failed.result, ok: false, executed: false };
+    expect(formatReport(reportFor([failed]))).not.toContain(PLUGIN_TIP);
   });
 });
 

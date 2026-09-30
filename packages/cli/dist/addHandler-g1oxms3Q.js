@@ -2057,8 +2057,11 @@ function formatReport(report) {
 	if (report.outcomes.length === 0) lines.push("No clients selected.");
 	else for (const o of report.outcomes) lines.push(outcomeLine(o, report.dryRun));
 	if (report.unknownClients.length > 0) lines.push(`Unknown clients (skipped): ${report.unknownClients.join(", ")}`);
+	if (report.outcomes.some((o) => o.id === "claude-code" && o.result.ok)) lines.push(PLUGIN_TIP);
 	return lines.join("\n");
 }
+/** The one note about the Claude Code plugin (ENG-4335 D6). */
+const PLUGIN_TIP = "Tip: the Levr plugin adds /levr:work, /levr:file and /levr:done. Run /plugin install levr@levr in Claude Code (marketplace: BitModern/levr).";
 /** Next-steps blurb after a run. */
 function nextStepsText(report) {
 	if (report.dryRun) return "Dry run — re-run without --dry-run to apply these changes.";
