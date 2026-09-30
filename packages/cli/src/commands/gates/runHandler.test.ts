@@ -292,4 +292,49 @@ describe('internal F — levr gates run', () => {
     expect(ctx.process.exitCode).toBe(1);
     expect(sdk.issueGateVerificationVerifyGatesV1).not.toHaveBeenCalled();
   });
+
+  // internal review R5 M3 — a required dead gate means the deliverable
+  // cannot pass: the command names it and exits 1 even when the (older)
+  // server's report summary says all_pass.
+  it('a required DEAD gate from verify is printed with its remedy, and the run exits 1 even on an all_pass report', async () => {
+    const { ctx, written } = context();
+    const verified: unknown = await sdk.issueGateVerificationVerifyGatesV1();
+    sdk.issueGateVerificationVerifyGatesV1.mockResolvedValue({
+      data: {
+        ...(verified as { data: Record<string, unknown> }).data,
+        dead_gates: [
+          {
+            link_id: 'link-dead',
+            test_name: 'Dead',
+            reason: 'test_deleted',
+            required: true,
+            remedy: 'Restore it by redeploying "Dead" with deploy_gates.',
+          },
+        ],
+      },
+    });
+    await gatesRunHandler.call(ctx, flags, ISSUE_ID);
+    expect(written.join('')).toContain('DEAD "Dead"');
+    expect(written.join('')).toContain('deploy_gates');
+    expect(ctx.process.exitCode).toBe(1);
+  });
+
+  it('an ADVISORY dead gate does not fail an all_pass run', async () => {
+    const { ctx } = context();
+    sdk.issueGateVerificationReportGateResultsV1.mockResolvedValue({
+      data: {
+        deliverable: 'internal',
+        status: 'all_pass',
+        gates_passing: 1,
+        gates_total: 1,
+        gates: [],
+        receipts: [],
+        dead_gates: [
+          { link_id: 'link-dead', test_name: 'Old', required: false },
+        ],
+      },
+    });
+    await gatesRunHandler.call(ctx, flags, ISSUE_ID);
+    expect(ctx.process.exitCode).toBe(0);
+  });
 });

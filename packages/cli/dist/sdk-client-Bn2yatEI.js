@@ -16291,20 +16291,24 @@ const zIssueGateVerificationReportGateResultsV1Body = z.object({ results: z.arra
 	})).optional()
 })) });
 const zIssueGateVerificationDeployGatesV1Body = z.object({
-	root_folder_name: z.string(),
+	root_folder_name: z.string().optional().describe(""),
 	child_folders: z.array(z.object({
 		deliverable: z.number(),
 		name: z.string()
 	})),
 	tests_by_deliverable: z.record(z.string(), z.array(z.object({
 		name: z.string(),
+		test_id: z.string().optional().describe(""),
+		rename_from: z.string().max(500).optional().describe(""),
 		required: z.boolean().optional().describe(""),
 		advisory_reason: z.string().max(2e3).optional().describe(""),
 		data: z.record(z.string(), z.unknown()).optional()
 	}))).describe(""),
 	link_template: z.record(z.string(), z.string()),
 	verification_rule: z.record(z.string(), z.unknown()).optional(),
-	replace_existing: z.boolean().optional(),
+	remove: z.record(z.string(), z.array(z.string().max(500))).optional().describe(""),
+	sync_plan: z.boolean().optional().describe(""),
+	dry_run: z.boolean().optional().describe(""),
 	rename_reused: z.boolean().optional(),
 	test_origin: z.string().optional(),
 	validate: z.boolean().optional(),
@@ -17062,7 +17066,9 @@ const zResponseIssueTestLinkDto = z.object({
 	epoch: z.number().describe(""),
 	created_by: z.string().describe(""),
 	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
+	workspace_id: z.string().describe(""),
+	deleted_at: z.unknown().describe(""),
+	deleted_by: z.string().nullable().describe("")
 });
 const zUpdateIssueTestLinkDto = z.object({
 	id: z.string().optional().describe(""),
@@ -17159,6 +17165,7 @@ const zIssueTestLinkFindAllV1Data = z.object({
 		"filter.verified_by_user_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
+		"filter.deleted_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
@@ -17215,13 +17222,16 @@ const zIssueTestLinkFindAllV1Data = z.object({
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
-			"updated_at:DESC"
+			"updated_at:DESC",
+			"deleted_at:ASC",
+			"deleted_at:DESC"
 		])).optional(),
 		"search": z.string().optional(),
 		"searchBy": z.array(z.string()).optional()
 	}).optional(),
 	url: z.literal("/v1/issue-test-link")
 });
+const zIssueTestLinkFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/issue-test-link/recently-deleted") });
 const zIssueTestLinkFindOneV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/issue-test-link/{id}")
@@ -17238,6 +17248,10 @@ const zIssueTestLinkRemoveV1Data = z.object({
 const zIssueTestLinkBulkOperationV1Data = z.object({
 	body: zBulkIssueTestLinkRequestDto,
 	url: z.literal("/v1/issue-test-link/bulk")
+});
+const zIssueTestLinkRestoreV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/issue-test-link/{id}/restore")
 });
 
 //#endregion
@@ -27888,6 +27902,7 @@ const zBulkTransactionRequestDto = z.object({ operations: z.array(zTransactionOp
 const zIngestRequestDto = z.object({
 	source_workspace_id: z.string(),
 	schema_version_hash: z.string(),
+	migration_head: z.string().optional(),
 	entities: z.array(z.object({
 		entity_type: z.string(),
 		entity_id: z.string(),
@@ -28514,7 +28529,11 @@ const zTestBulkOperationDto = z.object({
 	data: z.unknown().optional().describe(""),
 	tx_id: z.string().describe("")
 });
-const zBulkTestRequestDto = z.object({ operations: z.array(zTestBulkOperationDto).describe("") });
+const zBulkTestRequestDto = z.object({
+	operations: z.array(zTestBulkOperationDto).describe(""),
+	remove_gate_links: z.boolean().optional().describe(""),
+	change_reason: z.string().max(2e3).optional().describe("")
+});
 const zBulkTestOperationResultDto = z.object({
 	index: z.number().describe(""),
 	status: z.number().describe(""),
@@ -28599,6 +28618,10 @@ const zTestUpdateV1Data = z.object({
 });
 const zTestRemoveV1Data = z.object({
 	path: z.object({ "testId": z.string() }),
+	query: z.object({
+		"remove_gate_links": z.boolean().optional(),
+		"change_reason": z.string().optional()
+	}).optional(),
 	url: z.literal("/v1/test/{testId}")
 });
 const zTestBulkOperationV1Data = z.object({

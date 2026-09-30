@@ -1,7 +1,7 @@
 import "./env-CHeKHu5S.js";
-import { client, configureClient, issueFindAllV1, issueGateVerificationReportGateResultsV1, issueGateVerificationVerifyGatesV1 } from "./sdk-client-Cvy2DYQA.js";
+import { client, configureClient, issueFindAllV1, issueGateVerificationReportGateResultsV1, issueGateVerificationVerifyGatesV1 } from "./sdk-client-Bn2yatEI.js";
 import "./workspace-store-DDOxnut1.js";
-import { resolveWorkspace } from "./resolve-workspace-C6NcN4DK.js";
+import { resolveWorkspace } from "./resolve-workspace-ytMhhIYv.js";
 import "./token-refresh-Cu5RpkLJ.js";
 import { resolveToken } from "./resolve-token-DbQsmn03.js";
 import { existsSync } from "node:fs";
@@ -151,6 +151,18 @@ function runLocalCommands(commands, run = runInShell, onEach, onBefore) {
 
 //#endregion
 //#region src/commands/gates/runHandler.ts
+/** ENG-6070 review R5 M3 — dead gates are named, with their remedy. */
+function printDeadGates(out, dead) {
+	for (const d of dead ?? []) out(`  DEAD ${d.test_name ? `"${d.test_name}"` : d.link_id}${d.required === false ? " (advisory)" : ""}: ${d.reason === "test_deleted" ? "its test was deleted" : "the gate was removed"}${d.remedy ? ` — ${d.remedy}` : ""}`);
+}
+/**
+* ENG-6070 review R5 M3 — exit 0 only on `all_pass` with no REQUIRED dead
+* gate (an older server's summary can still count a dead gate's old pass).
+*/
+function exitCodeOf(summary) {
+	const requiredDead = (summary.dead_gates ?? []).some((d) => d.required !== false);
+	return summary.status === "all_pass" && !requiredDead ? 0 : 1;
+}
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
 * Seams for tests: the shell runner (production: `chooseShell`'s bash), and
@@ -229,9 +241,10 @@ async function gatesRunHandler(flags, issue) {
 	if (commands.length === 0) {
 		if (!flags.json) {
 			out(`${label}: no local commands to run (status ${summary.status ?? "unknown"}, ${summary.gates_passing ?? 0}/${summary.gates_total ?? 0} gates passing).`);
+			printDeadGates(out, summary.dead_gates);
 			printManualTasks(out, tasks);
 		} else out(JSON.stringify({ verify: summary }, null, 2));
-		this.process.exitCode = summary.status === "all_pass" ? 0 : 1;
+		this.process.exitCode = exitCodeOf(summary);
 		return;
 	}
 	if (flags["dry-run"]) {
@@ -302,9 +315,13 @@ async function gatesRunHandler(flags, issue) {
 			out(`  ${String(g.status).toUpperCase()} ${g.test_name ?? g.gate_type}: ${String(g.actual ?? "").slice(0, 300)}`);
 		}
 		for (const r of after.receipts ?? []) if (!r.accepted) out(`  REJECTED ${r.link_id}: ${r.reason ?? ""}`);
+		printDeadGates(out, after.dead_gates ?? summary.dead_gates);
 		printManualTasks(out, tasks);
 	}
-	this.process.exitCode = after.status === "all_pass" ? 0 : 1;
+	this.process.exitCode = exitCodeOf({
+		...after,
+		dead_gates: after.dead_gates ?? summary.dead_gates
+	});
 }
 function printManualTasks(out, tasks) {
 	if (tasks.length === 0) return;

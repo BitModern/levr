@@ -213,7 +213,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-DckKib3B.js");
+		const { loginHandler } = await import("./loginHandler-CYrP8mF2.js");
 		return loginHandler;
 	}
 });
@@ -252,7 +252,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-OuPRXqaF.js");
+		const { statusHandler } = await import("./statusHandler-cMQSlF-A.js");
 		return statusHandler;
 	}
 });
@@ -356,7 +356,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-D6aA95g7.js");
+		const { pushHandler } = await import("./pushHandler-C_xMOBVM.js");
 		return pushHandler;
 	}
 });
@@ -476,7 +476,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-DjqSSsBZ.js");
+		const { importHandler } = await import("./importHandler-CVPZHLAZ.js");
 		return importHandler;
 	}
 });
@@ -497,7 +497,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-HDOTNXEo.js");
+		const { listHandler } = await import("./listHandler-Kq68Ca6e.js");
 		return listHandler;
 	}
 });
@@ -530,7 +530,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-D8jyi0UY.js");
+		const { selectHandler } = await import("./selectHandler-BaWUR0JQ.js");
 		return selectHandler;
 	}
 });
@@ -616,14 +616,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-CPDKYZI9.js");
+		const { gatesRunHandler } = await import("./runHandler-ogFHd3e6.js");
 		return gatesRunHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.10.4";
+var version = "0.10.5";
 
 //#endregion
 //#region src/app.ts
