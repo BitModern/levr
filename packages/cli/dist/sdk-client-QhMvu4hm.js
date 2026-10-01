@@ -20335,7 +20335,6 @@ const zCreateNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
-	auto_subscribe_agent_created: z.boolean().optional().describe(""),
 	user_id: z.string()
 });
 const zResponseNotificationPreferenceDto = z.object({
@@ -20351,7 +20350,6 @@ const zResponseNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
-	auto_subscribe_agent_created: z.boolean().optional().describe(""),
 	user_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -20375,7 +20373,6 @@ const zUpdateNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
-	auto_subscribe_agent_created: z.boolean().optional().describe(""),
 	user_id: z.string().optional()
 });
 const zNotificationPreferenceBulkOperationDto = z.object({
@@ -20429,7 +20426,6 @@ const zNotificationPreferenceFindAllV1Data = z.object({
 		"filter.auto_subscribe_assigned": z.array(z.string()).optional(),
 		"filter.auto_subscribe_mentioned": z.array(z.string()).optional(),
 		"filter.auto_subscribe_commented": z.array(z.string()).optional(),
-		"filter.auto_subscribe_agent_created": z.array(z.string()).optional(),
 		"filter.user_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
