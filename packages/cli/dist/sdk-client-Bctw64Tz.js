@@ -13824,7 +13824,6 @@ const zGateDefinitionRestoreV1Data = z.object({
 
 //#endregion
 //#region ../sdk/dist/gen/gate-instance/zod.js
-const zGateInstanceWaiveGateV1Body = z.object({ reason: z.string().describe("") });
 const zCreateGateInstanceDto = z.object({
 	id: z.string().optional().describe(""),
 	status: z.string().optional().describe(""),
@@ -14003,15 +14002,6 @@ const zGateInstanceBulkOperationV1Data = z.object({
 const zGateInstanceRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/gate-instance/{id}/restore")
-});
-const zGateInstanceWaiveGateV1Data = z.object({
-	body: zGateInstanceWaiveGateV1Body,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-instance/{id}/waive")
-});
-const zGateInstanceRevokeWaiverV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-instance/{id}/revoke-waiver")
 });
 
 //#endregion
@@ -14371,6 +14361,19 @@ const zGateSetDefinitionBulkOperationV1Data = z.object({
 const zGateSetDefinitionRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/gate-set-definition/{id}/restore")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/gate-waiver/zod.js
+const zGateWaiverWaiveGateV1Body = z.object({ reason: z.string().describe("") });
+const zGateWaiverWaiveGateV1Data = z.object({
+	body: zGateWaiverWaiveGateV1Body,
+	path: z.object({ "linkId": z.string() }),
+	url: z.literal("/v1/gate/{linkId}/waive")
+});
+const zGateWaiverRevokeWaiverV1Data = z.object({
+	path: z.object({ "linkId": z.string() }),
+	url: z.literal("/v1/gate/{linkId}/revoke-waiver")
 });
 
 //#endregion
@@ -16247,7 +16250,7 @@ const issueGateVerificationVerifyGatesV1 = (options) => {
 	});
 };
 /**
-* After executing local_commands from verify-gates, report results here. Updates gate_instance records, creates gate_result audit trail, and posts verification summary comment to the issue. Report RAW per-step facts in `steps` (exit code, stdout/stderr tails); the server derives the verdict from them. `levr gates run <issue>` does verify → run → report for you.
+* After executing local_commands from verify-gates, report results here. Appends an attempt to each gates link's evidence ledger and posts a verification summary comment to the issue. Report RAW per-step facts in `steps` (exit code, stdout/stderr tails); the server derives the verdict from them. `levr gates run <issue>` does verify → run → report for you.
 */
 const issueGateVerificationReportGateResultsV1 = (options) => {
 	return (options?.client ?? client).post({
