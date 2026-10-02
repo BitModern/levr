@@ -27890,7 +27890,8 @@ const zBootstrapRequestDto = z.object({ entities: z.array(z.string()).describe("
 const zDeltaRequestDto = z.object({
 	lastSyncId: z.number().describe(""),
 	entity: z.string().optional().describe(""),
-	cold_start: z.boolean().optional().describe("")
+	cold_start: z.boolean().optional().describe(""),
+	page_size: z.number().optional().describe("")
 });
 const zPriorityBootstrapRequestDto = z.object({
 	entity: z.string().describe(""),
