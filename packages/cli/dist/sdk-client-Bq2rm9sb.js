@@ -30981,6 +30981,7 @@ const zResponseWatchDto = z.object({
 	muted_at: z.unknown().optional().describe(""),
 	events: z.unknown().optional().describe(""),
 	source: z.string().optional().describe(""),
+	triggers: z.unknown().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
