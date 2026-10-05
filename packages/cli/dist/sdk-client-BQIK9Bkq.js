@@ -5161,6 +5161,138 @@ const zBriefAgentBulkOperationV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/browser-config/zod.js
+const zBrowserConfigGetConfigV1Data = z.object({ url: z.literal("/v1/browser/config") });
+
+//#endregion
+//#region ../sdk/dist/gen/browser-device/zod.js
+const zEnrolDeviceDto = z.object({
+	deviceKey: z.string().max(64),
+	label: z.string().max(255),
+	platform: z.string().max(64).nullable().optional(),
+	extensionVersion: z.string().max(32).nullable().optional(),
+	apiEnv: z.string().max(255).nullable().optional()
+});
+const zBridgeTokenRequestDto = z.object({ deviceId: z.string() });
+const zBrowserDeviceEnrolV1Data = z.object({
+	body: zEnrolDeviceDto,
+	url: z.literal("/v1/browser/devices")
+});
+const zBrowserDeviceBridgeTokenV1Data = z.object({
+	body: zBridgeTokenRequestDto,
+	url: z.literal("/v1/browser/bridge-token")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/browser-upload/zod.js
+const zBrowserUploadUploadV1Data = z.object({
+	path: z.object({ "attachmentId": z.string() }),
+	url: z.literal("/v1/browser/uploads/{attachmentId}")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/browsers/zod.js
+const zBrowserListingResponseDto = z.object({
+	browsers: z.array(z.object({
+		id: z.string(),
+		label: z.string(),
+		platform: z.string().nullable(),
+		extensionVersion: z.string().nullable(),
+		apiEnv: z.string().nullable(),
+		firstSeenAt: z.string(),
+		lastSeenAt: z.string().nullable(),
+		status: z.enum([
+			"online",
+			"offline",
+			"unknown"
+		]).describe(""),
+		pod: z.string().nullable().describe(""),
+		connectedAt: z.number().nullable(),
+		lastFocusAt: z.number().nullable(),
+		stopped: z.boolean().nullable().describe(""),
+		sessions: z.array(z.object({
+			sessionKey: z.string().describe(""),
+			clientId: z.string(),
+			clientName: z.string().describe(""),
+			clientVersion: z.string().nullable(),
+			source: z.string().nullable().describe(""),
+			workspaceId: z.string().nullable(),
+			since: z.number().describe(""),
+			lastTool: z.string().nullable(),
+			lastToolAt: z.number().nullable(),
+			background: z.boolean(),
+			disconnected: z.boolean()
+		})).nullable()
+	})),
+	unassignedSessions: z.array(z.object({
+		sessionKey: z.string().describe(""),
+		clientId: z.string(),
+		clientName: z.string().describe(""),
+		clientVersion: z.string().nullable(),
+		source: z.string().nullable().describe(""),
+		workspaceId: z.string().nullable(),
+		since: z.number().describe(""),
+		lastTool: z.string().nullable(),
+		lastToolAt: z.number().nullable(),
+		background: z.boolean(),
+		disconnected: z.boolean()
+	})).nullable(),
+	connectedAgents: z.array(z.object({
+		clientId: z.string().describe(""),
+		name: z.string().describe(""),
+		harnessId: z.string().describe(""),
+		harnessLabel: z.string().describe(""),
+		connectedAt: z.string().nullable().describe(""),
+		inUse: z.boolean().nullable().describe("")
+	})).nullable().describe(""),
+	presence: z.enum(["ok", "unavailable"]),
+	sessionsState: z.enum(["ok", "unavailable"]),
+	stopState: z.enum(["ok", "unavailable"]),
+	agentsState: z.enum(["ok", "unavailable"]),
+	errors: z.array(z.string())
+});
+const zRenameBrowserDto = z.object({ label: z.string().max(255) });
+const zRenamedBrowserResponseDto = z.object({
+	id: z.string(),
+	label: z.string()
+});
+const zBrowserRemovedResponseDto = z.object({
+	removed: z.boolean(),
+	pushed: z.enum([
+		"delivered",
+		"offline",
+		"failed"
+	]).describe("")
+});
+const zBrowserStopStateResponseDto = z.object({ stopped: z.boolean() });
+const zBrowserSessionDisconnectedResponseDto = z.object({ disconnected: z.boolean() });
+const zBrowsersListV1Data = z.object({ url: z.literal("/v1/browsers") });
+const zBrowsersRenameV1Data = z.object({
+	body: zRenameBrowserDto,
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/browsers/{id}")
+});
+const zBrowsersRemoveV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/browsers/{id}")
+});
+const zBrowsersStopV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/browsers/{id}/stop")
+});
+const zBrowsersResumeV1Data = z.object({
+	path: z.object({ "id": z.string() }),
+	url: z.literal("/v1/browsers/{id}/resume")
+});
+const zBrowsersDisconnectV1Data = z.object({
+	path: z.object({
+		"id": z.string(),
+		"sessionKey": z.string()
+	}),
+	url: z.literal("/v1/browsers/{id}/sessions/{sessionKey}/disconnect")
+});
+
+//#endregion
 //#region ../sdk/dist/gen/build/zod.js
 const zBuildStreamBuildV1Data = z.object({ url: z.literal("/v1/build/stream") });
 const zBuildGetActiveBuildsV1Data = z.object({ url: z.literal("/v1/build/active") });
@@ -19755,6 +19887,9 @@ const zLlmProviderRestoreV1Data = z.object({
 const zMcpHandleMcpPostV1Data = z.object({ url: z.literal("/v1/mcp") });
 const zMcpHandleMcpGetV1Data = z.object({ url: z.literal("/v1/mcp") });
 const zMcpHandleMcpDeleteV1Data = z.object({ url: z.literal("/v1/mcp") });
+const zMcpHandleBrowserMcpPostV1Data = z.object({ url: z.literal("/v1/mcp/browser") });
+const zMcpHandleBrowserMcpGetV1Data = z.object({ url: z.literal("/v1/mcp/browser") });
+const zMcpHandleBrowserMcpDeleteV1Data = z.object({ url: z.literal("/v1/mcp/browser") });
 
 //#endregion
 //#region ../sdk/dist/gen/mention/zod.js
@@ -30666,6 +30801,7 @@ const zCreateUserPreferenceDto = z.object({
 	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
+	capture_retention_hours: z.number().nullable().optional().describe(""),
 	user_id: z.string()
 });
 const zResponseUserPreferenceDto = z.object({
@@ -30673,6 +30809,7 @@ const zResponseUserPreferenceDto = z.object({
 	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
+	capture_retention_hours: z.number().nullable().optional().describe(""),
 	user_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -30688,6 +30825,7 @@ const zUpdateUserPreferenceDto = z.object({
 	auto_assign_on_start: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
+	capture_retention_hours: z.number().nullable().optional().describe(""),
 	user_id: z.string().optional()
 });
 const zUserPreferenceBulkOperationDto = z.object({
@@ -30734,6 +30872,7 @@ const zUserPreferenceFindAllV1Data = z.object({
 		"filter.auto_assign_on_start": z.array(z.string()).optional(),
 		"filter.auto_assign_on_result": z.array(z.string()).optional(),
 		"filter.auto_assign_on_done": z.array(z.string()).optional(),
+		"filter.capture_retention_hours": z.array(z.string()).optional(),
 		"filter.user_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
@@ -30741,6 +30880,8 @@ const zUserPreferenceFindAllV1Data = z.object({
 		"sortBy": z.array(z.enum([
 			"id:ASC",
 			"id:DESC",
+			"capture_retention_hours:ASC",
+			"capture_retention_hours:DESC",
 			"created_at:ASC",
 			"created_at:DESC",
 			"updated_at:ASC",
@@ -31260,6 +31401,7 @@ const zOpenIdConfigurationDto = z.object({
 const zWellKnownGetProtectedResourceMetadataData = z.object({ url: z.literal("/.well-known/oauth-protected-resource") });
 const zWellKnownGetProtectedResourceMetadataMcpData = z.object({ url: z.literal("/.well-known/oauth-protected-resource/mcp") });
 const zWellKnownGetProtectedResourceMetadataV1McpData = z.object({ url: z.literal("/.well-known/oauth-protected-resource/v1/mcp") });
+const zWellKnownGetProtectedResourceMetadataV1McpBrowserData = z.object({ url: z.literal("/.well-known/oauth-protected-resource/v1/mcp/browser") });
 const zWellKnownGetAuthorizationServerMetadataData = z.object({ url: z.literal("/.well-known/oauth-authorization-server") });
 const zWellKnownGetAuthorizationServerMetadataApiData = z.object({ url: z.literal("/.well-known/oauth-authorization-server/api") });
 const zWellKnownGetOpenIdConfigurationData = z.object({ url: z.literal("/.well-known/openid-configuration") });

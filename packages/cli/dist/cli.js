@@ -175,7 +175,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-g1oxms3Q.js");
+		const { mcpAddHandler } = await import("./addHandler-r0Yw1vu-.js");
 		return mcpAddHandler;
 	}
 });
@@ -213,7 +213,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-DK2x2NVu.js");
+		const { loginHandler } = await import("./loginHandler-DQ6Y9MNs.js");
 		return loginHandler;
 	}
 });
@@ -252,7 +252,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-Bb1CBDCB.js");
+		const { statusHandler } = await import("./statusHandler-C34Hsy7I.js");
 		return statusHandler;
 	}
 });
@@ -356,7 +356,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-BNKLthjU.js");
+		const { pushHandler } = await import("./pushHandler-BYLnrNOV.js");
 		return pushHandler;
 	}
 });
@@ -476,7 +476,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-0eMQhI21.js");
+		const { importHandler } = await import("./importHandler-DyuUKYBD.js");
 		return importHandler;
 	}
 });
@@ -497,7 +497,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-BIFi8m2j.js");
+		const { listHandler } = await import("./listHandler-CeCpGMsT.js");
 		return listHandler;
 	}
 });
@@ -530,7 +530,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-D3VcEjHe.js");
+		const { selectHandler } = await import("./selectHandler-CTrAYc_1.js");
 		return selectHandler;
 	}
 });
@@ -616,14 +616,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-DMX3SNe1.js");
+		const { gatesRunHandler } = await import("./runHandler-Ba6FM0t1.js");
 		return gatesRunHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.10.14";
+var version = "0.10.15";
 
 //#endregion
 //#region src/app.ts

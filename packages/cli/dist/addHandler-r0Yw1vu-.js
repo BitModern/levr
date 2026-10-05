@@ -705,12 +705,13 @@ function requireScope(harness, scope) {
 /**
 * Substitute `{name}` / `{url}` / `{scope}` into a `cli-command` argv. Returns
 * argv rather than a string so the executor can spawn it WITHOUT a shell.
+* `serverName` defaults to {@link SERVER_NAME}; see {@link buildHarnessConfig}.
 */
-function renderHarnessCommand(harness, mcpUrl, scope) {
+function renderHarnessCommand(harness, mcpUrl, scope, serverName = SERVER_NAME) {
 	const def = requireScope(harness, scope);
 	if (!def.command) throw new Error(`harness "${harness.id}" scope "${scope}" declares no command argv`);
 	const substitutions = {
-		"{name}": SERVER_NAME,
+		"{name}": serverName,
 		"{url}": mcpUrl,
 		"{scope}": scope
 	};
@@ -729,7 +730,8 @@ function mcpRemoteInvocation(mcpUrl) {
 }
 /**
 * The structured server entry to merge under the scope's server property,
-* keyed by {@link SERVER_NAME}. Shape is per-transport, then per-property:
+* keyed by `serverName` (default {@link SERVER_NAME}). Shape is per-transport,
+* then per-property:
 * - `native-http`: the entry's declared {@link NativeHttpEntryShape} —
 *   `{ url, type: 'http' }` by default (Claude Code's `.mcp.json`, Gemini).
 * - `mcpServers` (Claude Desktop, Cursor, Windsurf): flat `{ command, args }`.
@@ -737,24 +739,24 @@ function mcpRemoteInvocation(mcpUrl) {
 *
 * Not used for `cli-command` scopes (see {@link buildHarnessConfig}).
 */
-function buildServerEntry(harness, mcpUrl, scope = defaultScope(harness)) {
+function buildServerEntry(harness, mcpUrl, scope = defaultScope(harness), serverName = SERVER_NAME) {
 	requireScope(harness, scope);
 	if (harness.transport === "native-http") {
 		const shape = harness.nativeHttpEntry ?? DEFAULT_NATIVE_HTTP_ENTRY;
-		return { [SERVER_NAME]: {
+		return { [serverName]: {
 			[shape.urlKey]: mcpUrl,
 			...shape.constants ?? {}
 		} };
 	}
 	const { command, args } = mcpRemoteInvocation(mcpUrl);
-	if (serverPropertyFor(harness, scope) === "context_servers") return { [SERVER_NAME]: {
+	if (serverPropertyFor(harness, scope) === "context_servers") return { [serverName]: {
 		source: "custom",
 		command: {
 			path: command,
 			args
 		}
 	} };
-	return { [SERVER_NAME]: {
+	return { [serverName]: {
 		command,
 		args
 	} };
