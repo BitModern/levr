@@ -13955,306 +13955,6 @@ const zGateDefinitionRestoreV1Data = z.object({
 });
 
 //#endregion
-//#region ../sdk/dist/gen/gate-instance/zod.js
-const zCreateGateInstanceDto = z.object({
-	id: z.string().optional().describe(""),
-	status: z.string().optional().describe(""),
-	verification_rule: z.unknown().optional().describe(""),
-	verified_at: z.unknown().optional().describe(""),
-	waived_reason: z.string().nullable().optional().describe(""),
-	waived_at: z.unknown().optional().describe(""),
-	consecutive_passes: z.number().optional().describe(""),
-	consecutive_fails: z.number().optional().describe(""),
-	required: z.boolean().optional().describe(""),
-	last_checked_at: z.unknown().optional().describe(""),
-	issue_id: z.string(),
-	issue_test_link_id: z.string().nullable().optional(),
-	gate_definition_id: z.string(),
-	gate_set_id: z.string().nullable().optional(),
-	verified_by: z.string().nullable().optional(),
-	waived_by: z.string().nullable().optional()
-});
-const zResponseGateInstanceDto = z.object({
-	id: z.string().describe(""),
-	status: z.string().optional().describe(""),
-	verification_rule: z.unknown().optional().describe(""),
-	verified_at: z.unknown().optional().describe(""),
-	waived_reason: z.string().nullable().optional().describe(""),
-	waived_at: z.unknown().optional().describe(""),
-	consecutive_passes: z.number().optional().describe(""),
-	consecutive_fails: z.number().optional().describe(""),
-	required: z.boolean().optional().describe(""),
-	last_checked_at: z.unknown().optional().describe(""),
-	issue_id: z.string(),
-	issue_test_link_id: z.string().nullable().optional(),
-	gate_definition_id: z.string(),
-	gate_set_id: z.string().nullable().optional(),
-	verified_by: z.string().nullable().optional(),
-	waived_by: z.string().nullable().optional(),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe(""),
-	deleted_at: z.unknown().describe(""),
-	deleted_by: z.string().nullable().describe("")
-});
-const zUpdateGateInstanceDto = z.object({
-	id: z.string().optional().describe(""),
-	status: z.string().optional().describe(""),
-	verification_rule: z.unknown().optional().describe(""),
-	verified_at: z.unknown().optional().describe(""),
-	waived_reason: z.string().nullable().optional().describe(""),
-	waived_at: z.unknown().optional().describe(""),
-	consecutive_passes: z.number().optional().describe(""),
-	consecutive_fails: z.number().optional().describe(""),
-	required: z.boolean().optional().describe(""),
-	last_checked_at: z.unknown().optional().describe(""),
-	issue_id: z.string().optional(),
-	issue_test_link_id: z.string().nullable().optional(),
-	gate_definition_id: z.string().optional(),
-	gate_set_id: z.string().nullable().optional(),
-	verified_by: z.string().nullable().optional(),
-	waived_by: z.string().nullable().optional()
-});
-const zGateInstanceBulkOperationDto = z.object({
-	op: z.enum([
-		"create",
-		"update",
-		"delete"
-	]).describe(""),
-	id: z.string().optional().describe(""),
-	data: z.union([zCreateGateInstanceDto, zUpdateGateInstanceDto]).optional().describe(""),
-	tx_id: z.string().describe("")
-});
-const zBulkGateInstanceRequestDto = z.object({ operations: z.array(zGateInstanceBulkOperationDto).describe("") });
-const zBulkGateInstanceOperationResultDto = z.object({
-	index: z.number().describe(""),
-	tx_id: z.string().describe(""),
-	status: z.number().describe(""),
-	error: z.object({
-		message: z.string().optional(),
-		code: z.string().optional(),
-		details: z.unknown().optional()
-	}).optional().describe(""),
-	response: zResponseGateInstanceDto.optional().describe("")
-});
-const zBulkGateInstanceResponseDto = z.object({
-	results: z.array(zBulkGateInstanceOperationResultDto).describe(""),
-	summary: z.object({
-		total: z.number().describe(""),
-		successful: z.number().describe(""),
-		failed: z.number().describe(""),
-		savepoints_used: z.number().describe("")
-	}).describe("")
-});
-const zGateInstanceCreateV1Data = z.object({
-	body: zCreateGateInstanceDto,
-	url: z.literal("/v1/gate-instance")
-});
-const zGateInstanceFindAllV1Data = z.object({
-	query: z.object({
-		"_with": z.string().optional(),
-		"page": z.number().optional(),
-		"limit": z.number().optional(),
-		"filter.id": z.array(z.string()).optional(),
-		"filter.status": z.array(z.string()).optional(),
-		"filter.verified_at": z.array(z.string()).optional(),
-		"filter.waived_reason": z.array(z.string()).optional(),
-		"filter.waived_at": z.array(z.string()).optional(),
-		"filter.consecutive_passes": z.array(z.string()).optional(),
-		"filter.consecutive_fails": z.array(z.string()).optional(),
-		"filter.required": z.array(z.string()).optional(),
-		"filter.last_checked_at": z.array(z.string()).optional(),
-		"filter.issue_id": z.array(z.string()).optional(),
-		"filter.issue_test_link_id": z.array(z.string()).optional(),
-		"filter.gate_definition_id": z.array(z.string()).optional(),
-		"filter.gate_set_id": z.array(z.string()).optional(),
-		"filter.verified_by": z.array(z.string()).optional(),
-		"filter.waived_by": z.array(z.string()).optional(),
-		"filter.created_at": z.array(z.string()).optional(),
-		"filter.updated_at": z.array(z.string()).optional(),
-		"filter.deleted_at": z.array(z.string()).optional(),
-		"sortBy": z.array(z.enum([
-			"id:ASC",
-			"id:DESC",
-			"status:ASC",
-			"status:DESC",
-			"verified_at:ASC",
-			"verified_at:DESC",
-			"waived_reason:ASC",
-			"waived_reason:DESC",
-			"waived_at:ASC",
-			"waived_at:DESC",
-			"consecutive_passes:ASC",
-			"consecutive_passes:DESC",
-			"consecutive_fails:ASC",
-			"consecutive_fails:DESC",
-			"last_checked_at:ASC",
-			"last_checked_at:DESC",
-			"issue_test_link_id:ASC",
-			"issue_test_link_id:DESC",
-			"gate_set_id:ASC",
-			"gate_set_id:DESC",
-			"verified_by:ASC",
-			"verified_by:DESC",
-			"waived_by:ASC",
-			"waived_by:DESC",
-			"created_at:ASC",
-			"created_at:DESC",
-			"updated_at:ASC",
-			"updated_at:DESC",
-			"deleted_at:ASC",
-			"deleted_at:DESC"
-		])).optional(),
-		"search": z.string().optional(),
-		"searchBy": z.array(z.string()).optional()
-	}).optional(),
-	url: z.literal("/v1/gate-instance")
-});
-const zGateInstanceFindRecentlyDeletedV1Data = z.object({ url: z.literal("/v1/gate-instance/recently-deleted") });
-const zGateInstanceFindOneV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-instance/{id}")
-});
-const zGateInstanceUpdateV1Data = z.object({
-	body: zUpdateGateInstanceDto,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-instance/{id}")
-});
-const zGateInstanceRemoveV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-instance/{id}")
-});
-const zGateInstanceBulkOperationV1Data = z.object({
-	body: zBulkGateInstanceRequestDto,
-	url: z.literal("/v1/gate-instance/bulk")
-});
-const zGateInstanceRestoreV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-instance/{id}/restore")
-});
-
-//#endregion
-//#region ../sdk/dist/gen/gate-result/zod.js
-const zCreateGateResultDto = z.object({
-	id: z.string().optional().describe(""),
-	status: z.string().describe(""),
-	output: z.string().nullable().optional().describe(""),
-	duration_ms: z.number().nullable().optional().describe(""),
-	context: z.unknown().optional().describe(""),
-	gate_instance_id: z.string(),
-	verified_by: z.string().nullable().optional()
-});
-const zResponseGateResultDto = z.object({
-	id: z.string().describe(""),
-	status: z.string().describe(""),
-	output: z.string().nullable().optional().describe(""),
-	duration_ms: z.number().nullable().optional().describe(""),
-	context: z.unknown().optional().describe(""),
-	gate_instance_id: z.string(),
-	verified_by: z.string().nullable().optional(),
-	created_at: z.unknown().describe(""),
-	updated_at: z.unknown().describe(""),
-	epoch: z.number().describe(""),
-	created_by: z.string().describe(""),
-	updated_by: z.string().describe(""),
-	workspace_id: z.string().describe("")
-});
-const zUpdateGateResultDto = z.object({
-	id: z.string().optional().describe(""),
-	status: z.string().optional().describe(""),
-	output: z.string().nullable().optional().describe(""),
-	duration_ms: z.number().nullable().optional().describe(""),
-	context: z.unknown().optional().describe(""),
-	gate_instance_id: z.string().optional(),
-	verified_by: z.string().nullable().optional()
-});
-const zGateResultBulkOperationDto = z.object({
-	op: z.enum([
-		"create",
-		"update",
-		"delete"
-	]).describe(""),
-	id: z.string().optional().describe(""),
-	data: z.union([zCreateGateResultDto, zUpdateGateResultDto]).optional().describe(""),
-	tx_id: z.string().describe("")
-});
-const zBulkGateResultRequestDto = z.object({ operations: z.array(zGateResultBulkOperationDto).describe("") });
-const zBulkGateResultOperationResultDto = z.object({
-	index: z.number().describe(""),
-	tx_id: z.string().describe(""),
-	status: z.number().describe(""),
-	error: z.object({
-		message: z.string().optional(),
-		code: z.string().optional(),
-		details: z.unknown().optional()
-	}).optional().describe(""),
-	response: zResponseGateResultDto.optional().describe("")
-});
-const zBulkGateResultResponseDto = z.object({
-	results: z.array(zBulkGateResultOperationResultDto).describe(""),
-	summary: z.object({
-		total: z.number().describe(""),
-		successful: z.number().describe(""),
-		failed: z.number().describe(""),
-		savepoints_used: z.number().describe("")
-	}).describe("")
-});
-const zGateResultCreateV1Data = z.object({
-	body: zCreateGateResultDto,
-	url: z.literal("/v1/gate-result")
-});
-const zGateResultFindAllV1Data = z.object({
-	query: z.object({
-		"_with": z.string().optional(),
-		"page": z.number().optional(),
-		"limit": z.number().optional(),
-		"filter.id": z.array(z.string()).optional(),
-		"filter.status": z.array(z.string()).optional(),
-		"filter.output": z.array(z.string()).optional(),
-		"filter.duration_ms": z.array(z.string()).optional(),
-		"filter.gate_instance_id": z.array(z.string()).optional(),
-		"filter.verified_by": z.array(z.string()).optional(),
-		"filter.created_at": z.array(z.string()).optional(),
-		"filter.updated_at": z.array(z.string()).optional(),
-		"sortBy": z.array(z.enum([
-			"id:ASC",
-			"id:DESC",
-			"status:ASC",
-			"status:DESC",
-			"output:ASC",
-			"output:DESC",
-			"duration_ms:ASC",
-			"duration_ms:DESC",
-			"verified_by:ASC",
-			"verified_by:DESC",
-			"created_at:ASC",
-			"created_at:DESC",
-			"updated_at:ASC",
-			"updated_at:DESC"
-		])).optional(),
-		"search": z.string().optional(),
-		"searchBy": z.array(z.string()).optional()
-	}).optional(),
-	url: z.literal("/v1/gate-result")
-});
-const zGateResultFindOneV1Data = z.object({
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-result/{id}")
-});
-const zGateResultUpdateV1Data = z.object({
-	body: zUpdateGateResultDto,
-	path: z.object({ "id": z.string() }),
-	url: z.literal("/v1/gate-result/{id}")
-});
-const zGateResultBulkOperationV1Data = z.object({
-	body: zBulkGateResultRequestDto,
-	url: z.literal("/v1/gate-result/bulk")
-});
-
-//#endregion
 //#region ../sdk/dist/gen/gate-set/zod.js
 const zCreateGateSetDto = z.object({
 	id: z.string().optional().describe(""),
@@ -14382,14 +14082,12 @@ const zGateSetRestoreV1Data = z.object({
 const zCreateGateSetDefinitionDto = z.object({
 	id: z.string().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
-	override_verification_rule: z.unknown().optional().describe(""),
 	gate_set_id: z.string(),
 	gate_definition_id: z.string()
 });
 const zResponseGateSetDefinitionDto = z.object({
 	id: z.string().describe(""),
 	sort_order: z.number().optional().describe(""),
-	override_verification_rule: z.unknown().optional().describe(""),
 	gate_set_id: z.string(),
 	gate_definition_id: z.string(),
 	created_at: z.unknown().describe(""),
@@ -14404,7 +14102,6 @@ const zResponseGateSetDefinitionDto = z.object({
 const zUpdateGateSetDefinitionDto = z.object({
 	id: z.string().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
-	override_verification_rule: z.unknown().optional().describe(""),
 	gate_set_id: z.string().optional(),
 	gate_definition_id: z.string().optional()
 });
@@ -17176,7 +16873,6 @@ const zResponseIssueTestLinkDto = z.object({
 	origin_run_result_id: z.string().nullable().optional().describe(""),
 	latest_run_result_id: z.string().nullable().optional().describe(""),
 	verified_at: z.unknown().optional().describe(""),
-	gate_slot: z.string().nullable().optional().describe(""),
 	gate_content_hash: z.string().nullable().optional().describe(""),
 	gate_drifted: z.boolean().nullable().optional().describe(""),
 	required: z.boolean().optional().describe(""),
@@ -17278,7 +16974,6 @@ const zIssueTestLinkFindAllV1Data = z.object({
 		"filter.origin_run_result_id": z.array(z.string()).optional(),
 		"filter.latest_run_result_id": z.array(z.string()).optional(),
 		"filter.verified_at": z.array(z.string()).optional(),
-		"filter.gate_slot": z.array(z.string()).optional(),
 		"filter.gate_content_hash": z.array(z.string()).optional(),
 		"filter.gate_drifted": z.array(z.string()).optional(),
 		"filter.required": z.array(z.string()).optional(),
@@ -17316,8 +17011,6 @@ const zIssueTestLinkFindAllV1Data = z.object({
 			"verified_by:DESC",
 			"verified_at:ASC",
 			"verified_at:DESC",
-			"gate_slot:ASC",
-			"gate_slot:DESC",
 			"gate_content_hash:ASC",
 			"gate_content_hash:DESC",
 			"advisory_reason:ASC",
