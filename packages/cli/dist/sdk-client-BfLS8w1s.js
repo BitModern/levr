@@ -5741,30 +5741,6 @@ const zChatRestoreV1Data = z.object({
 });
 
 //#endregion
-//#region ../sdk/dist/gen/ci-build-event/zod.js
-const zCIBuildEventDto = z.object({
-	workspace_id: z.string(),
-	event_type: z.string().max(30),
-	status: z.string().max(20),
-	branch: z.string().max(100).optional(),
-	commit_sha: z.string().max(40).optional(),
-	error_count: z.number().optional(),
-	duration_ms: z.number().optional(),
-	output: z.string().max(1e4).optional(),
-	triggered_by: z.string().max(50).optional(),
-	project_id: z.string().optional()
-});
-const zCIBuildEventResponseDto = z.object({
-	success: z.boolean(),
-	id: z.string().optional(),
-	message: z.string().optional()
-});
-const zCIBuildEventRecordBuildEventV1Data = z.object({
-	body: zCIBuildEventDto,
-	url: z.literal("/v1/ci-build-event")
-});
-
-//#endregion
 //#region ../sdk/dist/gen/claude-attribution/zod.js
 const zCreateClaudeAttributionDto = z.object({
 	id: z.string().optional().describe(""),
@@ -22821,7 +22797,7 @@ const zInternalRcaConfigBulkOperationV1Data = z.object({
 //#endregion
 //#region ../sdk/dist/gen/qinetic-signal/zod.js
 const zQSignalDto = z.object({
-	workspace_id: z.string(),
+	workspace_id: z.string().optional(),
 	signal_type: z.string().max(50),
 	severity: z.enum([
 		"critical",
