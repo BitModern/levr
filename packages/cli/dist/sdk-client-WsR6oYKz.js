@@ -19559,6 +19559,12 @@ const zMcpHandleMcpDeleteV1Data = z.object({ url: z.literal("/v1/mcp") });
 const zMcpHandleBrowserMcpPostV1Data = z.object({ url: z.literal("/v1/mcp/browser") });
 const zMcpHandleBrowserMcpGetV1Data = z.object({ url: z.literal("/v1/mcp/browser") });
 const zMcpHandleBrowserMcpDeleteV1Data = z.object({ url: z.literal("/v1/mcp/browser") });
+const zMcpHandleScopedMcpPostV1Data = z.object({
+	path: z.object({ "urlKey": z.string() }),
+	url: z.literal("/v1/mcp/w/{urlKey}")
+});
+const zMcpHandleScopedMcpGetV1Data = z.object({ url: z.literal("/v1/mcp/w/{urlKey}") });
+const zMcpHandleScopedMcpDeleteV1Data = z.object({ url: z.literal("/v1/mcp/w/{urlKey}") });
 
 //#endregion
 //#region ../sdk/dist/gen/mention/zod.js
@@ -31071,6 +31077,10 @@ const zWellKnownGetProtectedResourceMetadataData = z.object({ url: z.literal("/.
 const zWellKnownGetProtectedResourceMetadataMcpData = z.object({ url: z.literal("/.well-known/oauth-protected-resource/mcp") });
 const zWellKnownGetProtectedResourceMetadataV1McpData = z.object({ url: z.literal("/.well-known/oauth-protected-resource/v1/mcp") });
 const zWellKnownGetProtectedResourceMetadataV1McpBrowserData = z.object({ url: z.literal("/.well-known/oauth-protected-resource/v1/mcp/browser") });
+const zWellKnownGetProtectedResourceMetadataScopedMcpData = z.object({
+	path: z.object({ "urlKey": z.string() }),
+	url: z.literal("/.well-known/oauth-protected-resource/v1/mcp/w/{urlKey}")
+});
 const zWellKnownGetAuthorizationServerMetadataData = z.object({ url: z.literal("/.well-known/oauth-authorization-server") });
 const zWellKnownGetAuthorizationServerMetadataApiData = z.object({ url: z.literal("/.well-known/oauth-authorization-server/api") });
 const zWellKnownGetOpenIdConfigurationData = z.object({ url: z.literal("/.well-known/openid-configuration") });
