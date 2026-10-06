@@ -27271,7 +27271,7 @@ const zCreateSlaRuleDto = z.object({
 	business_days: z.unknown().optional().describe(""),
 	is_active: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
-	creator_id: z.string()
+	creator_id: z.string().optional().describe("")
 });
 const zResponseSlaRuleDto = z.object({
 	id: z.string().describe(""),
@@ -27288,7 +27288,7 @@ const zResponseSlaRuleDto = z.object({
 	business_days: z.unknown().optional().describe(""),
 	is_active: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
-	creator_id: z.string(),
+	creator_id: z.string().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -27313,7 +27313,7 @@ const zUpdateSlaRuleDto = z.object({
 	business_days: z.unknown().optional().describe(""),
 	is_active: z.boolean().optional().describe(""),
 	sort_order: z.number().optional().describe(""),
-	creator_id: z.string().optional()
+	creator_id: z.string().optional().describe("")
 });
 const zSlaRuleBulkOperationDto = z.object({
 	op: z.enum([
