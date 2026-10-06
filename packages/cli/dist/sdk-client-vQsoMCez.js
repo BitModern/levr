@@ -5474,7 +5474,7 @@ const zCreateCanvasLayoutDto = z.object({
 	layout_data: z.unknown().optional().describe(""),
 	is_active: z.boolean().optional().describe(""),
 	is_preset: z.boolean().optional().describe(""),
-	user_id: z.string()
+	user_id: z.string().optional().describe("")
 });
 const zResponseCanvasLayoutDto = z.object({
 	id: z.string().describe(""),
@@ -5483,7 +5483,7 @@ const zResponseCanvasLayoutDto = z.object({
 	layout_data: z.unknown().optional().describe(""),
 	is_active: z.boolean().optional().describe(""),
 	is_preset: z.boolean().optional().describe(""),
-	user_id: z.string(),
+	user_id: z.string().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -5498,7 +5498,7 @@ const zUpdateCanvasLayoutDto = z.object({
 	layout_data: z.unknown().optional().describe(""),
 	is_active: z.boolean().optional().describe(""),
 	is_preset: z.boolean().optional().describe(""),
-	user_id: z.string().optional()
+	user_id: z.string().optional().describe("")
 });
 const zCanvasLayoutBulkOperationDto = z.object({
 	op: z.enum([
@@ -15078,8 +15078,8 @@ const zCreateInitiativeDto = z.object({
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	project_count: z.number().optional().describe(""),
 	completed_project_count: z.number().optional().describe(""),
+	creator_id: z.string().optional().describe(""),
 	owner_id: z.string().nullable().optional(),
-	creator_id: z.string(),
 	parent_id: z.string().nullable().optional()
 });
 const zResponseInitiativeDto = z.object({
@@ -15120,8 +15120,8 @@ const zResponseInitiativeDto = z.object({
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	project_count: z.number().optional().describe(""),
 	completed_project_count: z.number().optional().describe(""),
+	creator_id: z.string().optional().describe(""),
 	owner_id: z.string().nullable().optional(),
-	creator_id: z.string(),
 	parent_id: z.string().nullable().optional(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
@@ -15173,8 +15173,8 @@ const zUpdateInitiativeDto = z.object({
 	scope_is_mixed_unit: z.boolean().optional().describe(""),
 	project_count: z.number().optional().describe(""),
 	completed_project_count: z.number().optional().describe(""),
+	creator_id: z.string().optional().describe(""),
 	owner_id: z.string().nullable().optional(),
-	creator_id: z.string().optional(),
 	parent_id: z.string().nullable().optional(),
 	archived_at: z.unknown().optional().describe("")
 });
@@ -15237,8 +15237,8 @@ const zInitiativeFindAllV1Data = z.object({
 		"filter.scope_is_mixed_unit": z.array(z.string()).optional(),
 		"filter.project_count": z.array(z.string()).optional(),
 		"filter.completed_project_count": z.array(z.string()).optional(),
-		"filter.owner_id": z.array(z.string()).optional(),
 		"filter.creator_id": z.array(z.string()).optional(),
+		"filter.owner_id": z.array(z.string()).optional(),
 		"filter.parent_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
@@ -20148,7 +20148,7 @@ const zCreateNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
-	user_id: z.string()
+	user_id: z.string().optional().describe("")
 });
 const zResponseNotificationPreferenceDto = z.object({
 	id: z.string().describe(""),
@@ -20163,7 +20163,7 @@ const zResponseNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
-	user_id: z.string(),
+	user_id: z.string().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -20186,7 +20186,7 @@ const zUpdateNotificationPreferenceDto = z.object({
 	auto_subscribe_assigned: z.boolean().optional().describe(""),
 	auto_subscribe_mentioned: z.boolean().optional().describe(""),
 	auto_subscribe_commented: z.boolean().optional().describe(""),
-	user_id: z.string().optional()
+	user_id: z.string().optional().describe("")
 });
 const zNotificationPreferenceBulkOperationDto = z.object({
 	op: z.enum([
@@ -22204,9 +22204,9 @@ const zCreateProjectUpdateDto = z.object({
 	is_stale: z.boolean().optional().describe(""),
 	comment_count: z.number().optional().describe(""),
 	edited_at: z.unknown().optional().describe(""),
+	author_id: z.string().optional().describe(""),
 	project_id: z.string().nullable().optional(),
-	initiative_id: z.string().nullable().optional(),
-	author_id: z.string()
+	initiative_id: z.string().nullable().optional()
 });
 const zResponseProjectUpdateDto = z.object({
 	id: z.string().describe(""),
@@ -22221,9 +22221,9 @@ const zResponseProjectUpdateDto = z.object({
 	is_stale: z.boolean().optional().describe(""),
 	comment_count: z.number().optional().describe(""),
 	edited_at: z.unknown().optional().describe(""),
+	author_id: z.string().optional().describe(""),
 	project_id: z.string().nullable().optional(),
 	initiative_id: z.string().nullable().optional(),
-	author_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -22246,9 +22246,9 @@ const zUpdateProjectUpdateDto = z.object({
 	is_stale: z.boolean().optional().describe(""),
 	comment_count: z.number().optional().describe(""),
 	edited_at: z.unknown().optional().describe(""),
+	author_id: z.string().optional().describe(""),
 	project_id: z.string().nullable().optional(),
-	initiative_id: z.string().nullable().optional(),
-	author_id: z.string().optional()
+	initiative_id: z.string().nullable().optional()
 });
 const zProjectUpdateBulkOperationDto = z.object({
 	op: z.enum([
@@ -22297,8 +22297,8 @@ const zProjectUpdateFindAllV1Data = z.object({
 		"filter.is_stale": z.array(z.string()).optional(),
 		"filter.comment_count": z.array(z.string()).optional(),
 		"filter.edited_at": z.array(z.string()).optional(),
-		"filter.initiative_id": z.array(z.string()).optional(),
 		"filter.author_id": z.array(z.string()).optional(),
+		"filter.initiative_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
 		"filter.project_id": z.array(z.string()).optional(),
@@ -29478,8 +29478,8 @@ const zCreateThreadBriefLayoutDto = z.object({
 	tray_mode: z.string().optional().describe(""),
 	chat_monitor_index: z.number().optional().describe(""),
 	monitor_count: z.number().optional().describe(""),
-	chat_id: z.string(),
-	user_id: z.string()
+	user_id: z.string().optional().describe(""),
+	chat_id: z.string()
 });
 const zResponseThreadBriefLayoutDto = z.object({
 	id: z.string().describe(""),
@@ -29493,8 +29493,8 @@ const zResponseThreadBriefLayoutDto = z.object({
 	tray_mode: z.string().optional().describe(""),
 	chat_monitor_index: z.number().optional().describe(""),
 	monitor_count: z.number().optional().describe(""),
+	user_id: z.string().optional().describe(""),
 	chat_id: z.string(),
-	user_id: z.string(),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -29514,8 +29514,8 @@ const zUpdateThreadBriefLayoutDto = z.object({
 	tray_mode: z.string().optional().describe(""),
 	chat_monitor_index: z.number().optional().describe(""),
 	monitor_count: z.number().optional().describe(""),
-	chat_id: z.string().optional(),
-	user_id: z.string().optional()
+	user_id: z.string().optional().describe(""),
+	chat_id: z.string().optional()
 });
 const zThreadBriefLayoutBulkOperationDto = z.object({
 	op: z.enum([
@@ -29563,8 +29563,8 @@ const zThreadBriefLayoutFindAllV1Data = z.object({
 		"filter.tray_mode": z.array(z.string()).optional(),
 		"filter.chat_monitor_index": z.array(z.string()).optional(),
 		"filter.monitor_count": z.array(z.string()).optional(),
-		"filter.chat_id": z.array(z.string()).optional(),
 		"filter.user_id": z.array(z.string()).optional(),
+		"filter.chat_id": z.array(z.string()).optional(),
 		"filter.created_at": z.array(z.string()).optional(),
 		"filter.updated_at": z.array(z.string()).optional(),
 		"sortBy": z.array(z.enum([
@@ -30477,7 +30477,7 @@ const zCreateUserPreferenceDto = z.object({
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
 	capture_retention_hours: z.number().nullable().optional().describe(""),
-	user_id: z.string()
+	user_id: z.string().optional().describe("")
 });
 const zResponseUserPreferenceDto = z.object({
 	id: z.string().describe(""),
@@ -30485,7 +30485,7 @@ const zResponseUserPreferenceDto = z.object({
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
 	capture_retention_hours: z.number().nullable().optional().describe(""),
-	user_id: z.string(),
+	user_id: z.string().optional().describe(""),
 	created_at: z.unknown().describe(""),
 	updated_at: z.unknown().describe(""),
 	epoch: z.number().describe(""),
@@ -30501,7 +30501,7 @@ const zUpdateUserPreferenceDto = z.object({
 	auto_assign_on_result: z.boolean().nullable().optional().describe(""),
 	auto_assign_on_done: z.boolean().nullable().optional().describe(""),
 	capture_retention_hours: z.number().nullable().optional().describe(""),
-	user_id: z.string().optional()
+	user_id: z.string().optional().describe("")
 });
 const zUserPreferenceBulkOperationDto = z.object({
 	op: z.enum([
