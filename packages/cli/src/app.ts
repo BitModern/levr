@@ -10,6 +10,8 @@ import { listCommand } from './commands/workspace/list.js';
 import { selectCommand } from './commands/workspace/select.js';
 import { currentCommand } from './commands/workspace/current.js';
 import { gatesRunCommand } from './commands/gates/run.js';
+import { attachCommand } from './commands/attach.js';
+import { resultAppendCommand } from './commands/result/append.js';
 import { version } from '../package.json' with { type: 'json' };
 
 const authRoutes = buildRouteMap({
@@ -44,6 +46,16 @@ const gatesRoutes = buildRouteMap({
   },
 });
 
+// internal: execution-result evidence from the CLI.
+const resultRoutes = buildRouteMap({
+  routes: {
+    append: resultAppendCommand,
+  },
+  docs: {
+    brief: 'Work with execution results',
+  },
+});
+
 const mcpRoutes = buildRouteMap({
   routes: {
     add: mcpAddCommand,
@@ -61,6 +73,8 @@ const routes = buildRouteMap({
     gates: gatesRoutes,
     push: pushCommand,
     import: importCommand,
+    attach: attachCommand,
+    result: resultRoutes,
     // Visible on purpose (internal). This replaced hidden `install`/`uninstall`
     // commands that rewrote the user's ~/.bashrc — a shape with almost no
     // precedent (19 of 25 surveyed CLIs print to stdout instead) and one that

@@ -21,7 +21,18 @@ Examples:
   levr push ./results.xml --source "backend-unit-tests"
   levr push ./results.xml --automation-source <uuid>
   levr push ./report.json --source e2e --team-id <uuid>   # explicit team
-  levr push ./test-results.xml   # in CI: source auto-detected`,
+  levr push ./test-results.xml   # in CI: source auto-detected
+  levr push e2e-report.xml -s e2e --artifacts e2e-reports --output-results results.json
+
+--artifacts <dir> uploads the screenshots, traces and videos the report
+references (JUnit [[ATTACHMENT|path]], CTRF attachments[]) to their results.
+Paths resolve against <dir> (then the report's directory) and must stay
+inside the working directory. Files over 50 MiB are skipped. An artifact
+problem prints a summary and never changes the push exit code.
+
+--output-results <file> writes every imported result (id, name, suite,
+classname, status, test_key, attempts, attachments) as JSON, for
+levr attach --manifest or later uploads.`,
   },
   parameters: {
     positional: {
@@ -86,6 +97,24 @@ Examples:
       // had an effect since internal: automation results have no folder tree,
       // and tests are namespaced by source (use another --source for a fresh
       // set).
+      // internal: --artifacts and --output-results (outputResults in the
+      // handler) both ask the server for result.results (include_results).
+      artifacts: {
+        kind: 'parsed',
+        parse: String,
+        brief:
+          'Upload the artifacts the report references, resolved against this directory',
+        placeholder: 'dir',
+        optional: true,
+      },
+      'output-results': {
+        kind: 'parsed',
+        parse: String,
+        brief:
+          'Write the imported results (ids, test_key, attachments) to a JSON file',
+        placeholder: 'file',
+        optional: true,
+      },
       verbose: {
         kind: 'boolean',
         default: false,

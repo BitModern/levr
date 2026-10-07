@@ -1,5 +1,5 @@
-import { readFileSync, statSync } from 'node:fs';
-import { basename } from 'node:path';
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
 import ora from 'ora';
 import { client } from '@levr/sdk';
 import type { LocalContext } from '../context.js';
@@ -14,6 +14,11 @@ import {
 } from '../utils/env.js';
 import { detectSource, getCiMetadata } from '../utils/ci-detect.js';
 import { configureClient, uploadImport } from '../utils/sdk-client.js';
+import type { ImportResult } from '../utils/sdk-client.js';
+import {
+  formatArtifactSummary,
+  uploadReportArtifacts,
+} from '../utils/push-artifacts.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -150,6 +155,13 @@ export async function pushHandler(
   // 5. CI metadata
   const ciMeta = getCiMetadata();
 
+  // 5b. internal: --output-results / --artifacts both need the server's
+  // per-result identities, so either one sends include_results. The CLI
+  // never derives a test identity itself.
+  const outputResults = flags['output-results'];
+  const artifactsDir = flags.artifacts;
+  const includeResults = Boolean(outputResults || artifactsDir);
+
   // Verbose: pre-upload diagnostics
   if (flags.verbose) {
     this.logger.debug(
@@ -204,6 +216,7 @@ export async function pushHandler(
         ? { automationSourceId }
         : { automationSource: sourceName }),
       importMetadata: ciMeta as Record<string, unknown> | undefined,
+      includeResults,
     });
 
     spinner.stop();
@@ -272,6 +285,14 @@ export async function pushHandler(
         this.process.stdout.write(`  CI:       ${ciLabel}\n`);
       }
 
+      if (includeResults) {
+        await handleResultArtifacts(this, result, {
+          outputResults,
+          artifactsDir,
+          reportFile: file,
+        });
+      }
+
       // Verbose: detailed import stats. internal R6 — unified on the
       // AutomationBuildResult.stats shape. Legacy keys (folders_*,
       // steps_created, tests_skipped, attachments_*) are gone; the
@@ -318,5 +339,66 @@ export async function pushHandler(
     spinner.stop();
     this.logger.error(err instanceof Error ? err.message : 'Upload failed.');
     this.process.exitCode = 1;
+  }
+}
+
+/**
+ * internal: write the results file and upload the report's artifacts.
+ * fail_fallback(warn) throughout — nothing here changes the push exit code
+ * (DD5, internal): every problem becomes a warning or a summary count.
+ */
+async function handleResultArtifacts(
+  ctx: LocalContext,
+  result: ImportResult,
+  options: {
+    outputResults?: string;
+    artifactsDir?: string;
+    reportFile: string;
+  },
+): Promise<void> {
+  const results = result.result?.results ?? [];
+  if (options.outputResults) {
+    try {
+      writeFileSync(
+        options.outputResults,
+        `${JSON.stringify(results, null, 2)}\n`,
+      );
+      ctx.process.stdout.write(
+        `  Results:  ${results.length} written to ${options.outputResults}\n`,
+      );
+    } catch (err) {
+      ctx.logger.warning(
+        `Could not write ${options.outputResults}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+  if (options.artifactsDir) {
+    try {
+      const summary = await uploadReportArtifacts({
+        results,
+        artifactsDir: resolve(options.artifactsDir),
+        reportDir: dirname(resolve(options.reportFile)),
+        onProblem: (path, outcome) => {
+          const why =
+            outcome === 'rejected'
+              ? 'outside the working directory'
+              : outcome.status === 'skipped'
+                ? 'larger than 50 MiB'
+                : 'message' in outcome
+                  ? outcome.message
+                  : outcome.status;
+          ctx.logger.debug(`artifact ${path}: ${why}`);
+        },
+      });
+      const line = formatArtifactSummary(summary);
+      const problems =
+        summary.skipped + summary.missing + summary.rejected + summary.failed;
+      if (problems > 0) ctx.logger.warning(line);
+      else ctx.process.stdout.write(`  ${line}\n`);
+    } catch (err) {
+      ctx.logger.warning(
+        `Artifact upload stopped: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 }

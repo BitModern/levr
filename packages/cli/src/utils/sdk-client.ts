@@ -1,4 +1,17 @@
-import { client, importCreateV1 } from '@levr/sdk';
+import {
+  attachmentUploadUploadV1,
+  client,
+  commentIssueCreateV1,
+  commentRunCreateV1,
+  commentTestCreateV1,
+  importCreateV1,
+  runApiUpdateRunResultVariantByIdV1,
+} from '@levr/sdk';
+import type {
+  AttachmentUploadUploadV1Body,
+  UpdateRunResultVariantDto,
+  UploadAttachmentResponseDto,
+} from '@levr/sdk';
 import { getApiUrl } from './env.js';
 import type { ResolvedAuth } from '../types/auth-types.js';
 
@@ -44,7 +57,27 @@ export interface ImportResult {
       flaky: number;
     };
     warnings?: Array<{ message: string; count: number }>;
+    /** Present only when the import was sent with include_results (internal). */
+    results?: ImportResultItem[];
   };
+}
+
+/** One imported automation result and the artifacts its report referenced. */
+export interface ImportResultItem {
+  id: string;
+  name: string;
+  suite: string | null;
+  classname: string | null;
+  status: string;
+  test_key: string;
+  attempts: number;
+  attachments: Array<{
+    path: string | null;
+    name: string | null;
+    kind: string;
+    attempt_index: number | null;
+    stored: boolean;
+  }>;
 }
 
 export interface ImportOptions {
@@ -61,6 +94,12 @@ export interface ImportOptions {
   /** UUID of an existing source (internal). Mutually exclusive with automationSource. */
   automationSourceId?: string;
   importMetadata?: Record<string, unknown>;
+  /**
+   * Ask for result.results[] (internal): the server-side identity of every
+   * imported result plus the artifacts its report references. Set by
+   * `levr push --output-results / --artifacts`.
+   */
+  includeResults?: boolean;
 }
 
 /**
@@ -83,6 +122,7 @@ export async function uploadImport(options: ImportOptions) {
       import_metadata: options.importMetadata
         ? JSON.stringify(options.importMetadata)
         : undefined,
+      include_results: options.includeResults ? true : undefined,
     },
     requestValidator: undefined,
   });
@@ -121,4 +161,86 @@ function tryReadMessage(err: unknown): string | undefined {
     return typeof m === 'string' ? m : undefined;
   }
   return undefined;
+}
+
+/**
+ * The raw outcome of one POST /v1/attachment/upload (internal). Never
+ * throws for an HTTP error: the caller decides what is retryable. A network
+ * failure (fetch rejected) DOES throw — the caller classifies it.
+ */
+export interface UploadAttachmentOutcome {
+  status: number;
+  data?: UploadAttachmentResponseDto;
+  error?: unknown;
+}
+
+export async function uploadAttachment(
+  body: AttachmentUploadUploadV1Body,
+): Promise<UploadAttachmentOutcome> {
+  const result = await attachmentUploadUploadV1({
+    body,
+    requestValidator: undefined,
+  });
+  return {
+    status: result.response?.status ?? 0,
+    data: result.data,
+    error: result.error,
+  };
+}
+
+/**
+ * Server-side append to an execution result's actual_result, addressed by
+ * the variant id alone (internal PATCH /v1/run/run-result-variant/:id). Never
+ * a read-modify-write: the server appends.
+ */
+export async function appendActualResult(
+  runResultVariantId: string,
+  text: string,
+): Promise<void> {
+  const result = await runApiUpdateRunResultVariantByIdV1({
+    path: { runResultVariantId },
+    // `actual_result` must be ABSENT: the server rejects it together with
+    // append_actual_result. The generated type marks it required.
+    body: {
+      append_actual_result: text,
+    } as unknown as UpdateRunResultVariantDto,
+    requestValidator: undefined,
+  });
+  if (result.error) {
+    throw new Error(
+      `Append failed (${String(result.response?.status ?? 'unknown')}): ${
+        tryReadMessage(result.error) ?? JSON.stringify(result.error)
+      }`,
+    );
+  }
+}
+
+/** A NEW comment on an issue, test or run (append-only; internal --embed). */
+export async function createComment(
+  target: 'issue' | 'test' | 'run',
+  targetId: string,
+  body: string,
+): Promise<void> {
+  const result =
+    target === 'issue'
+      ? await commentIssueCreateV1({
+          body: { issue_id: targetId, body },
+          requestValidator: undefined,
+        })
+      : target === 'test'
+        ? await commentTestCreateV1({
+            body: { test_id: targetId, body },
+            requestValidator: undefined,
+          })
+        : await commentRunCreateV1({
+            body: { run_id: targetId, body },
+            requestValidator: undefined,
+          });
+  if (result.error) {
+    throw new Error(
+      `Comment failed (${String(result.response?.status ?? 'unknown')}): ${
+        tryReadMessage(result.error) ?? JSON.stringify(result.error)
+      }`,
+    );
+  }
 }

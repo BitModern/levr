@@ -30,9 +30,9 @@ jobs:
       - name: Resolve package name from the tag prefix
         id: pkg
         run: |
-          # auth-v1.2.3 -> auth ; cli-v1.2.3 -> cli
+          # auth-v1.2.3 -> auth ; cli-v1.2.3 -> cli ; sdk-v1.2.3 -> sdk
           PKG="${GITHUB_REF_NAME%%-v*}"
-          if [ "$PKG" != "auth" ] && [ "$PKG" != "cli" ]; then
+          if [ "$PKG" != "auth" ] && [ "$PKG" != "cli" ] && [ "$PKG" != "sdk" ]; then
             echo "Unrecognized tag prefix: ${GITHUB_REF_NAME}" >&2
             exit 1
           fi

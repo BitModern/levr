@@ -1,11 +1,13 @@
-import { getApiUrl, getAutomationSourceIdOverride, getSourceOverride, getTeamId } from "./env-CHeKHu5S.js";
-import { client, configureClient, uploadImport } from "./sdk-client-vQsoMCez.js";
-import "./workspace-store-DDOxnut1.js";
-import { resolveWorkspace } from "./resolve-workspace--4K7N4VU.js";
-import "./token-refresh-Cu5RpkLJ.js";
-import { resolveToken } from "./resolve-token-DbQsmn03.js";
-import { readFileSync, statSync } from "node:fs";
-import { basename } from "node:path";
+import { client, configureClient, uploadImport } from "./sdk-client-B_urshDp.js";
+import { getApiUrl, getAutomationSourceIdOverride, getSourceOverride, getTeamId } from "./env-CdwyPHGV.js";
+import "./token-refresh-DeusLK8H.js";
+import { resolveToken } from "./resolve-token-7xb7kG7h.js";
+import "./workspace-store-CnrxyYRB.js";
+import { resolveWorkspace } from "./resolve-workspace-Dsm8Xzut.js";
+import "./sleep-BpJ39Ypm.js";
+import { resolveArtifactPath, uploadArtifactFile } from "./artifact-upload-BnqeVY_b.js";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
 import { execSync } from "node:child_process";
 import ora from "ora";
 
@@ -357,6 +359,98 @@ function getCiMetadata() {
 }
 
 //#endregion
+//#region src/utils/push-artifacts.ts
+const ARTIFACT_UPLOAD_CONCURRENCY = 4;
+function formatArtifactSummary(s) {
+	return `Artifacts: uploaded ${s.uploaded}, deduplicated ${s.deduplicated}, skipped ${s.skipped} (too large), missing ${s.missing}, rejected ${s.rejected} (outside the working directory), failed ${s.failed}`;
+}
+async function uploadReportArtifacts(options) {
+	const summary = {
+		uploaded: 0,
+		deduplicated: 0,
+		skipped: 0,
+		missing: 0,
+		rejected: 0,
+		failed: 0
+	};
+	const tasks = [];
+	for (const result of options.results) for (const att of result.attachments) {
+		if (att.stored || !att.path) continue;
+		const ref = att.path;
+		const upload = async () => {
+			let resolved = resolveArtifactPath(ref, options.artifactsDir, options.root);
+			if (resolved && resolved.status === "missing") resolved = resolveArtifactPath(ref, options.reportDir, options.root) ?? resolved;
+			if (resolved === null) {
+				summary.rejected += 1;
+				options.onProblem?.(ref, "rejected");
+				return;
+			}
+			if (resolved.status === "missing") {
+				summary.missing += 1;
+				options.onProblem?.(ref, { status: "missing" });
+				return;
+			}
+			const outcome = await uploadArtifactFile({
+				target: {
+					relatedType: "automation_run_result",
+					relatedId: result.id
+				},
+				filePath: resolved.path,
+				validated: resolved,
+				name: att.name ?? void 0,
+				kind: att.kind,
+				attemptIndex: att.attempt_index
+			});
+			switch (outcome.status) {
+				case "uploaded":
+					summary.uploaded += 1;
+					return;
+				case "deduplicated":
+					summary.deduplicated += 1;
+					return;
+				case "skipped":
+					summary.skipped += 1;
+					break;
+				case "missing":
+					summary.missing += 1;
+					break;
+				case "rejected":
+					summary.rejected += 1;
+					break;
+				case "failed":
+					summary.failed += 1;
+					break;
+			}
+			options.onProblem?.(ref, outcome);
+		};
+		tasks.push(async () => {
+			try {
+				await upload();
+			} catch (err) {
+				summary.failed += 1;
+				options.onProblem?.(ref, {
+					status: "failed",
+					message: err instanceof Error ? err.message : String(err)
+				});
+			}
+		});
+	}
+	await runBounded(tasks, options.concurrency ?? ARTIFACT_UPLOAD_CONCURRENCY);
+	return summary;
+}
+/** Run tasks with at most `limit` in flight. Tasks must not throw. */
+async function runBounded(tasks, limit) {
+	let next = 0;
+	const worker = async () => {
+		while (next < tasks.length) {
+			const task = tasks[next++];
+			if (task) await task();
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+}
+
+//#endregion
 //#region src/commands/pushHandler.ts
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 function formatBytes(bytes) {
@@ -425,6 +519,9 @@ async function pushHandler(flags, file) {
 	if (automationSourceId && sourceName && sourceOrigin !== "auto-detected") this.logger.warning(`--automation-source (${automationSourceOrigin}) takes precedence; ignoring source name "${sourceName}" (${sourceOrigin}).`);
 	const uploadTeamId = automationSourceId && !flags["team-id"] ? void 0 : teamId;
 	const ciMeta = getCiMetadata();
+	const outputResults = flags["output-results"];
+	const artifactsDir = flags.artifacts;
+	const includeResults = Boolean(outputResults || artifactsDir);
 	if (flags.verbose) {
 		this.logger.debug(`Team: ${uploadTeamId ?? (automationSourceId ? "(automation source's team)" : "(server default)")}`);
 		this.logger.debug(`File: ${file} (${formatBytes(fileStat.size)})`);
@@ -453,7 +550,8 @@ async function pushHandler(flags, file) {
 			format: flags.format,
 			runName: flags["run-name"],
 			...automationSourceId ? { automationSourceId } : { automationSource: sourceName },
-			importMetadata: ciMeta
+			importMetadata: ciMeta,
+			includeResults
 		});
 		spinner.stop();
 		if (result?.status === "failed") {
@@ -489,6 +587,11 @@ async function pushHandler(flags, file) {
 				const ciLabel = ciMeta.ci_build_id ? `${prettyProvider} #${ciMeta.ci_build_id}` : prettyProvider;
 				this.process.stdout.write(`  CI:       ${ciLabel}\n`);
 			}
+			if (includeResults) await handleResultArtifacts(this, result, {
+				outputResults,
+				artifactsDir,
+				reportFile: file
+			});
 			if (flags.verbose && result.result?.stats) {
 				const s = result.result.stats;
 				this.process.stdout.write("\n  Details:\n");
@@ -504,6 +607,36 @@ async function pushHandler(flags, file) {
 		spinner.stop();
 		this.logger.error(err instanceof Error ? err.message : "Upload failed.");
 		this.process.exitCode = 1;
+	}
+}
+/**
+* ENG-6164: write the results file and upload the report's artifacts.
+* fail_fallback(warn) throughout — nothing here changes the push exit code
+* (DD5, ENG-591): every problem becomes a warning or a summary count.
+*/
+async function handleResultArtifacts(ctx, result, options) {
+	const results = result.result?.results ?? [];
+	if (options.outputResults) try {
+		writeFileSync(options.outputResults, `${JSON.stringify(results, null, 2)}\n`);
+		ctx.process.stdout.write(`  Results:  ${results.length} written to ${options.outputResults}\n`);
+	} catch (err) {
+		ctx.logger.warning(`Could not write ${options.outputResults}: ${err instanceof Error ? err.message : String(err)}`);
+	}
+	if (options.artifactsDir) try {
+		const summary = await uploadReportArtifacts({
+			results,
+			artifactsDir: resolve(options.artifactsDir),
+			reportDir: dirname(resolve(options.reportFile)),
+			onProblem: (path$1, outcome) => {
+				const why = outcome === "rejected" ? "outside the working directory" : outcome.status === "skipped" ? "larger than 50 MiB" : "message" in outcome ? outcome.message : outcome.status;
+				ctx.logger.debug(`artifact ${path$1}: ${why}`);
+			}
+		});
+		const line = formatArtifactSummary(summary);
+		if (summary.skipped + summary.missing + summary.rejected + summary.failed > 0) ctx.logger.warning(line);
+		else ctx.process.stdout.write(`  ${line}\n`);
+	} catch (err) {
+		ctx.logger.warning(`Artifact upload stopped: ${err instanceof Error ? err.message : String(err)}`);
 	}
 }
 

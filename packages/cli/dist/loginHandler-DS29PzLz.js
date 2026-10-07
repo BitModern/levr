@@ -1,7 +1,8 @@
-import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-CHeKHu5S.js";
-import { configureClient } from "./sdk-client-vQsoMCez.js";
-import "./workspace-store-DDOxnut1.js";
-import { autoSelectWorkspace } from "./resolve-workspace--4K7N4VU.js";
+import { configureClient } from "./sdk-client-B_urshDp.js";
+import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-CdwyPHGV.js";
+import "./workspace-store-CnrxyYRB.js";
+import { autoSelectWorkspace } from "./resolve-workspace-Dsm8Xzut.js";
+import { sleep } from "./sleep-BpJ39Ypm.js";
 import chalk from "chalk";
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
@@ -151,12 +152,6 @@ function startCallbackServer(options = {}) {
 			server.close();
 		}
 	};
-}
-
-//#endregion
-//#region src/utils/sleep.ts
-function sleep(ms) {
-	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 //#endregion

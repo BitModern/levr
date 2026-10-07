@@ -1,4 +1,4 @@
-import { loadWorkspace } from "./workspace-store-DDOxnut1.js";
+import { loadWorkspace } from "./workspace-store-CnrxyYRB.js";
 
 //#region src/commands/workspace/currentHandler.ts
 function currentHandler() {

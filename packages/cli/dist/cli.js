@@ -175,7 +175,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-r0Yw1vu-.js");
+		const { mcpAddHandler } = await import("./addHandler-DUulKXOX.js");
 		return mcpAddHandler;
 	}
 });
@@ -213,7 +213,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-DMjKtKj5.js");
+		const { loginHandler } = await import("./loginHandler-DS29PzLz.js");
 		return loginHandler;
 	}
 });
@@ -232,7 +232,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-BFutKash.js");
+		const { logoutHandler } = await import("./logoutHandler-TSQlZGpU.js");
 		return logoutHandler;
 	}
 });
@@ -252,7 +252,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-WkN652yu.js");
+		const { statusHandler } = await import("./statusHandler-CwO5kl3m.js");
 		return statusHandler;
 	}
 });
@@ -280,7 +280,18 @@ Examples:
   levr push ./results.xml --source "backend-unit-tests"
   levr push ./results.xml --automation-source <uuid>
   levr push ./report.json --source e2e --team-id <uuid>   # explicit team
-  levr push ./test-results.xml   # in CI: source auto-detected`
+  levr push ./test-results.xml   # in CI: source auto-detected
+  levr push e2e-report.xml -s e2e --artifacts e2e-reports --output-results results.json
+
+--artifacts <dir> uploads the screenshots, traces and videos the report
+references (JUnit [[ATTACHMENT|path]], CTRF attachments[]) to their results.
+Paths resolve against <dir> (then the report's directory) and must stay
+inside the working directory. Files over 50 MiB are skipped. An artifact
+problem prints a summary and never changes the push exit code.
+
+--output-results <file> writes every imported result (id, name, suite,
+classname, status, test_key, attempts, attachments) as JSON, for
+levr attach --manifest or later uploads.`
 	},
 	parameters: {
 		positional: {
@@ -339,6 +350,20 @@ Examples:
 				brief: "File format (auto-detected if omitted)",
 				optional: true
 			},
+			artifacts: {
+				kind: "parsed",
+				parse: String,
+				brief: "Upload the artifacts the report references, resolved against this directory",
+				placeholder: "dir",
+				optional: true
+			},
+			"output-results": {
+				kind: "parsed",
+				parse: String,
+				brief: "Write the imported results (ids, test_key, attachments) to a JSON file",
+				placeholder: "file",
+				optional: true
+			},
 			verbose: {
 				kind: "boolean",
 				default: false,
@@ -356,7 +381,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-C7nxljuh.js");
+		const { pushHandler } = await import("./pushHandler-CR5vu3ci.js");
 		return pushHandler;
 	}
 });
@@ -476,7 +501,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-DAXXM42X.js");
+		const { importHandler } = await import("./importHandler-oENkrali.js");
 		return importHandler;
 	}
 });
@@ -497,7 +522,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-qFOGgW2z.js");
+		const { listHandler } = await import("./listHandler-E666F9uV.js");
 		return listHandler;
 	}
 });
@@ -530,7 +555,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-CPeH8ILF.js");
+		const { selectHandler } = await import("./selectHandler-Cv5fJl-p.js");
 		return selectHandler;
 	}
 });
@@ -547,7 +572,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-BBHqC26D.js");
+		const { currentHandler } = await import("./currentHandler-B_sWXNeW.js");
 		return currentHandler;
 	}
 });
@@ -616,14 +641,203 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-gaYkPS79.js");
+		const { gatesRunHandler } = await import("./runHandler-B2DlFleh.js");
 		return gatesRunHandler;
 	}
 });
 
 //#endregion
+//#region src/commands/attach.ts
+const ATTACHMENT_KINDS = [
+	"screenshot",
+	"video",
+	"trace",
+	"stdout_log",
+	"stderr_log",
+	"har",
+	"report",
+	"attachment",
+	"other"
+];
+const attachCommand = buildCommand({
+	docs: {
+		brief: "Attach local files to a Levr entity",
+		fullDescription: `Upload local files (screenshots, trace.zip, videos, logs) and attach them to
+an issue, test, run or execution result, without passing base64 through an
+MCP call.
+
+Targets:
+  ENG-42                         an issue, by identifier
+  TC-5                           a test case
+  TR-3                           a run
+  <related_type>:<uuid>          any entity with attachments, e.g.
+                                 run_result_variant:<uuid>
+                                 automation_run_result:<uuid>
+  <related_type>:<identifier>    an explicit type, e.g. issue:TC-12 for a
+                                 team whose key is TC or TR
+Spoke identifiers (ENG-JP-5) work in every form.
+
+Files are private: only signed-in workspace members can open them. --embed
+also adds a link to the entity so they render there: a new comment on an
+issue, test or run, or an append to an execution result's actual result.
+Files over 50 MiB are skipped.
+
+--manifest <json> attaches a batch: [{ "target": "...", "files": ["..."],
+"kind": "trace", "attempt": 1 }]. --kind and --attempt apply to
+automation_run_result targets only.
+
+Exit code 1 when any file fails, is skipped, or an embed write fails.
+
+Examples:
+  levr attach ENG-42 screenshot.png
+  levr attach run_result_variant:<uuid> shot.png --embed
+  levr attach automation_run_result:<uuid> trace.zip --kind trace --attempt 0
+  levr attach --manifest extra-artifacts.json`
+	},
+	parameters: {
+		positional: {
+			kind: "array",
+			parameter: {
+				parse: String,
+				brief: "Target, then the files to attach",
+				placeholder: "target|file"
+			}
+		},
+		flags: {
+			"workspace-id": {
+				kind: "parsed",
+				parse: String,
+				brief: "Workspace ID (required for multi-workspace JWT auth)",
+				placeholder: "uuid",
+				optional: true
+			},
+			kind: {
+				kind: "enum",
+				values: ATTACHMENT_KINDS,
+				brief: "Artifact kind (automation_run_result targets only)",
+				optional: true
+			},
+			attempt: {
+				kind: "parsed",
+				parse: (v) => {
+					if (!/^\d+$/.test(v)) throw new Error("--attempt must be >= 0");
+					return Number(v);
+				},
+				brief: "Index of the earlier attempt (automation_run_result only; omit for the final attempt)",
+				placeholder: "n",
+				optional: true
+			},
+			embed: {
+				kind: "boolean",
+				default: false,
+				brief: "Also add a markdown link (comment, or actual-result append)"
+			},
+			manifest: {
+				kind: "parsed",
+				parse: String,
+				brief: "JSON file listing [{ target, files, kind?, attempt? }]",
+				placeholder: "file",
+				optional: true
+			},
+			verbose: {
+				kind: "boolean",
+				default: false,
+				brief: "Show detailed output"
+			}
+		},
+		aliases: {
+			w: "workspace-id",
+			k: "kind",
+			e: "embed",
+			m: "manifest",
+			v: "verbose"
+		}
+	},
+	loader: async () => {
+		const { attachHandler } = await import("./attachHandler-BOxIqxAw.js");
+		return attachHandler;
+	}
+});
+
+//#endregion
+//#region src/commands/result/append.ts
+const resultAppendCommand = buildCommand({
+	docs: {
+		brief: "Append to an execution result's actual result",
+		fullDescription: `Append text to an execution result's actual result, server-side (no
+read-modify-write), optionally with local files attached first and embedded
+as markdown links. Attached files are private: the links open for signed-in
+workspace members.
+
+The target is run_result_variant:<uuid> — the execution result id the levr
+MCP tools and levr-browser return.
+
+Examples:
+  levr result append run_result_variant:<uuid> --text "Checkout returns 500"
+  levr result append run_result_variant:<uuid> --file observed.md --attach shot.png trace.zip`
+	},
+	parameters: {
+		positional: {
+			kind: "tuple",
+			parameters: [{
+				parse: String,
+				brief: "run_result_variant:<uuid>",
+				placeholder: "target"
+			}]
+		},
+		flags: {
+			"workspace-id": {
+				kind: "parsed",
+				parse: String,
+				brief: "Workspace ID (required for multi-workspace JWT auth)",
+				placeholder: "uuid",
+				optional: true
+			},
+			text: {
+				kind: "parsed",
+				parse: String,
+				brief: "Text to append",
+				placeholder: "text",
+				optional: true
+			},
+			file: {
+				kind: "parsed",
+				parse: String,
+				brief: "Read the text to append from a file",
+				placeholder: "path",
+				optional: true
+			},
+			attach: {
+				kind: "parsed",
+				parse: String,
+				brief: "Files to attach and embed (repeatable)",
+				placeholder: "file",
+				variadic: true,
+				optional: true
+			},
+			verbose: {
+				kind: "boolean",
+				default: false,
+				brief: "Show detailed output"
+			}
+		},
+		aliases: {
+			w: "workspace-id",
+			t: "text",
+			f: "file",
+			a: "attach",
+			v: "verbose"
+		}
+	},
+	loader: async () => {
+		const { resultAppendHandler } = await import("./appendHandler-DkbMvFOn.js");
+		return resultAppendHandler;
+	}
+});
+
+//#endregion
 //#region package.json
-var version = "0.10.20";
+var version = "0.10.21";
 
 //#endregion
 //#region src/app.ts
@@ -647,6 +861,10 @@ const gatesRoutes = buildRouteMap({
 	routes: { run: gatesRunCommand },
 	docs: { brief: "Run a deliverable's gates and report the raw results" }
 });
+const resultRoutes = buildRouteMap({
+	routes: { append: resultAppendCommand },
+	docs: { brief: "Work with execution results" }
+});
 const routes = buildRouteMap({
 	routes: {
 		mcp: buildRouteMap({
@@ -658,6 +876,8 @@ const routes = buildRouteMap({
 		gates: gatesRoutes,
 		push: pushCommand,
 		import: importCommand,
+		attach: attachCommand,
+		result: resultRoutes,
 		completion: completionCommand
 	},
 	docs: { brief: "The command-line interface for Levr" }
@@ -738,10 +958,10 @@ function envFilePath(cwd, env) {
 * getting silence is the one case where quiet failure hides a real mistake.
 */
 function loadEnvFile(cwd = process.cwd(), env = process.env) {
-	const path = envFilePath(cwd, env);
+	const path$1 = envFilePath(cwd, env);
 	const explicitlyRequested = Boolean(env["LEVR_ENV_FILE"]);
-	if (!existsSync(path)) {
-		if (explicitlyRequested) throw new Error(`LEVR_ENV_FILE points at "${path}", which does not exist.`);
+	if (!existsSync(path$1)) {
+		if (explicitlyRequested) throw new Error(`LEVR_ENV_FILE points at "${path$1}", which does not exist.`);
 		return {
 			path: null,
 			applied: []
@@ -749,7 +969,7 @@ function loadEnvFile(cwd = process.cwd(), env = process.env) {
 	}
 	let parsed;
 	try {
-		parsed = parse(readFileSync(path, "utf8"));
+		parsed = parse(readFileSync(path$1, "utf8"));
 	} catch (error) {
 		if (explicitlyRequested) throw error;
 		return {
@@ -765,7 +985,7 @@ function loadEnvFile(cwd = process.cwd(), env = process.env) {
 		applied.push(key);
 	}
 	return {
-		path,
+		path: path$1,
 		applied
 	};
 }

@@ -14,5 +14,12 @@ export interface PushCommandFlags {
   'automation-source'?: string;
   'run-name'?: string;
   format?: 'junit' | 'gherkin' | 'cucumber-json' | 'ctrf-json';
+  /**
+   * internal: upload the artifacts the report references (JUnit
+   * [[ATTACHMENT|path]], CTRF attachments[]) from this directory.
+   */
+  artifacts?: string;
+  /** internal: write the imported results (ids, test_key, attachments) here. */
+  'output-results'?: string;
   verbose: boolean;
 }

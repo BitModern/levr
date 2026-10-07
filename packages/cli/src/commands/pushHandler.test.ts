@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { detectSource, getCiMetadata } from '../utils/ci-detect.js';
@@ -14,6 +21,7 @@ vi.mock('../auth/resolve-token.js', () => ({
 vi.mock('../utils/sdk-client.js', () => ({
   configureClient: vi.fn(),
   uploadImport: vi.fn(),
+  uploadAttachment: vi.fn(),
 }));
 
 vi.mock('ora', () => ({
@@ -21,7 +29,7 @@ vi.mock('ora', () => ({
 }));
 
 import { pushHandler } from './pushHandler.js';
-import { uploadImport } from '../utils/sdk-client.js';
+import { uploadAttachment, uploadImport } from '../utils/sdk-client.js';
 
 const mockUploadImport = vi.mocked(uploadImport);
 
@@ -225,5 +233,99 @@ describe('pushHandler routing', () => {
     );
 
     expect(mockUploadImport.mock.calls[0]![0].teamId).toBe('team-uuid');
+  });
+
+  // internal DD5 / internal AC: an artifact problem is a summary line, never
+  // the push's exit code.
+  it('artifact failures never change the push exit code', async () => {
+    const cwd = process.cwd();
+    const reports = join(dir, 'e2e-reports');
+    mkdirSync(join(dir, 'test-results', 't'), { recursive: true });
+    mkdirSync(reports, { recursive: true });
+    writeFileSync(join(dir, 'test-results', 't', 'trace.zip'), 'zip');
+    const out = join(dir, 'levr-results.json');
+    const results = [
+      {
+        id: '01a10000-0000-7000-8000-0000000000c3',
+        name: 'checkout pays',
+        suite: 'checkout',
+        classname: 'checkout.spec.ts',
+        status: 'failed',
+        test_key: 'k1',
+        attempts: 1,
+        attachments: [
+          // exists, but the upload is refused (404)
+          {
+            path: '../test-results/t/trace.zip',
+            name: 'trace.zip',
+            kind: 'trace',
+            attempt_index: null,
+            stored: false,
+          },
+          // missing on disk
+          {
+            path: '../test-results/t/gone.png',
+            name: 'gone.png',
+            kind: 'screenshot',
+            attempt_index: null,
+            stored: false,
+          },
+          // outside the working directory
+          {
+            path: '../../../../etc/passwd',
+            name: 'passwd',
+            kind: 'attachment',
+            attempt_index: null,
+            stored: false,
+          },
+          // stored server-side already: never uploaded
+          {
+            path: null,
+            name: 'log.txt',
+            kind: 'attachment',
+            attempt_index: null,
+            stored: true,
+          },
+        ],
+      },
+    ];
+    mockUploadImport.mockResolvedValue({
+      status: 'completed',
+      result: { results },
+    } as never);
+    vi.mocked(uploadAttachment).mockResolvedValue({
+      status: 404,
+      error: { message: 'automation_run_result not found' },
+    });
+
+    process.chdir(dir);
+    try {
+      const c = ctx();
+      await pushHandler.call(
+        c,
+        flags({ source: 'e2e', artifacts: reports, 'output-results': out }),
+        file,
+      );
+
+      expect(c.process.exitCode).toBe(0);
+      expect(mockUploadImport.mock.calls[0]![0].includeResults).toBe(true);
+      // The traced file was tried once (a definite 4xx is never retried);
+      // the missing and the escaping paths were never read.
+      expect(vi.mocked(uploadAttachment)).toHaveBeenCalledTimes(1);
+      expect(warnings.join('\n')).toContain(
+        'uploaded 0, deduplicated 0, skipped 0 (too large), missing 1, rejected 1 (outside the working directory), failed 1',
+      );
+      expect(existsSync(out)).toBe(true);
+      expect(JSON.parse(readFileSync(out, 'utf8'))).toEqual(results);
+    } finally {
+      process.chdir(cwd);
+    }
+  });
+
+  it('a plain push asks for no results', async () => {
+    const c = ctx();
+    await pushHandler.call(c, flags({ source: 'e2e' }), file);
+    expect(c.process.exitCode).toBe(0);
+    expect(mockUploadImport.mock.calls[0]![0].includeResults).toBe(false);
   });
 });

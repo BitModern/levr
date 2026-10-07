@@ -1,8 +1,8 @@
-import "./env-CHeKHu5S.js";
-import { authGetSitesV1, configureClient } from "./sdk-client-vQsoMCez.js";
-import { saveWorkspace } from "./workspace-store-DDOxnut1.js";
-import "./token-refresh-Cu5RpkLJ.js";
-import { resolveToken } from "./resolve-token-DbQsmn03.js";
+import { authGetSitesV1, configureClient } from "./sdk-client-B_urshDp.js";
+import "./env-CdwyPHGV.js";
+import "./token-refresh-DeusLK8H.js";
+import { resolveToken } from "./resolve-token-7xb7kG7h.js";
+import { saveWorkspace } from "./workspace-store-CnrxyYRB.js";
 
 //#region src/commands/workspace/selectHandler.ts
 async function selectHandler(_flags, workspaceId) {

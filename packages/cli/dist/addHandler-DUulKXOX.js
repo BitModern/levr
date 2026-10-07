@@ -1,4 +1,4 @@
-import { getApiUrl } from "./env-CHeKHu5S.js";
+import { getApiUrl } from "./env-CdwyPHGV.js";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -90,9 +90,9 @@ function renderTomlBodyLines(value, pathPrefix) {
 		lines.push(`${renderTomlKey(key)} = ${renderTomlValue(v)}`);
 	}
 	for (const [key, v] of nested) {
-		const path = [...pathPrefix, key];
-		lines.push("", `[${path.map(renderTomlKey).join(".")}]`);
-		lines.push(...renderTomlBodyLines(v, path));
+		const path$1 = [...pathPrefix, key];
+		lines.push("", `[${path$1.map(renderTomlKey).join(".")}]`);
+		lines.push(...renderTomlBodyLines(v, path$1));
 	}
 	return lines;
 }
@@ -970,17 +970,17 @@ function readServerEntry(harness, scope, configPath, cwdKey, parseJsonc) {
 	return getAtPath(parseJsonc(text), entryPathFor(harness, scope, cwdKey));
 }
 /** Read a text file, or `null` if it doesn't exist / can't be read. */
-function readTextOrNull(path) {
+function readTextOrNull(path$1) {
 	try {
-		return readFileSync(path, "utf8");
+		return readFileSync(path$1, "utf8");
 	} catch {
 		return null;
 	}
 }
 /** Safe nested lookup over an unknown-typed parsed JSON value. */
-function getAtPath(obj, path) {
+function getAtPath(obj, path$1) {
 	let cur = obj;
-	for (const key of path) {
+	for (const key of path$1) {
 		if (cur === null || typeof cur !== "object") return void 0;
 		cur = cur[key];
 	}
@@ -1057,35 +1057,35 @@ function parseDocument$1(text) {
 }
 const jsoncAdapter = {
 	empty: "{}",
-	readAt(text, path) {
+	readAt(text, path$1) {
 		if (text.trim() === "") return { kind: "absent" };
 		const doc = parseDocument$1(text);
 		if (!doc.ok) return {
 			kind: "unsupported",
 			detail: doc.detail
 		};
-		const value = getAtPath(doc.root, path);
+		const value = getAtPath(doc.root, path$1);
 		return value === void 0 ? { kind: "absent" } : {
 			kind: "value",
 			value
 		};
 	},
-	setAt(text, path, value) {
-		return edit(text, path, value);
+	setAt(text, path$1, value) {
+		return edit(text, path$1, value);
 	},
-	removeAt(text, path) {
-		return edit(text, path, void 0);
+	removeAt(text, path$1) {
+		return edit(text, path$1, void 0);
 	}
 };
 /** Shared by set and remove: jsonc-parser removes a key when `value` is `undefined`. */
-function edit(text, path, value) {
+function edit(text, path$1, value) {
 	const doc = parseDocument$1(text);
 	if (!doc.ok) throw new UnsupportedConfigShapeError(doc.detail);
 	try {
-		return applyEdits(text, modify(text, path, value, { formattingOptions: FORMAT }));
+		return applyEdits(text, modify(text, path$1, value, { formattingOptions: FORMAT }));
 	} catch (err) {
 		const message = err instanceof Error ? err.message : String(err);
-		throw new UnsupportedConfigShapeError(`cannot edit path ${path.join(".")}: ${message}`);
+		throw new UnsupportedConfigShapeError(`cannot edit path ${path$1.join(".")}: ${message}`);
 	}
 }
 
@@ -1267,8 +1267,8 @@ function probeHeader(doc, idx) {
 function samePath(a, b) {
 	return a.length === b.length && a.every((s, i) => s === b[i]);
 }
-function isSubPath(path, prefix) {
-	return path.length > prefix.length && prefix.every((s, i) => s === path[i]);
+function isSubPath(path$1, prefix) {
+	return path$1.length > prefix.length && prefix.every((s, i) => s === path$1[i]);
 }
 /**
 * Locate our table: the header line index and the index just past its body.
@@ -1280,12 +1280,12 @@ function isSubPath(path, prefix) {
 * scanner cannot read, or one whose probe breaks the document, still ends
 * the body. Misjudging a line can only make our region smaller.
 */
-function locateTable(doc, path) {
+function locateTable(doc, path$1) {
 	const { lines } = doc;
 	let start = -1;
 	for (let i = 0; i < lines.length; i++) {
 		const hp = headerPathOf(lines[i]);
-		if (hp && samePath(hp, path) && probeHeader(doc, i) === "real") {
+		if (hp && samePath(hp, path$1) && probeHeader(doc, i) === "real") {
 			start = i;
 			break;
 		}
@@ -1299,7 +1299,7 @@ function locateTable(doc, path) {
 		const verdict = probeHeader(doc, i);
 		if (verdict === "text") continue;
 		const hp = headerPathOf(lines[i]);
-		if (hp && isSubPath(hp, path) && verdict === "real") continue;
+		if (hp && isSubPath(hp, path$1) && verdict === "real") continue;
 		end = i;
 		break;
 	}
@@ -1309,49 +1309,49 @@ function locateTable(doc, path) {
 		end
 	};
 }
-function requireEditable(text, path) {
+function requireEditable(text, path$1) {
 	const parsed = parseDocument(text);
 	if (!parsed.ok) throw new UnsupportedConfigShapeError(parsed.detail);
 	return {
 		doc: splitLines(text),
-		exists: getAtPath(parsed.root, path) !== void 0
+		exists: getAtPath(parsed.root, path$1) !== void 0
 	};
 }
-function notStandalone(path) {
-	return new UnsupportedConfigShapeError(`${path.join(".")} exists but not as a standalone [${path.join(".")}] table (inline table or dotted key) — refusing to restructure it`);
+function notStandalone(path$1) {
+	return new UnsupportedConfigShapeError(`${path$1.join(".")} exists but not as a standalone [${path$1.join(".")}] table (inline table or dotted key) — refusing to restructure it`);
 }
 const tomlAdapter = {
 	empty: "",
 	backupSuffix: TOML_BACKUP_SUFFIX,
-	readAt(text, path) {
+	readAt(text, path$1) {
 		if (stripBom(text).trim() === "") return { kind: "absent" };
 		const doc = parseDocument(text);
 		if (!doc.ok) return {
 			kind: "unsupported",
 			detail: doc.detail
 		};
-		const value = getAtPath(doc.root, path);
+		const value = getAtPath(doc.root, path$1);
 		return value === void 0 ? { kind: "absent" } : {
 			kind: "value",
 			value
 		};
 	},
-	setAt(text, path, value) {
+	setAt(text, path$1, value) {
 		if (value === null || typeof value !== "object" || Array.isArray(value)) throw new UnsupportedConfigShapeError(`a TOML table body must be an object, got ${value === null ? "null" : Array.isArray(value) ? "array" : typeof value}`);
 		const body = value;
 		const bom = text.startsWith(BOM) ? BOM : "";
 		const inner = stripBom(text);
-		if (inner.trim() === "") return bom + renderTable(path, body, inner.includes("\r\n") ? "\r\n" : "\n");
-		const { doc, exists } = requireEditable(inner, path);
-		const table = locateTable(doc, path);
+		if (inner.trim() === "") return bom + renderTable(path$1, body, inner.includes("\r\n") ? "\r\n" : "\n");
+		const { doc, exists } = requireEditable(inner, path$1);
+		const table = locateTable(doc, path$1);
 		if (!table) {
-			if (exists) throw notStandalone(path);
+			if (exists) throw notStandalone(path$1);
 			const { eol } = doc;
 			let base = inner.endsWith("\n") ? inner : inner + eol;
 			if (!/\r?\n\r?\n$/.test(base)) base += eol;
-			return bom + base + renderTable(path, body, eol);
+			return bom + base + renderTable(path$1, body, eol);
 		}
-		const rendered = renderTomlBodyLines(body, path);
+		const rendered = renderTomlBodyLines(body, path$1);
 		const atEof = table.end === doc.lines.length;
 		return bom + joinLines([
 			...doc.lines.slice(0, table.start + 1),
@@ -1363,14 +1363,14 @@ const tomlAdapter = {
 			...doc.eols.slice(table.end)
 		]);
 	},
-	removeAt(text, path) {
+	removeAt(text, path$1) {
 		const bom = text.startsWith(BOM) ? BOM : "";
 		const inner = stripBom(text);
 		if (inner.trim() === "") return text;
-		const { doc, exists } = requireEditable(inner, path);
+		const { doc, exists } = requireEditable(inner, path$1);
 		if (!exists) return text;
-		const table = locateTable(doc, path);
-		if (!table) throw notStandalone(path);
+		const table = locateTable(doc, path$1);
+		if (!table) throw notStandalone(path$1);
 		const lines = [...doc.lines.slice(0, table.start), ...doc.lines.slice(table.end)];
 		const eols = [...doc.eols.slice(0, table.start), ...doc.eols.slice(table.end)];
 		const at = table.start;
@@ -1386,8 +1386,8 @@ const tomlAdapter = {
 		return bom + joinLines(lines, eols);
 	}
 };
-function renderTable(path, body, eol) {
-	return [`[${path.map(renderTomlKey).join(".")}]`, ...renderTomlBodyLines(body, path)].join(eol) + eol;
+function renderTable(path$1, body, eol) {
+	return [`[${path$1.map(renderTomlKey).join(".")}]`, ...renderTomlBodyLines(body, path$1)].join(eol) + eol;
 }
 
 //#endregion
@@ -1565,9 +1565,9 @@ function resolveTarget(harness, env, scope) {
 		reason: "scope-collision",
 		collidesWith: collides
 	};
-	const path = resolveConfigPath(harness, env, scope);
-	if (!path) return { reason: "no-location" };
-	return { path };
+	const path$1 = resolveConfigPath(harness, env, scope);
+	if (!path$1) return { reason: "no-location" };
+	return { path: path$1 };
 }
 /**
 * What the client currently holds for this scope, read from its own config.
@@ -1683,36 +1683,36 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		reason: target.reason,
 		...target.collidesWith ? { collidesWith: target.collidesWith } : {}
 	};
-	const { path } = target;
+	const { path: path$1 } = target;
 	const entryValue = buildServerEntry(harness, mcpUrl, scope)[SERVER_NAME];
 	const modPath = entryPathFor(harness, scope, env.cwd);
 	const adapter = adapterFor(harness);
-	const existing = readTextOrNull(path);
+	const existing = readTextOrNull(path$1);
 	const baseText = existing && existing.trim() ? existing : adapter.empty;
 	const current = adapter.readAt(baseText, modPath);
-	if (current.kind === "unsupported") return unsupportedShape(path, dryRun, scope, current.detail);
+	if (current.kind === "unsupported") return unsupportedShape(path$1, dryRun, scope, current.detail);
 	const alreadyConfigured = current.kind === "value" && sameValue(current.value, entryValue);
 	let nextText;
 	try {
 		nextText = adapter.setAt(baseText, modPath, entryValue);
 	} catch (err) {
-		if (err instanceof UnsupportedConfigShapeError) return unsupportedShape(path, dryRun, scope, err.detail);
+		if (err instanceof UnsupportedConfigShapeError) return unsupportedShape(path$1, dryRun, scope, err.detail);
 		throw err;
 	}
 	if (alreadyConfigured) return {
 		ok: true,
 		wrote: false,
-		path,
+		path: path$1,
 		alreadyConfigured: true,
 		dryRun,
 		scope,
 		preview: nextText
 	};
-	const backupPath = backupPathFor(path, adapter.backupSuffix);
+	const backupPath = backupPathFor(path$1, adapter.backupSuffix);
 	if (dryRun) return {
 		ok: true,
 		wrote: false,
-		path,
+		path: path$1,
 		alreadyConfigured: false,
 		dryRun: true,
 		scope,
@@ -1721,16 +1721,16 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 	};
 	const finalText = nextText.endsWith("\n") ? nextText : `${nextText}\n`;
 	try {
-		mkdirSync(dirname(path), { recursive: true });
-		if (backupPath) backupOnce(path, backupPath);
-		writeConfigAtomic(path, finalText);
+		mkdirSync(dirname(path$1), { recursive: true });
+		if (backupPath) backupOnce(path$1, backupPath);
+		writeConfigAtomic(path$1, finalText);
 	} catch (err) {
-		return writeFailed(path, scope, err);
+		return writeFailed(path$1, scope, err);
 	}
 	return {
 		ok: true,
 		wrote: true,
-		path,
+		path: path$1,
 		alreadyConfigured: false,
 		dryRun: false,
 		scope,
@@ -1743,21 +1743,21 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 * asks for one — `undefined` when the format does not, or when there is no
 * original to protect yet.
 */
-function backupPathFor(path, suffix) {
-	if (!suffix || !existsSync(path)) return void 0;
-	return `${path}${suffix}`;
+function backupPathFor(path$1, suffix) {
+	if (!suffix || !existsSync(path$1)) return void 0;
+	return `${path$1}${suffix}`;
 }
 /** Copy the original once. An existing backup is never overwritten. */
-function backupOnce(path, backupPath) {
+function backupOnce(path$1, backupPath) {
 	if (existsSync(backupPath)) return;
-	copyFileSync(path, backupPath);
+	copyFileSync(path$1, backupPath);
 }
 /** The refusal every format shares: the file is there, and we will not touch it. */
-function unsupportedShape(path, dryRun, scope, detail) {
+function unsupportedShape(path$1, dryRun, scope, detail) {
 	return {
 		ok: false,
 		wrote: false,
-		path,
+		path: path$1,
 		alreadyConfigured: false,
 		dryRun,
 		scope,
@@ -1766,11 +1766,11 @@ function unsupportedShape(path, dryRun, scope, detail) {
 	};
 }
 /** The filesystem said no: report it per client instead of aborting the run. */
-function writeFailed(path, scope, err) {
+function writeFailed(path$1, scope, err) {
 	return {
 		ok: false,
 		wrote: false,
-		path,
+		path: path$1,
 		alreadyConfigured: false,
 		dryRun: false,
 		scope,
@@ -1788,11 +1788,11 @@ function writeFailed(path, scope, err) {
 * This matters more than it did: a harness config can be the file that also
 * holds a user's model providers, profiles and sandbox policy (review F-005).
 */
-function writeConfigAtomic(path, text) {
-	let target = path;
+function writeConfigAtomic(path$1, text) {
+	let target = path$1;
 	let mode;
 	try {
-		target = realpathSync(path);
+		target = realpathSync(path$1);
 		mode = statSync(target).mode & 511;
 	} catch {}
 	const tmp = join(dirname(target), `.${basename(target)}.${process.pid}.tmp`);

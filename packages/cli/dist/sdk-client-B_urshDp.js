@@ -1,4 +1,4 @@
-import { getApiUrl } from "./env-CHeKHu5S.js";
+import { getApiUrl } from "./env-CdwyPHGV.js";
 import { z } from "zod/v3";
 
 //#region ../sdk/dist/gen/_common/zod.js
@@ -2528,6 +2528,124 @@ const zArchiveUnarchiveBulkV1Data = z.object({
 const zArtifactSyncGetArtifactsV1Data = z.object({
 	query: z.object({ "since": z.unknown().optional() }).optional(),
 	url: z.literal("/v1/cde/artifacts")
+});
+
+//#endregion
+//#region ../sdk/dist/gen/attachment-upload/functions.js
+/**
+* Uploads one file (multipart/form-data, at most 50 MiB) and attaches it to the entity named by related_type and related_id. related_id is a UUID, or a human identifier (ENG-42, TC-5, TR-3) for issue, test and run. For an automation_run_result target, kind and attempt_index say what the artifact is and which earlier attempt it belongs to, and an identical upload (same result, attempt, content and name) returns the existing attachment with HTTP 200 instead of storing it again. Send the text fields before the file part.
+*/
+const attachmentUploadUploadV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/attachment/upload",
+		bodySerializer: (body) => {
+			const fd = new FormData();
+			if (body && typeof body === "object") for (const [k, v] of Object.entries(body)) {
+				if (v == null) continue;
+				fd.append(k, v instanceof Blob ? v : String(v));
+			}
+			return fd;
+		},
+		...options
+	});
+};
+
+//#endregion
+//#region ../sdk/dist/gen/attachment-upload/zod.js
+const zAttachmentUploadUploadV1Body = z.object({
+	related_type: z.enum([
+		"test",
+		"step",
+		"folder",
+		"plan",
+		"defect",
+		"requirement",
+		"run_result",
+		"run_result_step",
+		"import_job",
+		"run",
+		"issue",
+		"project",
+		"initiative",
+		"cycle",
+		"staged",
+		"data_set",
+		"run_result_variant",
+		"research_step",
+		"project_update",
+		"automation_run_result",
+		"unlinked"
+	]).describe(""),
+	related_id: z.string().optional().describe(""),
+	kind: z.enum([
+		"screenshot",
+		"video",
+		"trace",
+		"stdout_log",
+		"stderr_log",
+		"har",
+		"report",
+		"attachment",
+		"other"
+	]).optional().describe(""),
+	attempt_index: z.number().optional().describe(""),
+	is_public: z.boolean().optional().describe(""),
+	file: z.instanceof(Blob).describe("")
+});
+const zUploadAttachmentResponseDto = z.object({
+	id: z.string().describe(""),
+	url: z.string().nullable().describe(""),
+	private_url: z.string().nullable().describe(""),
+	original_file_name: z.string().describe(""),
+	mime_type: z.string().nullable().describe(""),
+	size: z.number().nullable().describe(""),
+	is_public: z.boolean().describe(""),
+	created_at: z.string().describe(""),
+	related_type: z.enum([
+		"test",
+		"step",
+		"folder",
+		"plan",
+		"defect",
+		"requirement",
+		"run_result",
+		"run_result_step",
+		"import_job",
+		"run",
+		"issue",
+		"project",
+		"initiative",
+		"cycle",
+		"staged",
+		"data_set",
+		"run_result_variant",
+		"research_step",
+		"project_update",
+		"automation_run_result",
+		"unlinked"
+	]).describe(""),
+	target_id: z.string().nullable().describe(""),
+	kind: z.enum([
+		"screenshot",
+		"video",
+		"trace",
+		"stdout_log",
+		"stderr_log",
+		"har",
+		"report",
+		"attachment",
+		"other"
+	]).nullable().describe(""),
+	attempt_index: z.number().nullable().describe(""),
+	deduplicated: z.boolean().describe("")
+});
+const zAttachmentUploadUploadV1Data = z.object({
+	body: zAttachmentUploadUploadV1Body,
+	url: z.literal("/v1/attachment/upload")
 });
 
 //#endregion
@@ -9026,6 +9144,22 @@ const zCommentFolderRestoreV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/comment-issue/functions.js
+/**
+* Create a new comment_issue
+*/
+const commentIssueCreateV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/comment-issue",
+		...options
+	});
+};
+
+//#endregion
 //#region ../sdk/dist/gen/comment-issue/zod.js
 const zCreateCommentIssueDto = z.object({
 	id: z.string().optional().describe(""),
@@ -9154,6 +9288,22 @@ const zCommentIssueRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/comment-issue/{id}/restore")
 });
+
+//#endregion
+//#region ../sdk/dist/gen/comment-run/functions.js
+/**
+* Create a new comment_run
+*/
+const commentRunCreateV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/comment-run",
+		...options
+	});
+};
 
 //#endregion
 //#region ../sdk/dist/gen/comment-run/zod.js
@@ -9544,6 +9694,22 @@ const zCommentRunResultVariantRestoreV1Data = z.object({
 	path: z.object({ "id": z.string() }),
 	url: z.literal("/v1/comment-run-result-variant/{id}/restore")
 });
+
+//#endregion
+//#region ../sdk/dist/gen/comment-test/functions.js
+/**
+* Create a new comment_test
+*/
+const commentTestCreateV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/comment-test",
+		...options
+	});
+};
 
 //#endregion
 //#region ../sdk/dist/gen/comment-test/zod.js
@@ -14942,7 +15108,8 @@ const zImportCreateV1Body = z.object({
 	run_name: z.string().max(250).optional().describe(""),
 	automation_source: z.string().max(100).optional().describe(""),
 	automation_source_id: z.string().optional().describe(""),
-	import_metadata: z.string().optional().describe("")
+	import_metadata: z.string().optional().describe(""),
+	include_results: z.boolean().optional().describe("")
 });
 const zImportResponseDto = z.object({
 	id: z.string().describe(""),
@@ -14987,6 +15154,32 @@ const zImportResponseDto = z.object({
 			count: z.number().describe(""),
 			details: z.array(z.string()).optional().describe(""),
 			truncated: z.boolean().optional().describe("")
+		})).optional().describe(""),
+		results: z.array(z.object({
+			id: z.string().describe(""),
+			name: z.string().describe(""),
+			suite: z.string().nullable().describe(""),
+			classname: z.string().nullable().describe(""),
+			status: z.string().describe(""),
+			test_key: z.string().describe(""),
+			attempts: z.number().describe(""),
+			attachments: z.array(z.object({
+				path: z.string().nullable().describe(""),
+				name: z.string().nullable().describe(""),
+				kind: z.enum([
+					"screenshot",
+					"video",
+					"trace",
+					"stdout_log",
+					"stderr_log",
+					"har",
+					"report",
+					"attachment",
+					"other"
+				]).describe(""),
+				attempt_index: z.number().nullable().describe(""),
+				stored: z.boolean().describe("")
+			})).describe("")
 		})).optional().describe("")
 	}).optional().describe(""),
 	error: z.object({
@@ -24303,6 +24496,22 @@ const zRoleYamlUpdateRoleFromYamlV1Data = z.object({
 });
 
 //#endregion
+//#region ../sdk/dist/gen/run-api/functions.js
+/**
+* Update a run_result_variant addressed by its id alone: status, actual_result, append_actual_result (server-side append) or timing fields. The run and run result are resolved from the variant in your workspace. Triggers the rollup cascade to run_result and run.
+*/
+const runApiUpdateRunResultVariantByIdV1 = (options) => {
+	return (options?.client ?? client).patch({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/run/run-result-variant/{runResultVariantId}",
+		...options
+	});
+};
+
+//#endregion
 //#region ../sdk/dist/gen/run-api/zod.js
 const zRunApiSplitCreateRunsV1Body = z.object({
 	issue_id: z.string(),
@@ -24432,6 +24641,49 @@ const zUpdateRunDto = z.object({
 	folder_id: z.string().nullable().optional(),
 	sequence: z.string().max(255).optional(),
 	parent_run_id: z.unknown().optional()
+});
+const zUpdateRunResultVariantDto = z.object({
+	status_id: z.string().optional(),
+	actual_result: z.string().nullable(),
+	append_actual_result: z.string().optional(),
+	started_at: z.unknown(),
+	ended_at: z.unknown(),
+	duration_ms: z.number().nullable()
+});
+const zRunResultVariantNodeDto = z.object({
+	type: z.enum(["run_result_variant"]),
+	id: z.string(),
+	run_id: z.string(),
+	run_result_id: z.string(),
+	status_id: z.string(),
+	environment_id: z.string().nullable(),
+	data_set_row_id: z.string().nullable(),
+	sequence: z.string(),
+	actual_result: z.string().nullable(),
+	started_at: z.unknown(),
+	ended_at: z.unknown(),
+	duration_ms: z.number().nullable(),
+	environment_snapshot: z.record(z.string(), z.unknown()).nullable(),
+	data_set_row_snapshot: z.record(z.string(), z.unknown()).nullable(),
+	data: z.record(z.string(), z.unknown()).nullable(),
+	source: z.record(z.string(), z.unknown()).nullable(),
+	created_at: z.unknown(),
+	updated_at: z.unknown(),
+	created_by: z.string(),
+	updated_by: z.string(),
+	epoch: z.number(),
+	status: z.object({
+		id: z.string(),
+		name: z.string(),
+		key: z.number(),
+		color: z.string().nullable()
+	}).optional(),
+	environment: z.object({
+		id: z.string(),
+		name: z.string(),
+		key: z.number(),
+		description: z.string().nullable()
+	}).optional()
 });
 const zRunWithContentDto = z.object({
 	type: z.enum(["run"]),
@@ -24613,49 +24865,6 @@ const zBulkSetRunResultStatusDto = z.object({
 	run_result_ids: z.array(z.string()),
 	status_id: z.string()
 });
-const zRunResultVariantNodeDto = z.object({
-	type: z.enum(["run_result_variant"]),
-	id: z.string(),
-	run_id: z.string(),
-	run_result_id: z.string(),
-	status_id: z.string(),
-	environment_id: z.string().nullable(),
-	data_set_row_id: z.string().nullable(),
-	sequence: z.string(),
-	actual_result: z.string().nullable(),
-	started_at: z.unknown(),
-	ended_at: z.unknown(),
-	duration_ms: z.number().nullable(),
-	environment_snapshot: z.record(z.string(), z.unknown()).nullable(),
-	data_set_row_snapshot: z.record(z.string(), z.unknown()).nullable(),
-	data: z.record(z.string(), z.unknown()).nullable(),
-	source: z.record(z.string(), z.unknown()).nullable(),
-	created_at: z.unknown(),
-	updated_at: z.unknown(),
-	created_by: z.string(),
-	updated_by: z.string(),
-	epoch: z.number(),
-	status: z.object({
-		id: z.string(),
-		name: z.string(),
-		key: z.number(),
-		color: z.string().nullable()
-	}).optional(),
-	environment: z.object({
-		id: z.string(),
-		name: z.string(),
-		key: z.number(),
-		description: z.string().nullable()
-	}).optional()
-});
-const zUpdateRunResultVariantDto = z.object({
-	status_id: z.string().optional(),
-	actual_result: z.string().nullable(),
-	append_actual_result: z.string().optional(),
-	started_at: z.unknown(),
-	ended_at: z.unknown(),
-	duration_ms: z.number().nullable()
-});
 const zUpdateExecutionStepDto = z.object({
 	status_id: z.string().optional(),
 	result: z.string().nullable(),
@@ -24761,6 +24970,11 @@ const zRunApiRemoveV1Data = z.object({
 const zRunApiSplitCreateRunsV1Data = z.object({
 	body: zRunApiSplitCreateRunsV1Body,
 	url: z.literal("/v1/run/split")
+});
+const zRunApiUpdateRunResultVariantByIdV1Data = z.object({
+	body: zUpdateRunResultVariantDto,
+	path: z.object({ "runResultVariantId": z.string() }),
+	url: z.literal("/v1/run/run-result-variant/{runResultVariantId}")
 });
 const zRunApiBatchUpdateRunResultVariantsV1Data = z.object({
 	body: zRunApiBatchUpdateRunResultVariantsV1Body,
@@ -31030,7 +31244,6 @@ const zWebhookBulkOperationV1Data = z.object({
 	body: zBulkWebhookRequestDto,
 	url: z.literal("/v1/webhook/bulk")
 });
-const zWebhookHandleLevrWebhookData = z.object({ url: z.literal("/webhook/levr") });
 
 //#endregion
 //#region ../sdk/dist/gen/well-known/zod.js
@@ -31933,7 +32146,8 @@ async function uploadImport(options) {
 			run_name: options.runName,
 			automation_source: options.automationSource,
 			automation_source_id: options.automationSourceId,
-			import_metadata: options.importMetadata ? JSON.stringify(options.importMetadata) : void 0
+			import_metadata: options.importMetadata ? JSON.stringify(options.importMetadata) : void 0,
+			include_results: options.includeResults ? true : void 0
 		},
 		requestValidator: void 0
 	});
@@ -31956,6 +32170,53 @@ function tryReadMessage(err) {
 		return typeof m === "string" ? m : void 0;
 	}
 }
+async function uploadAttachment(body) {
+	const result = await attachmentUploadUploadV1({
+		body,
+		requestValidator: void 0
+	});
+	return {
+		status: result.response?.status ?? 0,
+		data: result.data,
+		error: result.error
+	};
+}
+/**
+* Server-side append to an execution result's actual_result, addressed by
+* the variant id alone (ENG-6161 PATCH /v1/run/run-result-variant/:id). Never
+* a read-modify-write: the server appends.
+*/
+async function appendActualResult(runResultVariantId, text) {
+	const result = await runApiUpdateRunResultVariantByIdV1({
+		path: { runResultVariantId },
+		body: { append_actual_result: text },
+		requestValidator: void 0
+	});
+	if (result.error) throw new Error(`Append failed (${String(result.response?.status ?? "unknown")}): ${tryReadMessage(result.error) ?? JSON.stringify(result.error)}`);
+}
+/** A NEW comment on an issue, test or run (append-only; ENG-6164 --embed). */
+async function createComment(target, targetId, body) {
+	const result = target === "issue" ? await commentIssueCreateV1({
+		body: {
+			issue_id: targetId,
+			body
+		},
+		requestValidator: void 0
+	}) : target === "test" ? await commentTestCreateV1({
+		body: {
+			test_id: targetId,
+			body
+		},
+		requestValidator: void 0
+	}) : await commentRunCreateV1({
+		body: {
+			run_id: targetId,
+			body
+		},
+		requestValidator: void 0
+	});
+	if (result.error) throw new Error(`Comment failed (${String(result.response?.status ?? "unknown")}): ${tryReadMessage(result.error) ?? JSON.stringify(result.error)}`);
+}
 
 //#endregion
-export { authGetProfileV1, authGetSitesV1, client, configureClient, issueFindAllV1, issueGateVerificationReportGateResultsV1, issueGateVerificationVerifyGatesV1, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1, uploadImport };
+export { appendActualResult, authGetProfileV1, authGetSitesV1, client, configureClient, createComment, issueFindAllV1, issueGateVerificationReportGateResultsV1, issueGateVerificationVerifyGatesV1, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1, uploadAttachment, uploadImport };
