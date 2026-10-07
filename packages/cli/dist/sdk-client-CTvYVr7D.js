@@ -30224,15 +30224,6 @@ const zFormattedImprovementsDto = z.object({
 	improvement_ids: z.array(z.string()).describe(""),
 	count: z.number().describe("")
 });
-const zRecordOutcomeDto = z.object({
-	improvement_ids: z.array(z.string()).describe(""),
-	outcome: z.enum([
-		"applied",
-		"helped",
-		"ignored",
-		"overridden"
-	]).describe("")
-});
 const zCreateInjectionDto = z.object({
 	session_id: z.string().optional().describe(""),
 	content: z.string().describe(""),
@@ -30283,7 +30274,6 @@ const zUnifiedChatCaptureV1Data = z.object({
 const zUnifiedChatGetHistoryV1Data = z.object({
 	path: z.object({ "sessionId": z.string() }),
 	query: z.object({
-		"workspaceId": z.string(),
 		"limit": z.number().optional(),
 		"before": z.string().optional()
 	}).optional(),
@@ -30291,7 +30281,6 @@ const zUnifiedChatGetHistoryV1Data = z.object({
 });
 const zUnifiedChatGetAnalyticsV1Data = z.object({
 	query: z.object({
-		"workspaceId": z.string(),
 		"session_id": z.string().optional(),
 		"user_id": z.string().optional(),
 		"project_id": z.string().optional(),
@@ -30337,13 +30326,11 @@ const zUnifiedChatGetWorkspaceUsageV1Data = z.object({
 });
 const zUnifiedChatGetIssueContextV1Data = z.object({
 	path: z.object({ "issueId": z.string() }),
-	query: z.object({ "workspaceId": z.string() }).optional(),
 	url: z.literal("/v1/chat/issues/{issueId}/context")
 });
 const zUnifiedChatStreamEventsV1Data = z.object({
 	path: z.object({ "sessionId": z.string() }),
 	query: z.object({
-		"workspaceId": z.string(),
 		"includeHistory": z.boolean().optional(),
 		"historyLimit": z.number().optional()
 	}).optional(),
@@ -30366,20 +30353,12 @@ const zUnifiedChatGetPendingImprovementsV1Data = z.object({
 });
 const zUnifiedChatMatchImprovementsV1Data = z.object({
 	body: zImprovementMatchContextDto,
-	query: z.object({ "workspaceId": z.string() }).optional(),
 	url: z.literal("/v1/chat/improvements/match")
 });
 const zUnifiedChatFormatImprovementsV1Data = z.object({
 	body: zImprovementMatchContextDto,
-	query: z.object({
-		"workspaceId": z.string(),
-		"maxImprovements": z.number().optional()
-	}).optional(),
+	query: z.object({ "maxImprovements": z.number().optional() }).optional(),
 	url: z.literal("/v1/chat/improvements/format")
-});
-const zUnifiedChatRecordOutcomeV1Data = z.object({
-	body: zRecordOutcomeDto,
-	url: z.literal("/v1/chat/improvements/outcome")
 });
 const zUnifiedChatGetInjectionV1Data = z.object({
 	query: z.object({ "session_id": z.string() }).optional(),

@@ -213,7 +213,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-DS29PzLz.js");
+		const { loginHandler } = await import("./loginHandler-DSznhtmk.js");
 		return loginHandler;
 	}
 });
@@ -252,7 +252,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-CwO5kl3m.js");
+		const { statusHandler } = await import("./statusHandler-p6CmwgjS.js");
 		return statusHandler;
 	}
 });
@@ -381,7 +381,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-CR5vu3ci.js");
+		const { pushHandler } = await import("./pushHandler-Q9Cbo2HC.js");
 		return pushHandler;
 	}
 });
@@ -501,7 +501,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-oENkrali.js");
+		const { importHandler } = await import("./importHandler-CUUroX_n.js");
 		return importHandler;
 	}
 });
@@ -522,7 +522,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-E666F9uV.js");
+		const { listHandler } = await import("./listHandler-CB_9cISi.js");
 		return listHandler;
 	}
 });
@@ -555,7 +555,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-Cv5fJl-p.js");
+		const { selectHandler } = await import("./selectHandler-CdOVuuTa.js");
 		return selectHandler;
 	}
 });
@@ -641,7 +641,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-B2DlFleh.js");
+		const { gatesRunHandler } = await import("./runHandler-DmRAoyJc.js");
 		return gatesRunHandler;
 	}
 });
@@ -754,7 +754,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { attachHandler } = await import("./attachHandler-BOxIqxAw.js");
+		const { attachHandler } = await import("./attachHandler-DgVCvhz7.js");
 		return attachHandler;
 	}
 });
@@ -830,14 +830,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { resultAppendHandler } = await import("./appendHandler-DkbMvFOn.js");
+		const { resultAppendHandler } = await import("./appendHandler-u-NvHPDW.js");
 		return resultAppendHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.10.21";
+var version = "0.10.22";
 
 //#endregion
 //#region src/app.ts
