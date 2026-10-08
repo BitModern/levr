@@ -109,6 +109,46 @@ function assertUsableMcpUrl(
   }
 }
 
+/**
+ * Is this MCP URL served by the API the CLI is logged in to? `--workspace`
+ * and the workspace picker read that API's workspaces, so pinning a URL on
+ * another server to one of them would name the wrong workspace, or none
+ * (internal D6).
+ */
+export function servedBySessionApi(mcpUrl: string): boolean {
+  const apiUrl = getApiUrl();
+  const derived = knownMcpUrl(apiUrl) ?? `${apiUrl}/v1/mcp`;
+  try {
+    return new URL(mcpUrl).origin === new URL(derived).origin;
+  } catch {
+    return false;
+  }
+}
+
+/** `…/v1/mcp/w/<url_key>`: the URL already names one workspace (internal). */
+const SCOPED_SUFFIX = /\/w\/[^/]+$/;
+
+/** Does this MCP URL already name a workspace? */
+export function isScopedMcpUrl(url: string): boolean {
+  return SCOPED_SUFFIX.test(stripSlash(url));
+}
+
+/**
+ * The MCP URL for one workspace, `<base>/w/<url_key>` (internal D6). A base
+ * that already names a workspace is an error rather than a silent re-point:
+ * `--url …/w/a --workspace b` asks for two different workspaces at once.
+ */
+export function scopedMcpUrl(base: string, urlKey: string): string {
+  const root = stripSlash(base);
+  if (isScopedMcpUrl(root)) {
+    throw new Error(
+      `The MCP URL ${root} already names a workspace. Drop --workspace, or ` +
+        `pass the URL without its /w/<url_key> suffix.`,
+    );
+  }
+  return `${root}/w/${encodeURIComponent(urlKey)}`;
+}
+
 function knownMcpUrl(apiUrl: string): string | undefined {
   try {
     return KNOWN_MCP_URLS[new URL(apiUrl).host];

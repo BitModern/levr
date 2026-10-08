@@ -660,3 +660,85 @@ describe('F-007 · the client picker is resolved for the scope in use', () => {
     expect(rows.map((r) => r.value)).toEqual(['cursor', 'windsurf']);
   });
 });
+
+describe('formatReport — entry refusals and replace outcomes (internal D6)', () => {
+  const base = {
+    wrote: false,
+    path: '/fake/cursor.json',
+    alreadyConfigured: false,
+    dryRun: false,
+    scope: 'user' as const,
+  };
+  function report(
+    result: RunReport['outcomes'][number]['result'],
+    switchCommand?: string,
+  ): RunReport {
+    return {
+      url: 'https://ai.levr.one/api/v1/mcp/w/beta',
+      urlSource: 'flag',
+      scope: 'user',
+      dryRun: false,
+      outcomes: [{ id: 'cursor', label: 'Cursor', result }],
+      unknownClients: [],
+      ...(switchCommand ? { switchCommand } : {}),
+    };
+  }
+
+  it('a URL mismatch names the current URL and the switch command', () => {
+    const out = formatReport(
+      report(
+        {
+          ...base,
+          ok: false,
+          reason: 'url-mismatch',
+          currentUrl: 'https://ai.levr.one/api/v1/mcp/w/acme',
+        },
+        'levr mcp add --workspace beta --replace',
+      ),
+    );
+    expect(out).toContain('(https://ai.levr.one/api/v1/mcp/w/acme)');
+    expect(out).toContain('`levr mcp add --workspace beta --replace`');
+  });
+
+  it('an unrecognized entry says to remove it by hand, never to --replace', () => {
+    const out = formatReport(
+      report(
+        { ...base, ok: false, reason: 'unrecognized-entry' },
+        'levr mcp add --workspace beta --replace',
+      ),
+    );
+    expect(out).toContain('remove it from the client');
+    expect(out).not.toContain('--replace');
+  });
+
+  it('a failed replace that restored the old entry says only its URL came back', () => {
+    const out = formatReport(
+      report({
+        ...base,
+        ok: false,
+        command: 'claude mcp remove … && claude mcp add …',
+        commandError: 'bad url',
+        replacedUrl: 'https://ai.levr.one/api/v1/mcp/w/acme',
+        restored: true,
+      }),
+    );
+    expect(out).toContain(
+      'restored with its URL (https://ai.levr.one/api/v1/mcp/w/acme)',
+    );
+  });
+
+  it('a failed restore says the client has no entry of that name now', () => {
+    const out = formatReport(
+      report({
+        ...base,
+        ok: false,
+        command: 'claude mcp remove … && claude mcp add …',
+        commandError: 'bad url',
+        replacedUrl: 'https://ai.levr.one/api/v1/mcp/w/acme',
+        restored: false,
+        restoreError: 'still broken',
+      }),
+    );
+    expect(out).toContain('could NOT be restored (still broken)');
+  });
+});

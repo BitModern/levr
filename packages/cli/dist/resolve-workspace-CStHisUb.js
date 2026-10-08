@@ -86,4 +86,4 @@ async function resolveWorkspace(flagValue) {
 }
 
 //#endregion
-export { autoSelectWorkspace, resolveWorkspace };
+export { autoSelectWorkspace, fetchSites, resolveWorkspace };

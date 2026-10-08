@@ -13,7 +13,7 @@ export interface WorkspaceResult {
 
 type Site = SitesResponseDto['sites'][number];
 
-async function fetchSites(): Promise<Site[]> {
+export async function fetchSites(): Promise<Site[]> {
   try {
     const result = await authGetSitesV1();
     if (result.error) {

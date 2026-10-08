@@ -3,7 +3,7 @@ import "./env-CdwyPHGV.js";
 import "./token-refresh-DeusLK8H.js";
 import { resolveToken } from "./resolve-token-7xb7kG7h.js";
 import "./workspace-store-CnrxyYRB.js";
-import { resolveWorkspace } from "./resolve-workspace-DcTNXtBD.js";
+import { resolveWorkspace } from "./resolve-workspace-CStHisUb.js";
 import { existsSync } from "node:fs";
 import { constants as constants$1 } from "node:os";
 import { spawnSync } from "node:child_process";

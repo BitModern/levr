@@ -1,4 +1,9 @@
+import { configureClient } from "./sdk-client-DYv-0CfA.js";
 import { getApiUrl } from "./env-CdwyPHGV.js";
+import "./token-refresh-DeusLK8H.js";
+import { resolveToken } from "./resolve-token-7xb7kG7h.js";
+import "./workspace-store-CnrxyYRB.js";
+import { fetchSites } from "./resolve-workspace-CStHisUb.js";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -114,11 +119,12 @@ const DEFAULT_NATIVE_HTTP_ENTRY = {
 * downgraded back. A NEW entry must never be born carrying this value.
 */
 const UNVERIFIED_LEGACY = "unverified-legacy";
-/** Stable server key written into every harness config (used by detect/remove).
+/** Default server key written into every harness config (used by detect/remove).
 * Renamed from the legacy brand key pre-first-publish (ENG-2515) — this key
 * is a persisted identity in end-users' client config files, so it must not
-* carry the old brand. */
-const SERVER_NAME = "levr";
+* carry the old brand. A caller may write under another name (ENG-6300 D6:
+* `levr mcp add --name`) so a second workspace can sit beside the first. */
+const DEFAULT_SERVER_NAME = "levr";
 /** Every scope in preference order — the vocabulary, not any harness's support. */
 const HARNESS_SCOPES = [
 	"user",
@@ -705,9 +711,9 @@ function requireScope(harness, scope) {
 /**
 * Substitute `{name}` / `{url}` / `{scope}` into a `cli-command` argv. Returns
 * argv rather than a string so the executor can spawn it WITHOUT a shell.
-* `serverName` defaults to {@link SERVER_NAME}; see {@link buildHarnessConfig}.
+* `serverName` defaults to {@link DEFAULT_SERVER_NAME}; see {@link buildHarnessConfig}.
 */
-function renderHarnessCommand(harness, mcpUrl, scope, serverName = SERVER_NAME) {
+function renderHarnessCommand(harness, mcpUrl, scope, serverName = DEFAULT_SERVER_NAME) {
 	const def = requireScope(harness, scope);
 	if (!def.command) throw new Error(`harness "${harness.id}" scope "${scope}" declares no command argv`);
 	const substitutions = {
@@ -730,7 +736,7 @@ function mcpRemoteInvocation(mcpUrl) {
 }
 /**
 * The structured server entry to merge under the scope's server property,
-* keyed by `serverName` (default {@link SERVER_NAME}). Shape is per-transport,
+* keyed by `serverName` (default {@link DEFAULT_SERVER_NAME}). Shape is per-transport,
 * then per-property:
 * - `native-http`: the entry's declared {@link NativeHttpEntryShape} —
 *   `{ url, type: 'http' }` by default (Claude Code's `.mcp.json`, Gemini).
@@ -739,7 +745,7 @@ function mcpRemoteInvocation(mcpUrl) {
 *
 * Not used for `cli-command` scopes (see {@link buildHarnessConfig}).
 */
-function buildServerEntry(harness, mcpUrl, scope = defaultScope(harness), serverName = SERVER_NAME) {
+function buildServerEntry(harness, mcpUrl, scope = defaultScope(harness), serverName = DEFAULT_SERVER_NAME) {
 	requireScope(harness, scope);
 	if (harness.transport === "native-http") {
 		const shape = harness.nativeHttpEntry ?? DEFAULT_NATIVE_HTTP_ENTRY;
@@ -853,8 +859,8 @@ function resolveProjectRoot(env) {
 * Shared by detect and install so the two can never disagree about where an
 * entry lives.
 */
-function entryPathFor(harness, scope, cwdKey) {
-	const tail = [serverPropertyFor(harness, scope), SERVER_NAME];
+function entryPathFor(harness, scope, cwdKey, serverName = DEFAULT_SERVER_NAME) {
+	const tail = [serverPropertyFor(harness, scope), serverName];
 	const nest = scopeDef(harness, scope)?.cwdKeyedUnder;
 	return nest ? [
 		nest,
@@ -964,10 +970,10 @@ function signalMatches(signal, env) {
 * a no-op when the key exists, so telling "already correct" from "present but
 * pointing somewhere else" needs the value.
 */
-function readServerEntry(harness, scope, configPath, cwdKey, parseJsonc) {
+function readServerEntry(harness, scope, configPath, cwdKey, parseJsonc, serverName = DEFAULT_SERVER_NAME) {
 	const text = readTextOrNull(configPath);
 	if (!text) return void 0;
-	return getAtPath(parseJsonc(text), entryPathFor(harness, scope, cwdKey));
+	return getAtPath(parseJsonc(text), entryPathFor(harness, scope, cwdKey, serverName));
 }
 /** Read a text file, or `null` if it doesn't exist / can't be read. */
 function readTextOrNull(path$1) {
@@ -1577,28 +1583,50 @@ function resolveTarget(harness, env, scope) {
 * `present: true` means an entry we cannot interpret — treated as a mismatch
 * rather than assumed correct.
 */
-function currentEntry(harness, env, scope) {
+function currentEntry(harness, env, scope, serverName) {
 	const configPath = resolveConfigPath(harness, env, scope);
 	if (!configPath) return { present: false };
 	const adapter = adapterFor(harness);
 	const entry = readServerEntry(harness, scope, configPath, env.cwd, (t) => {
 		const read = adapter.readAt(t, []);
 		return read.kind === "value" ? read.value : void 0;
-	});
+	}, serverName);
 	if (entry === void 0 || entry === null) return { present: false };
-	const e = entry;
-	if (typeof e.url === "string") return {
+	const url = entryUrl(harness, entry);
+	return url === void 0 ? { present: true } : {
 		present: true,
-		url: e.url
+		url
 	};
-	if (Array.isArray(e.args)) {
-		const last = e.args[e.args.length - 1];
-		if (typeof last === "string") return {
-			present: true,
-			url: last
-		};
-	}
-	return { present: true };
+}
+/**
+* The http(s) URL an entry points at, read in every shape the catalog writes:
+* the harness's declared HTTP key (`url`, Antigravity's `serverUrl`), the last
+* argv of an `mcp-remote` spawn, or Zed's nested `command.args`. Anything that
+* is not an http(s) URL is not one — a script path in `args` must never be
+* mistaken for the server the entry points at.
+*/
+function entryUrl(harness, entry) {
+	if (entry === null || typeof entry !== "object") return void 0;
+	const e = entry;
+	const urlKey = harness.nativeHttpEntry?.urlKey ?? "url";
+	const command = e["command"];
+	const args = Array.isArray(e["args"]) ? e["args"] : command !== null && typeof command === "object" && Array.isArray(command.args) ? command.args : [];
+	return [
+		e[urlKey],
+		e["url"],
+		args[args.length - 1]
+	].find((c) => typeof c === "string" && /^https?:\/\//i.test(c));
+}
+/** `claude mcp remove` argv — the inverse of the catalog's add command. */
+function removeCommandArgv(scope, serverName) {
+	return [
+		"claude",
+		"mcp",
+		"remove",
+		"--scope",
+		scope,
+		serverName
+	];
 }
 /**
 * Structural equality, key order ignored. A client that writes its keys in a
@@ -1619,6 +1647,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 	const env = opts.env ?? defaultEnv();
 	const dryRun = opts.dryRun ?? false;
 	const scope = opts.scope ?? defaultScope(harness);
+	const serverName = opts.serverName ?? DEFAULT_SERVER_NAME;
 	const def = scopeDef(harness, scope);
 	if (!def) return {
 		ok: false,
@@ -1630,7 +1659,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		reason: "unsupported-scope"
 	};
 	if (def.installKind === "cli-command") {
-		const argv = renderHarnessCommand(harness, mcpUrl, scope);
+		const argv = renderHarnessCommand(harness, mcpUrl, scope, serverName);
 		const base = {
 			wrote: false,
 			path: "",
@@ -1638,7 +1667,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 			dryRun,
 			scope
 		};
-		const existing$1 = currentEntry(harness, env, scope);
+		const existing$1 = currentEntry(harness, env, scope, serverName);
 		if (existing$1.present) {
 			if (existing$1.url === mcpUrl) return {
 				...base,
@@ -1646,6 +1675,21 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 				executed: false,
 				alreadyConfigured: true
 			};
+			if (!existing$1.url) return {
+				...base,
+				ok: false,
+				executed: false,
+				alreadyConfigured: false,
+				reason: "unrecognized-entry"
+			};
+			if (opts.replaceExisting) return replaceViaCommand(harness, argv, existing$1.url, {
+				env,
+				dryRun,
+				scope,
+				serverName,
+				execute: opts.execute ?? true,
+				run: opts.runCommand ?? runHarnessCommandSync
+			});
 			return {
 				...base,
 				ok: false,
@@ -1684,14 +1728,27 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		...target.collidesWith ? { collidesWith: target.collidesWith } : {}
 	};
 	const { path: path$1 } = target;
-	const entryValue = buildServerEntry(harness, mcpUrl, scope)[SERVER_NAME];
-	const modPath = entryPathFor(harness, scope, env.cwd);
+	const entryValue = buildServerEntry(harness, mcpUrl, scope, serverName)[serverName];
+	const modPath = entryPathFor(harness, scope, env.cwd, serverName);
 	const adapter = adapterFor(harness);
 	const existing = readTextOrNull(path$1);
 	const baseText = existing && existing.trim() ? existing : adapter.empty;
 	const current = adapter.readAt(baseText, modPath);
 	if (current.kind === "unsupported") return unsupportedShape(path$1, dryRun, scope, current.detail);
 	const alreadyConfigured = current.kind === "value" && sameValue(current.value, entryValue);
+	const held = current.kind === "value" && !alreadyConfigured;
+	const heldUrl = held ? entryUrl(harness, current.value) : void 0;
+	if (held && heldUrl !== mcpUrl && opts.replaceExisting === false) return {
+		ok: false,
+		wrote: false,
+		path: path$1,
+		alreadyConfigured: false,
+		dryRun,
+		scope,
+		reason: heldUrl === void 0 ? "unrecognized-entry" : "url-mismatch",
+		...heldUrl === void 0 ? {} : { currentUrl: heldUrl }
+	};
+	const replaced = heldUrl !== void 0 && heldUrl !== mcpUrl ? { replacedUrl: heldUrl } : {};
 	let nextText;
 	try {
 		nextText = adapter.setAt(baseText, modPath, entryValue);
@@ -1717,6 +1774,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		dryRun: true,
 		scope,
 		preview: nextText,
+		...replaced,
 		...backupPath ? { backupPath } : {}
 	};
 	const finalText = nextText.endsWith("\n") ? nextText : `${nextText}\n`;
@@ -1735,7 +1793,60 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 		dryRun: false,
 		scope,
 		preview: finalText,
+		...replaced,
 		...backupPath ? { backupPath } : {}
+	};
+}
+/**
+* Repoint a `cli-command` client: remove the entry, add the new one, and put
+* the previous one back if the add fails (ENG-6300 D6, R1 K-002). The client's
+* CLI will not overwrite an entry, so a replace is two commands — and a failed
+* second command must not leave the user with no entry at all without saying
+* so.
+*/
+function replaceViaCommand(harness, addArgv, previousUrl, ctx) {
+	const removeArgv = removeCommandArgv(ctx.scope, ctx.serverName);
+	const base = {
+		wrote: false,
+		path: "",
+		command: `${removeArgv.join(" ")} && ${addArgv.join(" ")}`,
+		dryRun: ctx.dryRun,
+		scope: ctx.scope,
+		alreadyConfigured: false,
+		replacedUrl: previousUrl
+	};
+	if (ctx.dryRun || !ctx.execute) return {
+		...base,
+		ok: true,
+		executed: false
+	};
+	const removed = ctx.run(removeArgv, { env: ctx.env });
+	if (!removed.executed) return {
+		...base,
+		ok: removed.ok,
+		executed: false
+	};
+	if (!removed.ok) return {
+		...base,
+		ok: false,
+		executed: true,
+		commandError: `could not remove the existing entry: ${removed.stderr ?? "unknown error"}`
+	};
+	const added = ctx.run(addArgv, { env: ctx.env });
+	if (added.ok) return {
+		...base,
+		ok: true,
+		executed: true
+	};
+	const restoreArgv = renderHarnessCommand(harness, previousUrl, ctx.scope, ctx.serverName);
+	const restore = ctx.run(restoreArgv, { env: ctx.env });
+	return {
+		...base,
+		ok: false,
+		executed: true,
+		commandError: added.stderr ?? "unknown error",
+		restored: restore.ok && restore.executed,
+		...restore.ok && restore.executed ? {} : { restoreError: restore.stderr ?? "the restore command did not run" }
 	};
 }
 /**
@@ -1880,6 +1991,37 @@ function assertUsableMcpUrl(url, source) {
 	if (!parsed.hostname) throw new Error(`Invalid MCP URL from ${from}: ${JSON.stringify(url)} has no host.`);
 	if (parsed.username || parsed.password) throw new Error(`Invalid MCP URL from ${from}: ${JSON.stringify(url)} embeds credentials. They would be written into client config files — including project-scoped ones you are told to commit. Levr authenticates in the browser; remove the user:password@ prefix.`);
 }
+/**
+* Is this MCP URL served by the API the CLI is logged in to? `--workspace`
+* and the workspace picker read that API's workspaces, so pinning a URL on
+* another server to one of them would name the wrong workspace, or none
+* (ENG-6300 D6).
+*/
+function servedBySessionApi(mcpUrl) {
+	const apiUrl = getApiUrl();
+	const derived = knownMcpUrl(apiUrl) ?? `${apiUrl}/v1/mcp`;
+	try {
+		return new URL(mcpUrl).origin === new URL(derived).origin;
+	} catch {
+		return false;
+	}
+}
+/** `…/v1/mcp/w/<url_key>`: the URL already names one workspace (ENG-6300). */
+const SCOPED_SUFFIX = /\/w\/[^/]+$/;
+/** Does this MCP URL already name a workspace? */
+function isScopedMcpUrl(url) {
+	return SCOPED_SUFFIX.test(stripSlash(url));
+}
+/**
+* The MCP URL for one workspace, `<base>/w/<url_key>` (ENG-6300 D6). A base
+* that already names a workspace is an error rather than a silent re-point:
+* `--url …/w/a --workspace b` asks for two different workspaces at once.
+*/
+function scopedMcpUrl(base, urlKey) {
+	const root = stripSlash(base);
+	if (isScopedMcpUrl(root)) throw new Error(`The MCP URL ${root} already names a workspace. Drop --workspace, or pass the URL without its /w/<url_key> suffix.`);
+	return `${root}/w/${encodeURIComponent(urlKey)}`;
+}
 function knownMcpUrl(apiUrl) {
 	try {
 		return KNOWN_MCP_URLS[new URL(apiUrl).host];
@@ -1889,6 +2031,29 @@ function knownMcpUrl(apiUrl) {
 }
 function stripSlash(url) {
 	return url.replace(/\/+$/, "");
+}
+
+//#endregion
+//#region src/workspace/find-workspace.ts
+/** `  - Name (url_key)` per workspace, for error messages and hints. */
+function describeWorkspaces(sites) {
+	return sites.map((s) => `  - ${s.workspace_name} (${s.workspace_url_key})`).join("\n");
+}
+/**
+* An exact `url_key` wins; otherwise a case-insensitive name that matches
+* exactly one workspace. Anything else throws, listing the choices.
+*/
+function findWorkspaceByKeyOrName(sites, input) {
+	const wanted = input.trim();
+	if (!wanted) throw new Error("--workspace needs a workspace name or url_key.");
+	const byKey = sites.find((s) => s.workspace_url_key === wanted);
+	if (byKey) return byKey;
+	const lower = wanted.toLowerCase();
+	const byName = sites.filter((s) => s.workspace_name.toLowerCase() === lower);
+	if (byName.length === 1) return byName[0];
+	if (byName.length > 1) throw new Error(`"${wanted}" names more than one workspace. Pass its url_key instead:\n` + describeWorkspaces(byName));
+	if (sites.length === 0) throw new Error("Your account has no workspaces.");
+	throw new Error(`No workspace "${wanted}" in your account. Choose one of:\n` + describeWorkspaces(sites));
 }
 
 //#endregion
@@ -2021,35 +2186,43 @@ function runNonInteractive(options, url, urlSource, deps) {
 	};
 }
 /** Why an install was refused, in the user's terms rather than the enum's. */
-function failureText(o) {
+function failureText(o, switchCommand) {
 	const r = o.result;
 	const harness = getHarness(o.id);
 	switch (r.reason) {
 		case "unsupported-scope": return `no ${r.scope} scope` + (harness ? ` (supports: ${supportedScopes(harness).join(", ")})` : "");
 		case "not-a-repo": return "project scope needs a git repository (run from inside one)";
 		case "scope-collision": return `${r.scope} scope resolves to the same file as ${r.collidesWith ?? "another"} scope here — refusing rather than overwriting it`;
-		case "url-mismatch": return "already configured with a different URL" + (r.currentUrl ? ` (${r.currentUrl})` : "") + "; remove it first, then re-run";
+		case "url-mismatch": return "already configured with a different URL" + (r.currentUrl ? ` (${r.currentUrl})` : "") + (switchCommand ? `; run \`${switchCommand}\` to switch it, or add --name <other> to keep both` : "; remove it first, then re-run");
+		case "unrecognized-entry": return "an entry of that name already exists but holds no Levr URL we can read; remove it from the client's config by hand, or add this one with --name <other>";
 		case "write-failed": return `its config could not be written` + (r.detail ? ` (${r.detail})` : "") + `; check the file's permissions and re-run`;
 		case "unsupported-config-shape": return `its config could not be edited safely` + (r.detail ? ` (${r.detail})` : "") + `; fix the file or add the entry by hand`;
 		default:
-			if (r.commandError) return `\`${r.command}\` (${r.commandError})`;
+			if (r.commandError) return `\`${r.command}\` (${r.commandError})${restoreText(r)}`;
 			return "no config location on this platform";
 	}
 }
+/** What happened to the entry a failed `--replace` removed (ENG-6300 D6). */
+function restoreText(r) {
+	if (r.restored === void 0) return "";
+	if (r.restored) return `; the previous entry was restored with its URL (${r.replacedUrl}) — any other settings it had were not`;
+	return `; the previous entry (${r.replacedUrl}) could NOT be restored` + (r.restoreError ? ` (${r.restoreError})` : "") + " — this client has no Levr entry of that name now";
+}
 /** One human-readable status line per outcome. */
-function outcomeLine(o, dryRun) {
+function outcomeLine(o, dryRun, switchCommand) {
 	const r = o.result;
 	const note = o.fallbackFrom ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]` : "";
 	const where = r.path ? ` → ${r.path}` : "";
 	const backup = r.backupPath ? dryRun ? ` [original would be backed up to ${r.backupPath}]` : ` [original backed up to ${r.backupPath}]` : "";
-	if (!r.ok) return `${o.label}: failed — ${failureText(o)}`;
+	const replaced = r.replacedUrl ? dryRun ? ` [would replace ${r.replacedUrl}]` : ` [replaced ${r.replacedUrl}]` : "";
+	if (!r.ok) return `${o.label}: failed — ${failureText(o, switchCommand)}`;
 	if (r.alreadyConfigured) return `${o.label}: already set up (${r.scope})${where}${note}`;
 	if (r.command) {
-		if (r.executed) return `${o.label}: installed (${r.scope}) via \`${r.command}\`${note}`;
-		return `${o.label} (${r.scope}): run \`${r.command}\`${note}`;
+		if (r.executed) return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}`;
+		return `${o.label} (${r.scope}): run \`${r.command}\`${replaced}${note}`;
 	}
-	if (dryRun) return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${note}`;
-	if (r.wrote) return `${o.label}: installed (${r.scope})${where}${backup}${note}`;
+	if (dryRun) return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}`;
+	if (r.wrote) return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}`;
 	return `${o.label}: no change (${r.scope})${where}${note}`;
 }
 /** Render a report as a plain multi-line summary (used by the CLI + tests). */
@@ -2057,7 +2230,7 @@ function formatReport(report) {
 	const lines = [];
 	lines.push(`MCP URL: ${report.url} (${report.urlSource})`);
 	if (report.outcomes.length === 0) lines.push("No clients selected.");
-	else for (const o of report.outcomes) lines.push(outcomeLine(o, report.dryRun));
+	else for (const o of report.outcomes) lines.push(outcomeLine(o, report.dryRun, report.switchCommand));
 	if (report.unknownClients.length > 0) lines.push(`Unknown clients (skipped): ${report.unknownClients.join(", ")}`);
 	if (report.outcomes.some((o) => o.id === "claude-code" && o.result.ok)) lines.push(PLUGIN_TIP);
 	return lines.join("\n");
@@ -2075,15 +2248,88 @@ function nextStepsText(report) {
 
 //#endregion
 //#region src/commands/mcp/addHandler.ts
-const defaultInstall = (harness, mcpUrl, dryRun, scope) => installHarnessSync(harness, mcpUrl, {
-	dryRun,
-	scope
-});
-const defaultDeps = {
-	detect: () => detectSync(),
-	install: defaultInstall
-};
+/**
+* Allowed client entry names: 1-64 of `A-Za-z0-9_-`, and never starting with
+* `-`. The name is passed as an argv element to the client's own CLI
+* (`claude mcp add … <name> <url>`), so a leading `-` would be read there as a
+* flag — the ENG-4159 argument-injection family.
+*/
+const ENTRY_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+function isValidEntryName(name) {
+	return ENTRY_NAME.test(name) && !name.startsWith("-");
+}
+function depsFor(entry) {
+	const install = (harness, mcpUrl, dryRun, scope) => installHarnessSync(harness, mcpUrl, {
+		dryRun,
+		scope,
+		serverName: entry.serverName,
+		replaceExisting: entry.replaceExisting
+	});
+	return {
+		detect: () => detectSync(),
+		install
+	};
+}
+/**
+* The workspaces of the logged-in user. Reads the session only; it never
+* reads or changes the workspace the CLI has selected.
+*/
+async function loadSites() {
+	let auth;
+	try {
+		auth = await resolveToken();
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : "Not authenticated. Run 'levr auth login' first."
+		};
+	}
+	if (auth.type === "pat") return {
+		ok: false,
+		error: "--workspace needs a login session, not a personal access token. Run 'levr auth login'."
+	};
+	configureClient(auth);
+	try {
+		return {
+			ok: true,
+			sites: await fetchSites()
+		};
+	} catch (err) {
+		return {
+			ok: false,
+			error: err instanceof Error ? err.message : "Could not list your workspaces."
+		};
+	}
+}
+/**
+* The same `levr mcp add` run with `--replace`, for refusals: every flag the
+* user passed is kept, so the suggestion targets the same server, scope and
+* clients, and the workspace that was actually chosen.
+*/
+function switchCommandFor(flags, urlKey) {
+	const parts = ["levr mcp add"];
+	if (flags.all) parts.push("--all");
+	for (const client of flags.client ?? []) parts.push(`--client ${client}`);
+	if (flags.yes) parts.push("--yes");
+	if (flags.scope) parts.push(`--scope ${flags.scope}`);
+	if (flags.url) parts.push(`--url ${flags.url}`);
+	const workspace = urlKey ?? flags.workspace;
+	if (workspace) parts.push(`--workspace ${workspace}`);
+	if (flags.name) parts.push(`--name ${flags.name}`);
+	parts.push("--replace");
+	return parts.join(" ");
+}
 async function mcpAddHandler(flags) {
+	const serverName = flags.name ?? DEFAULT_SERVER_NAME;
+	if (!isValidEntryName(serverName)) {
+		this.logger.error(`Invalid --name ${JSON.stringify(serverName)}: use 1-64 letters, digits, "-" or "_", not starting with "-".`);
+		this.process.exitCode = 1;
+		return;
+	}
+	const entry = {
+		serverName,
+		replaceExisting: flags.replace ?? false
+	};
 	let url;
 	let source;
 	try {
@@ -2092,6 +2338,36 @@ async function mcpAddHandler(flags) {
 		this.logger.error(err instanceof Error ? err.message : "Could not resolve the MCP URL.");
 		this.process.exitCode = 1;
 		return;
+	}
+	let urlKey;
+	if (flags.workspace !== void 0) {
+		if (isScopedMcpUrl(url)) {
+			this.logger.error(`The MCP URL ${url} already names a workspace. Drop --workspace, or pass the URL without its /w/<url_key> suffix.`);
+			this.process.exitCode = 1;
+			return;
+		}
+		if (!servedBySessionApi(url)) {
+			this.logger.error(`--workspace looks workspaces up on ${getApiUrl()}, where you are logged in, but the MCP URL ${url} is on another server. Log in to that server (LEVR_URL=<its API> levr auth login), or drop --workspace.`);
+			this.process.exitCode = 1;
+			return;
+		}
+		const loaded = await loadSites();
+		if (!loaded.ok) {
+			this.logger.error(loaded.error);
+			this.process.exitCode = 1;
+			return;
+		}
+		let site;
+		try {
+			site = findWorkspaceByKeyOrName(loaded.sites, flags.workspace);
+		} catch (err) {
+			this.logger.error(err instanceof Error ? err.message : "Unknown workspace.");
+			this.process.exitCode = 1;
+			return;
+		}
+		urlKey = site.workspace_url_key;
+		url = scopedMcpUrl(url, urlKey);
+		source = `${source}, workspace ${site.workspace_name}`;
 	}
 	const clients = (flags.client ?? []).flatMap((c) => c.split(",").map((s) => s.trim()).filter(Boolean));
 	const options = {
@@ -2102,13 +2378,30 @@ async function mcpAddHandler(flags) {
 		scope: flags.scope
 	};
 	if (options.all || clients.length > 0 || options.yes || !process.stdout.isTTY) {
-		const report = runNonInteractive(options, url, source, defaultDeps);
+		const report = {
+			...runNonInteractive(options, url, source, depsFor(entry)),
+			switchCommand: switchCommandFor(flags, urlKey)
+		};
 		this.process.stdout.write(`${formatReport(report)}\n`);
+		if (!isScopedMcpUrl(url) && servedBySessionApi(url)) {
+			const hint = await workspaceHint();
+			if (hint) this.process.stdout.write(`\n${hint}\n`);
+		}
 		this.process.stdout.write(`\n${nextStepsText(report)}\n`);
 		if (report.unknownClients.length > 0 || hasFailure(report)) this.process.exitCode = 1;
 		return;
 	}
-	await interactive(this, options.dryRun, url, source, flags.scope);
+	await interactive(this, options.dryRun, url, source, flags, entry, urlKey);
+}
+/**
+* For an unpinned entry: the `--workspace` choices. Without a session there is
+* no list to show, so it says how to get one. Never fails the run.
+*/
+async function workspaceHint() {
+	const loaded = await loadSites();
+	if (!loaded.ok) return "This entry is not pinned to a workspace. To pin one, run 'levr auth login', then re-run with --workspace <url_key>.";
+	if (loaded.sites.length === 0) return null;
+	return "This entry is not pinned to a workspace. To pin it, re-run with --workspace <url_key>:\n" + describeWorkspaces(loaded.sites);
 }
 function hasFailure(report) {
 	return report.outcomes.some((o) => !o.result.ok);
@@ -2128,11 +2421,38 @@ const SCOPE_LABELS = {
 		hint: "this repo, only you"
 	}
 };
-async function interactive(ctx, dryRun, url, urlSource, requestedScope) {
+async function interactive(ctx, dryRun, baseUrl, baseSource, flags, entry, resolvedUrlKey) {
 	const p = await import("@clack/prompts");
+	const requestedScope = flags.scope;
+	const deps = depsFor(entry);
+	let url = baseUrl;
+	let urlSource = baseSource;
+	let urlKey = resolvedUrlKey;
 	p.intro("Levr MCP setup");
+	if (!isScopedMcpUrl(url) && servedBySessionApi(url)) {
+		const loaded = await loadSites();
+		if (loaded.ok && loaded.sites.length > 1) {
+			const picked = await p.select({
+				message: "Which workspace should this entry use?",
+				options: loaded.sites.map((s) => ({
+					value: s.workspace_url_key,
+					label: s.workspace_name,
+					hint: s.workspace_url_key
+				}))
+			});
+			if (p.isCancel(picked)) {
+				p.cancel("Cancelled.");
+				ctx.process.exitCode = 1;
+				return;
+			}
+			const site = loaded.sites.find((s) => s.workspace_url_key === picked);
+			urlKey = picked;
+			url = scopedMcpUrl(url, picked);
+			urlSource = `${urlSource}, workspace ${site?.workspace_name ?? picked}`;
+		}
+	}
 	p.note(`${url}\n(${urlSource})`, "MCP endpoint");
-	const detected = defaultDeps.detect();
+	const detected = deps.detect();
 	const installable = detected.filter((d) => d.available);
 	if (installable.length === 0) {
 		p.outro("No supported MCP clients found on this machine.");
@@ -2184,7 +2504,7 @@ async function interactive(ctx, dryRun, url, urlSource, requestedScope) {
 		dryRun,
 		scope,
 		namedIds: /* @__PURE__ */ new Set()
-	}, defaultDeps.install);
+	}, deps.install);
 	spin.stop(dryRun ? "Preview ready" : "Done");
 	const report = {
 		url,
@@ -2192,7 +2512,8 @@ async function interactive(ctx, dryRun, url, urlSource, requestedScope) {
 		scope,
 		outcomes,
 		unknownClients: [],
-		dryRun
+		dryRun,
+		switchCommand: switchCommandFor(flags, urlKey)
 	};
 	p.note(formatReport(report), "Results");
 	p.outro(nextStepsText(report));

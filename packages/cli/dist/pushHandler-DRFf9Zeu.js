@@ -3,7 +3,7 @@ import { getApiUrl, getAutomationSourceIdOverride, getSourceOverride, getTeamId 
 import "./token-refresh-DeusLK8H.js";
 import { resolveToken } from "./resolve-token-7xb7kG7h.js";
 import "./workspace-store-CnrxyYRB.js";
-import { resolveWorkspace } from "./resolve-workspace-DcTNXtBD.js";
+import { resolveWorkspace } from "./resolve-workspace-CStHisUb.js";
 import "./sleep-BpJ39Ypm.js";
 import { resolveArtifactPath, uploadArtifactFile } from "./artifact-upload-BzLxue32.js";
 import { readFileSync, statSync, writeFileSync } from "node:fs";

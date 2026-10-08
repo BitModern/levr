@@ -83,6 +83,11 @@ export interface RunReport {
   outcomes: InstalledOutcome[];
   unknownClients: string[];
   dryRun: boolean;
+  /**
+   * The command that switches an entry refused for pointing elsewhere
+   * (`… --replace`), so the refusal can say exactly what to run (internal D6).
+   */
+  switchCommand?: string;
 }
 
 /** Harness ids to pre-select in interactive mode: detected + installable +
@@ -280,7 +285,7 @@ export function runNonInteractive(
 }
 
 /** Why an install was refused, in the user's terms rather than the enum's. */
-function failureText(o: InstalledOutcome): string {
+function failureText(o: InstalledOutcome, switchCommand?: string): string {
   const r = o.result;
   const harness = getHarness(o.id);
   switch (r.reason) {
@@ -305,7 +310,16 @@ function failureText(o: InstalledOutcome): string {
       return (
         'already configured with a different URL' +
         (r.currentUrl ? ` (${r.currentUrl})` : '') +
-        '; remove it first, then re-run'
+        (switchCommand
+          ? `; run \`${switchCommand}\` to switch it, or add --name <other> to keep both`
+          : '; remove it first, then re-run')
+      );
+    case 'unrecognized-entry':
+      // Not a URL entry we wrote or can read, so it is never replaced on a
+      // guess — and --replace would refuse it too.
+      return (
+        'an entry of that name already exists but holds no Levr URL we can read; ' +
+        "remove it from the client's config by hand, or add this one with --name <other>"
       );
     case 'write-failed':
       // The document was fine; the filesystem refused. The atomic write left
@@ -326,14 +340,31 @@ function failureText(o: InstalledOutcome): string {
     default:
       // A command we ran that failed reports the client's own diagnostics.
       if (r.commandError) {
-        return `\`${r.command}\` (${r.commandError})`;
+        return `\`${r.command}\` (${r.commandError})${restoreText(r)}`;
       }
       return 'no config location on this platform';
   }
 }
 
+/** What happened to the entry a failed `--replace` removed (internal D6). */
+function restoreText(r: InstallResult): string {
+  if (r.restored === undefined) return '';
+  if (r.restored) {
+    return `; the previous entry was restored with its URL (${r.replacedUrl}) — any other settings it had were not`;
+  }
+  return (
+    `; the previous entry (${r.replacedUrl}) could NOT be restored` +
+    (r.restoreError ? ` (${r.restoreError})` : '') +
+    ' — this client has no Levr entry of that name now'
+  );
+}
+
 /** One human-readable status line per outcome. */
-function outcomeLine(o: InstalledOutcome, dryRun: boolean): string {
+function outcomeLine(
+  o: InstalledOutcome,
+  dryRun: boolean,
+  switchCommand?: string,
+): string {
   const r = o.result;
   // A fallback is always stated — never let a client land somewhere the user
   // did not ask for without saying so.
@@ -349,24 +380,29 @@ function outcomeLine(o: InstalledOutcome, dryRun: boolean): string {
       ? ` [original would be backed up to ${r.backupPath}]`
       : ` [original backed up to ${r.backupPath}]`
     : '';
+  const replaced = r.replacedUrl
+    ? dryRun
+      ? ` [would replace ${r.replacedUrl}]`
+      : ` [replaced ${r.replacedUrl}]`
+    : '';
 
   // Failure first: a refusal must never be dressed up as pending work, and
   // several refusals (url-mismatch, a failed command) carry a `command`.
-  if (!r.ok) return `${o.label}: failed — ${failureText(o)}`;
+  if (!r.ok) return `${o.label}: failed — ${failureText(o, switchCommand)}`;
   if (r.alreadyConfigured) {
     return `${o.label}: already set up (${r.scope})${where}${note}`;
   }
   if (r.command) {
     if (r.executed) {
-      return `${o.label}: installed (${r.scope}) via \`${r.command}\`${note}`;
+      return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}`;
     }
-    return `${o.label} (${r.scope}): run \`${r.command}\`${note}`;
+    return `${o.label} (${r.scope}): run \`${r.command}\`${replaced}${note}`;
   }
   if (dryRun) {
-    return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${note}`;
+    return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}`;
   }
   if (r.wrote)
-    return `${o.label}: installed (${r.scope})${where}${backup}${note}`;
+    return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}`;
   return `${o.label}: no change (${r.scope})${where}${note}`;
 }
 
@@ -377,7 +413,8 @@ export function formatReport(report: RunReport): string {
   if (report.outcomes.length === 0) {
     lines.push('No clients selected.');
   } else {
-    for (const o of report.outcomes) lines.push(outcomeLine(o, report.dryRun));
+    for (const o of report.outcomes)
+      lines.push(outcomeLine(o, report.dryRun, report.switchCommand));
   }
   if (report.unknownClients.length > 0) {
     lines.push(

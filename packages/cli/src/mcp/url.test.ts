@@ -4,7 +4,7 @@ vi.mock('../auth/credentials.js', () => ({
   readCredentials: vi.fn(() => null),
 }));
 
-import { resolveMcpUrl } from './url.js';
+import { isScopedMcpUrl, resolveMcpUrl, scopedMcpUrl } from './url.js';
 import { resetSessionApiUrl } from '../utils/env.js';
 
 describe('resolveMcpUrl', () => {
@@ -129,5 +129,31 @@ describe('resolveMcpUrl validation (internal)', () => {
     expect(resolveMcpUrl('https://flag/v1/mcp/').url).toBe(
       'https://flag/v1/mcp',
     );
+  });
+});
+
+describe('scopedMcpUrl / isScopedMcpUrl (internal D6)', () => {
+  it('appends /w/<url_key> to an unscoped base', () => {
+    expect(scopedMcpUrl('https://ai.levr.one/api/v1/mcp', 'acme')).toBe(
+      'https://ai.levr.one/api/v1/mcp/w/acme',
+    );
+  });
+
+  it('drops a trailing slash before appending', () => {
+    expect(scopedMcpUrl('https://ai.levr.one/api/v1/mcp/', 'acme')).toBe(
+      'https://ai.levr.one/api/v1/mcp/w/acme',
+    );
+  });
+
+  it('refuses a base that already names a workspace', () => {
+    expect(() =>
+      scopedMcpUrl('https://ai.levr.one/api/v1/mcp/w/acme', 'beta'),
+    ).toThrow(/already names a workspace/);
+  });
+
+  it('recognises a scoped URL, with or without a trailing slash', () => {
+    expect(isScopedMcpUrl('https://ai.levr.one/api/v1/mcp/w/acme')).toBe(true);
+    expect(isScopedMcpUrl('https://ai.levr.one/api/v1/mcp/w/acme/')).toBe(true);
+    expect(isScopedMcpUrl('https://ai.levr.one/api/v1/mcp')).toBe(false);
   });
 });
