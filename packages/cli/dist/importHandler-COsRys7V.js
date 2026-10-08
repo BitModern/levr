@@ -1,9 +1,9 @@
-import { authGetProfileV1, configureClient, teamFindAllV1, testCaseImportCommitV1, testCaseImportPreviewV1 } from "./sdk-client-CTvYVr7D.js";
+import { authGetProfileV1, client, configureClient } from "./sdk-client-DYv-0CfA.js";
 import { getApiUrl, getTeamId } from "./env-CdwyPHGV.js";
 import "./token-refresh-DeusLK8H.js";
 import { resolveToken } from "./resolve-token-7xb7kG7h.js";
 import "./workspace-store-CnrxyYRB.js";
-import { resolveWorkspace } from "./resolve-workspace-B3Gz3-Vh.js";
+import { resolveWorkspace } from "./resolve-workspace-DcTNXtBD.js";
 import chalk from "chalk";
 import { createReadStream } from "node:fs";
 import { basename } from "node:path";
@@ -11,6 +11,53 @@ import { readFile, writeFile } from "node:fs/promises";
 import { createInterface } from "node:readline/promises";
 import ora from "ora";
 
+//#region ../sdk-public/dist/gen/team/functions.js
+/** GET /v1/team */
+const teamFindAllV1 = (options) => {
+	return (options?.client ?? client).get({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/team",
+		...options
+	});
+};
+
+//#endregion
+//#region ../sdk-public/dist/gen/test-case-import/functions.js
+/** POST /v1/test-case-import/preview */
+const testCaseImportPreviewV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/test-case-import/preview",
+		bodySerializer: (body) => {
+			const fd = new FormData();
+			if (body && typeof body === "object") for (const [k, v] of Object.entries(body)) {
+				if (v == null) continue;
+				fd.append(k, v instanceof Blob ? v : String(v));
+			}
+			return fd;
+		},
+		...options
+	});
+};
+/** POST /v1/test-case-import/commit */
+const testCaseImportCommitV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/test-case-import/commit",
+		...options
+	});
+};
+
+//#endregion
 //#region src/commands/resolve-team.ts
 /**
 * The importing team — NOT the same thing as the `teams` column in the file.

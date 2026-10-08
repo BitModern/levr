@@ -1,4 +1,4 @@
-import { authGetSitesV1, configureClient } from "./sdk-client-CTvYVr7D.js";
+import { authGetSitesV1, configureClient } from "./sdk-client-DYv-0CfA.js";
 import "./env-CdwyPHGV.js";
 import "./token-refresh-DeusLK8H.js";
 import { resolveToken } from "./resolve-token-7xb7kG7h.js";

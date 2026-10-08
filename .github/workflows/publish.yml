@@ -100,16 +100,19 @@ jobs:
       - name: Install
         run: yarn install --no-immutable
 
-      # The cli ships PRE-BUILT from the monorepo (its dist/ is bundled +
-      # brand-scrubbed and copied verbatim by the export) — @testlm/sdk /
-      # @testlm/ci-env are bundled in and don't exist in this mirror workspace,
-      # so a rebuild here would fail. auth still builds from source (D3/C1).
-      # A third package hits the else-branch build — loud if wrong (Q6).
+      # A PREBUILT package (the monorepo's registry `keepDist`) ships the dist/
+      # the export committed here — bundled, verified and copied verbatim. Its
+      # bundled workspace deps don't exist in this mirror workspace, so a
+      # rebuild would fail, and the npm tarball must be the committed dist/,
+      # never a rebuild. The skip is derived from the tree itself: a package
+      # whose dist/ is tracked is prebuilt. auth still builds from source
+      # (D3/C1); a package with no tracked dist/ hits the build — loud if
+      # wrong (Q6).
       - name: Build
         run: |
           PKG="${{ matrix.pkg }}"
-          if [ "$PKG" = "cli" ]; then
-            echo "cli ships prebuilt from the monorepo — skipping build."
+          if [ -n "$(git ls-files "packages/${PKG}/dist")" ]; then
+            echo "${PKG} ships prebuilt (tracked dist/) — skipping build."
           else
             yarn workspace @levr-one/${PKG} build
           fi

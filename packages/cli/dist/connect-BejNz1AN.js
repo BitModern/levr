@@ -1,6 +1,6 @@
-import { client, configureClient } from "./sdk-client-CTvYVr7D.js";
+import { client, configureClient } from "./sdk-client-DYv-0CfA.js";
 import { resolveToken } from "./resolve-token-7xb7kG7h.js";
-import { resolveWorkspace } from "./resolve-workspace-B3Gz3-Vh.js";
+import { resolveWorkspace } from "./resolve-workspace-DcTNXtBD.js";
 
 //#region src/utils/connect.ts
 /**

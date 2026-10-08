@@ -1,4 +1,4 @@
-import { uploadAttachment } from "./sdk-client-CTvYVr7D.js";
+import { uploadAttachment } from "./sdk-client-DYv-0CfA.js";
 import { sleep } from "./sleep-BpJ39Ypm.js";
 import { constants, promises, readlinkSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";

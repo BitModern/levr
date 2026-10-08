@@ -1,4 +1,4 @@
-import { authGetProfileV1, configureClient } from "./sdk-client-CTvYVr7D.js";
+import { authGetProfileV1, configureClient } from "./sdk-client-DYv-0CfA.js";
 import { getApiUrl, getPatToken, readCredentials } from "./env-CdwyPHGV.js";
 import { isTokenExpired } from "./token-refresh-DeusLK8H.js";
 import chalk from "chalk";

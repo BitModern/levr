@@ -6,11 +6,20 @@ See [arch.md](arch.md) for architecture, component diagrams, auth flows, and dat
 
 ## Conventions
 
-- **SDK for data, raw fetch for auth** — data API calls (import, etc.) go through `@levr/sdk`; auth requests (OAuth token exchange, device flow, token refresh) use raw `fetch` against the auth server since the SDK doesn't cover OAuth endpoints
+- **SDK for data, raw fetch for auth** — data API calls (import, etc.) go through `@levr/sdk` (the public SDK, `packages/sdk-public`, internal); auth requests (OAuth token exchange, device flow, token refresh) use raw `fetch` against the auth server since the SDK doesn't cover OAuth endpoints
 - **Stricli context pattern** — handlers receive `this: LocalContext` for testability (process, logger are injectable)
-- **Bundled @levr/\*** — `@levr/sdk`, `@levr/ci-env`, and `@levr/mcp-harnesses` are bundled into `dist/` at build time via tsdown `noExternal: [/^@testlm\//]` (D4/internal, internal — a REGEX, because mcp-harnesses is imported via its `/node` subpath which an exact-name match misses), so the published `@levr-one/cli` is self-contained (no `@levr/*` runtime deps, no shipped `.d.ts`). They still must be built first (the bundler consumes their `dist/`). `@stricli/*`, `@clack/prompts`, `chalk`, `jsonc-parser`, `open`, `ora`, `zod` stay external runtime deps (deps of bundled packages MUST be declared here or rolldown half-inlines them — jsonc-parser's CJS internals broke at runtime when undeclared).
+- **Bundled workspaces** — `@levr/sdk`, `@levr/ci-env`, and `@levr/mcp-harnesses` are bundled into `dist/` at build time via tsdown `noExternal: [/^@testlm\//, /^@levr\/sdk(\/|$)/]` (D4/internal, internal, internal — REGEXES that also match subpaths, because mcp-harnesses is imported via its `/node` subpath and an exact-name match misses it; a missed `@levr/sdk/client` would stay external and crash the published CLI), so the published `@levr-one/cli` is self-contained (no `@levr/*` or `@levr-one/sdk` runtime deps, no shipped `.d.ts`). The CLI never resolves the internal SDK (`packages/sdk`): `@levr/sdk` carries only the operations in `apps/sdk-codegen/profiles/public.json`, so a new CLI endpoint means adding its operationId there and running `yarn gen:sdk`. They still must be built first (the bundler consumes their `dist/`). `@stricli/*`, `@clack/prompts`, `chalk`, `jsonc-parser`, `open`, `ora`, `zod` stay external runtime deps (deps of bundled packages MUST be declared here or rolldown half-inlines them — jsonc-parser's CJS internals broke at runtime when undeclared).
 - **Colocated tests** — all test files live next to their source (e.g., `pushHandler.test.ts`, `resolve-token.test.ts`)
 - **Context injection for tests** — test handlers by binding a mock `LocalContext` via `.call(mockContext, ...)`
+
+## Bundle size ceiling (`MAX_CLI_BUNDLE_BYTES`)
+
+`scripts/check-cli-bundle.ts` fails when the built `dist/` is larger than `MAX_CLI_BUNDLE_BYTES` (internal). The ceiling is a measured baseline plus 10% headroom, so normal CLI growth fits; it exists to catch the SDK becoming un-tree-shaken again. When a legitimate CLI change crosses it, bump it in the same PR:
+
+1. Build: `yarn turbo run build --filter=@levr-one/cli...`
+2. Measure: `find packages/cli/dist -type f -printf '%s\n' | awk '{s+=$1} END {print s}'`
+3. Set `MAX_CLI_BUNDLE_BYTES` to that number plus 10%, rounded up to the next KB (1024 bytes).
+4. Update the comment above the constant: the new baseline in bytes, the commit SHA you measured at, and one sentence on why the CLI grew.
 
 ## `mcp add` flags
 
@@ -97,8 +106,8 @@ Uses `typescript-eslint` with `recommendedTypeChecked` plus Prettier:
 ## Development
 
 ```bash
-# Build (requires SDK to be built first — it is bundled in)
-cd packages/sdk && yarn build
+# Build (requires the public SDK to be built first — it is bundled in)
+cd packages/sdk-public && yarn build
 cd packages/cli && yarn build
 
 # Watch mode

@@ -1,13 +1,52 @@
-import { client, configureClient, issueFindAllV1, issueGateVerificationReportGateResultsV1, issueGateVerificationVerifyGatesV1 } from "./sdk-client-CTvYVr7D.js";
+import { client, configureClient } from "./sdk-client-DYv-0CfA.js";
 import "./env-CdwyPHGV.js";
 import "./token-refresh-DeusLK8H.js";
 import { resolveToken } from "./resolve-token-7xb7kG7h.js";
 import "./workspace-store-CnrxyYRB.js";
-import { resolveWorkspace } from "./resolve-workspace-B3Gz3-Vh.js";
+import { resolveWorkspace } from "./resolve-workspace-DcTNXtBD.js";
 import { existsSync } from "node:fs";
 import { constants as constants$1 } from "node:os";
 import { spawnSync } from "node:child_process";
 
+//#region ../sdk-public/dist/gen/issue/functions.js
+/** GET /v1/issue */
+const issueFindAllV1 = (options) => {
+	return (options?.client ?? client).get({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/issue",
+		...options
+	});
+};
+
+//#endregion
+//#region ../sdk-public/dist/gen/issue-gate-verification/functions.js
+/** POST /v1/issue/{id}/verify-gates */
+const issueGateVerificationVerifyGatesV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/issue/{id}/verify-gates",
+		...options
+	});
+};
+/** POST /v1/issue/{id}/gate-results */
+const issueGateVerificationReportGateResultsV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/issue/{id}/gate-results",
+		...options
+	});
+};
+
+//#endregion
 //#region src/commands/gates/gate-runner.ts
 /**
 * ENG-5967 F — run a deliverable's gate `local_commands` and build the
