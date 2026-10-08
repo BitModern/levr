@@ -7,7 +7,7 @@
  * writes it, so adding an MCP entry for a workspace cannot change which
  * workspace `levr push` and friends use.
  */
-import type { SitesResponseDto } from '@levr/sdk';
+import type { SitesResponseDto } from '@levr-one/sdk';
 
 export type WorkspaceSite = SitesResponseDto['sites'][number];
 

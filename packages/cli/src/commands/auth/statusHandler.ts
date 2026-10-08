@@ -4,7 +4,7 @@ import { getPatToken, getApiUrl } from '../../utils/env.js';
 import { readCredentials } from '../../auth/credentials.js';
 import { isTokenExpired } from '../../auth/token-refresh.js';
 import { configureClient } from '../../utils/sdk-client.js';
-import { authGetProfileV1 } from '@levr/sdk';
+import { authGetProfileV1 } from '@levr-one/sdk';
 
 export async function statusHandler(this: LocalContext): Promise<void> {
   const apiUrl = getApiUrl();

@@ -6,12 +6,12 @@ import {
   commentTestCreateV1,
   importCreateV1,
   runApiUpdateRunResultVariantByIdV1,
-} from '@levr/sdk';
+} from '@levr-one/sdk';
 import type {
   AttachmentUploadUploadV1Body,
   UpdateRunResultVariantDto,
   UploadAttachmentResponseDto,
-} from '@levr/sdk';
+} from '@levr-one/sdk';
 import { getApiUrl } from './env.js';
 import type { ResolvedAuth } from '../types/auth-types.js';
 

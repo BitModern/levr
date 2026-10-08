@@ -3,7 +3,7 @@ import { defineConfig } from 'tsdown';
 /**
  * Public-publish brand scrub (D4 / internal).
  *
- * Since internal the bundled SDK is `@levr/sdk`, generated with the public
+ * Since internal the bundled SDK is `@levr-one/sdk`, generated with the public
  * codegen profile: only the CLI's operations, no spec prose, and a fail-closed
  * leak check at generation time. This scrub stays as a BACKSTOP for anything
  * that survives bundling, so we still scrub internal-brand string literals
@@ -75,7 +75,7 @@ export default defineConfig({
   // tarball (files: ["dist", ...]) — the brand-leak gates only grep cli.js, so
   // a shipped .map would smuggle the leaks past them (D4 / review R1 H1).
   sourcemap: false,
-  // Bundle the public SDK (`@levr/sdk`, internal) + ci-env + mcp-harnesses into
+  // Bundle the public SDK (`@levr-one/sdk`, internal) + ci-env + mcp-harnesses into
   // the binary so the published package is self-contained (no @levr/* or
   // @levr-one/sdk runtime deps, no dangling .d.ts).
   // Everything else (@stricli/*, chalk, open, ora, zod) stays external and

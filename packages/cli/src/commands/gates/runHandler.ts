@@ -3,7 +3,7 @@ import {
   issueFindAllV1,
   issueGateVerificationReportGateResultsV1,
   issueGateVerificationVerifyGatesV1,
-} from '@levr/sdk';
+} from '@levr-one/sdk';
 import type { LocalContext } from '../../context.js';
 import { resolveToken } from '../../auth/resolve-token.js';
 import { resolveWorkspace } from '../../workspace/resolve-workspace.js';

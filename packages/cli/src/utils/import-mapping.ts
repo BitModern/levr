@@ -3,7 +3,7 @@
  * from the handler so the override/required logic is unit-testable
  * without a TTY.
  */
-import type { PreviewImportResponseDto } from '@levr/sdk';
+import type { PreviewImportResponseDto } from '@levr-one/sdk';
 
 export type MappingEntry = PreviewImportResponseDto['proposed_mapping'][number];
 
@@ -26,7 +26,7 @@ export type ImportTarget = NonNullable<MappingEntry['targetProperty']>;
  * rejection the user discovers. Adding a target server-side now breaks this
  * build until it is listed here.
  *
- * Caveat worth knowing: `@levr/sdk` resolves to `dist/`, so the union this
+ * Caveat worth knowing: `@levr-one/sdk` resolves to `dist/`, so the union this
  * is checked against is only as fresh as the last SDK build. A regenerated
  * but unbuilt SDK delays detection to the next build — it does not restore
  * the old failure, where the omission was invisible indefinitely.

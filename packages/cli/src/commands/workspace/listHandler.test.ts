@@ -10,7 +10,7 @@ vi.mock('../../utils/sdk-client.js', () => ({
   configureClient: vi.fn(),
 }));
 
-vi.mock('@levr/sdk', () => ({
+vi.mock('@levr-one/sdk', () => ({
   authGetSitesV1: vi.fn(),
 }));
 
@@ -20,7 +20,7 @@ vi.mock('../../workspace/workspace-store.js', () => ({
 
 import { listHandler } from './listHandler.js';
 import { resolveToken } from '../../auth/resolve-token.js';
-import { authGetSitesV1 } from '@levr/sdk';
+import { authGetSitesV1 } from '@levr-one/sdk';
 import { loadWorkspace } from '../../workspace/workspace-store.js';
 
 const mockResolveToken = vi.mocked(resolveToken);

@@ -11,7 +11,7 @@ const sdk = vi.hoisted(() => ({
   issueGateVerificationReportGateResultsV1: vi.fn(),
   client: { setConfig: vi.fn(), getConfig: vi.fn(() => ({})) },
 }));
-vi.mock('@levr/sdk', () => sdk);
+vi.mock('@levr-one/sdk', () => sdk);
 vi.mock('../../auth/resolve-token.js', () => ({
   resolveToken: vi.fn(() => Promise.resolve({ type: 'pat', token: 't' })),
 }));

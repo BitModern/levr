@@ -1,7 +1,7 @@
 import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import ora from 'ora';
-import { client } from '@levr/sdk';
+import { client } from '@levr-one/sdk';
 import type { LocalContext } from '../context.js';
 import type { PushCommandFlags } from '../types/push-types.js';
 import { resolveToken } from '../auth/resolve-token.js';

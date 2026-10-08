@@ -1,4 +1,4 @@
-import { client } from '@levr/sdk';
+import { client } from '@levr-one/sdk';
 import type { LocalContext } from '../context.js';
 import { resolveToken } from '../auth/resolve-token.js';
 import { resolveWorkspace } from '../workspace/resolve-workspace.js';

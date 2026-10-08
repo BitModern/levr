@@ -7,13 +7,13 @@ vi.mock('./workspace-store.js', () => ({
   clearWorkspace: vi.fn(),
 }));
 
-// Mock @levr/sdk
-vi.mock('@levr/sdk', () => ({
+// Mock @levr-one/sdk
+vi.mock('@levr-one/sdk', () => ({
   authGetSitesV1: vi.fn(),
 }));
 
 import { resolveWorkspace, autoSelectWorkspace } from './resolve-workspace.js';
-import { authGetSitesV1 } from '@levr/sdk';
+import { authGetSitesV1 } from '@levr-one/sdk';
 import {
   loadWorkspace,
   saveWorkspace,

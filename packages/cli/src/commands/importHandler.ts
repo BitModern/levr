@@ -9,7 +9,7 @@ import {
   testCaseImportPreviewV1,
   type PreviewImportResponseDto,
   type TestCaseImportResultDto,
-} from '@levr/sdk';
+} from '@levr-one/sdk';
 import type { LocalContext } from '../context.js';
 import { resolveToken } from '../auth/resolve-token.js';
 import { resolveWorkspace } from '../workspace/resolve-workspace.js';

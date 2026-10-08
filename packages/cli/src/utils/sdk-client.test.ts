@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('@levr/sdk', () => ({
+vi.mock('@levr-one/sdk', () => ({
   client: { setConfig: vi.fn() },
   importCreateV1: vi.fn(),
 }));
 
-import { importCreateV1 } from '@levr/sdk';
+import { importCreateV1 } from '@levr-one/sdk';
 import { uploadImport } from './sdk-client.js';
 
 const mockImportCreate = vi.mocked(importCreateV1);

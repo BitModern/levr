@@ -1,5 +1,5 @@
-import { authGetSitesV1 } from '@levr/sdk';
-import type { SitesResponseDto } from '@levr/sdk';
+import { authGetSitesV1 } from '@levr-one/sdk';
+import type { SitesResponseDto } from '@levr-one/sdk';
 import {
   loadWorkspace,
   saveWorkspace,

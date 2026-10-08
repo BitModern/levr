@@ -1,5 +1,5 @@
-import { authGetProfileV1, teamFindAllV1 } from '@levr/sdk';
-import type { ResponseTeamDto } from '@levr/sdk';
+import { authGetProfileV1, teamFindAllV1 } from '@levr-one/sdk';
+import type { ResponseTeamDto } from '@levr-one/sdk';
 
 export interface ResolvedTeam {
   teamId: string;

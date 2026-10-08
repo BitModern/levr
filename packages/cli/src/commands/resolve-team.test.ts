@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockFindAll = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockProfile = vi.fn<() => Promise<unknown>>();
-vi.mock('@levr/sdk', () => ({
+vi.mock('@levr-one/sdk', () => ({
   teamFindAllV1: (...args: unknown[]): Promise<unknown> => mockFindAll(...args),
   authGetProfileV1: (): Promise<unknown> => mockProfile(),
 }));
