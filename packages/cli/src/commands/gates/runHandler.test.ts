@@ -114,7 +114,10 @@ describe('internal F — levr gates run', () => {
     expect(sdk.issueFindAllV1).toHaveBeenCalledWith({
       query: { 'filter.identifier': ['$eq:internal'], limit: 1 },
     });
-    expect(gatesRunDeps.run).toHaveBeenCalledWith('yarn playwright test');
+    expect(gatesRunDeps.run).toHaveBeenCalledWith(
+      'yarn playwright test',
+      expect.any(Number),
+    );
     const call = sdk.issueGateVerificationReportGateResultsV1.mock
       .calls[0]![0] as ReportCall;
     expect(call.path).toEqual({ id: ISSUE_ID });

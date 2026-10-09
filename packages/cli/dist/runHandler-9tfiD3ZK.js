@@ -88,6 +88,20 @@ const issueGateVerificationReportGateResultsV1 = (options) => {
 const GATE_STEP_TAIL_LIMIT = 4e3;
 /** How long one command may run before it is killed (15 min). */
 const GATE_COMMAND_TIMEOUT_MS = 900 * 1e3;
+/**
+* How long an L4 semantic judge may run (3 min) — ENG-4469.
+*
+* The L4 templates used to carry their own `timeout 120`, which bounded the
+* judge on Linux and broke it on stock macOS (no GNU `timeout`). With the
+* wrapper gone, the runner holds the budget, as qinetic-mcp's executor does
+* with the same 180s. A hung judge (agy waiting on a prompt that never
+* renders) would otherwise hold `levr gates run` for the full 15 minutes.
+*/
+const GATE_SEMANTIC_TIMEOUT_MS = 180 * 1e3;
+/** The kill budget for one command: semantic judges get the shorter one. */
+function commandTimeoutMs(command) {
+	return command.technique === "semantic" ? GATE_SEMANTIC_TIMEOUT_MS : GATE_COMMAND_TIMEOUT_MS;
+}
 /** Keep the END of a stream — where runner summaries and verdicts are. */
 function tail(value, limit = GATE_STEP_TAIL_LIMIT) {
 	const s = value ?? "";
@@ -145,12 +159,12 @@ function shellExists(shell) {
 * can report ENOBUFS with a numeric status (ENG-5106 L1 review round 4
 * F-010/F-011).
 */
-const runInShell = (command) => {
+const runInShell = (command, timeoutMs = GATE_COMMAND_TIMEOUT_MS) => {
 	const shell = chooseShell();
 	const r = spawnSync(shell.file, shell.args(command), {
 		encoding: "utf8",
 		maxBuffer: 64 * 1024 * 1024,
-		timeout: GATE_COMMAND_TIMEOUT_MS
+		timeout: timeoutMs
 	});
 	const stderr = (r.stderr ?? "") + (r.error ? `\n[runner] ${r.error.message}` : "") + (r.signal ? `\n[runner] killed by ${r.signal}` : "");
 	const killed = r.error !== void 0 || r.signal !== null;
@@ -189,7 +203,7 @@ function toReportResult(command, outcome) {
 function runLocalCommands(commands, run = runInShell, onEach, onBefore) {
 	return commands.map((command, index) => {
 		onBefore?.(command, index);
-		const result = toReportResult(command, run(command.command));
+		const result = toReportResult(command, run(command.command, commandTimeoutMs(command)));
 		onEach?.(command, result);
 		return result;
 	});

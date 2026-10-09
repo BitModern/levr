@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   chooseShell,
   NoPosixShellError,
+  GATE_COMMAND_TIMEOUT_MS,
+  GATE_SEMANTIC_TIMEOUT_MS,
   GATE_STEP_TAIL_LIMIT,
   runInShell,
   runLocalCommands,
@@ -152,5 +154,34 @@ describe('internal F-020 — gate commands run in bash, like the MCP executor', 
     // `${#v}` and arrays are bash; dash (Ubuntu's sh) rejects the array.
     const r = runInShell('a=(x yz); v=abcd; echo "${#v} ${a[1]}"');
     expect(r).toMatchObject({ exitCode: 0, stdout: '4 yz\n' });
+  });
+});
+
+describe('internal — the runner, not the template, bounds an L4 judge', () => {
+  it('gives a semantic command the short budget and everything else the long one', () => {
+    const budgets: (number | undefined)[] = [];
+    runLocalCommands(
+      [
+        cmd({ command: 'agy -p x', technique: 'semantic' }),
+        cmd({ command: 'yarn test', technique: 'execution' }),
+        cmd({ command: 'true' }),
+      ],
+      (_command, timeoutMs) => {
+        budgets.push(timeoutMs);
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    );
+    expect(budgets).toEqual([
+      GATE_SEMANTIC_TIMEOUT_MS,
+      GATE_COMMAND_TIMEOUT_MS,
+      GATE_COMMAND_TIMEOUT_MS,
+    ]);
+    expect(GATE_SEMANTIC_TIMEOUT_MS).toBeLessThan(GATE_COMMAND_TIMEOUT_MS);
+  });
+
+  it('kills a command that outlives its budget and never reports 0', () => {
+    const r = runInShell('sleep 5', 200);
+    expect(r.exitCode).toBeGreaterThan(128);
+    expect(r.stderr).toMatch(/\[runner\]/);
   });
 });

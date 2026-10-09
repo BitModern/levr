@@ -45,6 +45,24 @@ export const GATE_STEP_TAIL_LIMIT = 4000;
 /** How long one command may run before it is killed (15 min). */
 export const GATE_COMMAND_TIMEOUT_MS = 15 * 60 * 1000;
 
+/**
+ * How long an L4 semantic judge may run (3 min) — internal.
+ *
+ * The L4 templates used to carry their own `timeout 120`, which bounded the
+ * judge on Linux and broke it on stock macOS (no GNU `timeout`). With the
+ * wrapper gone, the runner holds the budget, as qinetic-mcp's executor does
+ * with the same 180s. A hung judge (agy waiting on a prompt that never
+ * renders) would otherwise hold `levr gates run` for the full 15 minutes.
+ */
+export const GATE_SEMANTIC_TIMEOUT_MS = 3 * 60 * 1000;
+
+/** The kill budget for one command: semantic judges get the shorter one. */
+export function commandTimeoutMs(command: GateLocalCommand): number {
+  return command.technique === 'semantic'
+    ? GATE_SEMANTIC_TIMEOUT_MS
+    : GATE_COMMAND_TIMEOUT_MS;
+}
+
 /** One `local_commands[]` entry from `verify-gates`. */
 export interface GateLocalCommand {
   gate_type: string;
@@ -96,7 +114,7 @@ export interface ShellOutcome {
   stderr: string;
 }
 
-export type ShellRunner = (command: string) => ShellOutcome;
+export type ShellRunner = (command: string, timeoutMs?: number) => ShellOutcome;
 
 /** Keep the END of a stream — where runner summaries and verdicts are. */
 export function tail(
@@ -178,12 +196,15 @@ function shellExists(shell: string): boolean {
  * can report ENOBUFS with a numeric status (internal L1 review round 4
  * F-010/F-011).
  */
-export const runInShell: ShellRunner = (command) => {
+export const runInShell: ShellRunner = (
+  command,
+  timeoutMs = GATE_COMMAND_TIMEOUT_MS,
+) => {
   const shell = chooseShell();
   const r = spawnSync(shell.file, shell.args(command), {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
-    timeout: GATE_COMMAND_TIMEOUT_MS,
+    timeout: timeoutMs,
   });
   const stderr =
     (r.stderr ?? '') +
@@ -239,7 +260,10 @@ export function runLocalCommands(
 ): GateReportResult[] {
   return commands.map((command, index) => {
     onBefore?.(command, index);
-    const result = toReportResult(command, run(command.command));
+    const result = toReportResult(
+      command,
+      run(command.command, commandTimeoutMs(command)),
+    );
     onEach?.(command, result);
     return result;
   });
