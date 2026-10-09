@@ -24,7 +24,7 @@ Then sign in. Run `/mcp`, choose `levr`, and follow the browser prompt. Levr use
 The plugin also includes:
 
 - **The Levr MCP server connection**, so every Levr tool is available to Claude.
-- **A `using-levr` skill** that Claude loads by itself when it is about to change an issue. It covers two habits: send the `epoch` you read when you rewrite a description or title, and prefer a comment to rewriting a long description.
+- **A `using-levr` skill** that Claude loads by itself when it is about to change an issue. It covers a few habits: send the `epoch` you read when you rewrite a description or title, prefer a comment to rewriting a long description, and when no workspace is selected, ask you which one to use instead of choosing for you.
 
 The plugin contains no agents, hooks or background processes. It does not change how you run your workflow.
 
@@ -32,6 +32,36 @@ The plugin contains no agents, hooks or background processes. It does not change
 
 - A Levr account.
 - Claude Code. This plugin is tested with version 2.1.284.
+
+## More than one workspace
+
+If your account has one workspace, the plugin uses it and there is nothing to set up.
+
+If you belong to several, the plugin's connection does not know which one you mean. Its tools then reply that no workspace is selected, and nothing is read or written. Claude lists your workspaces and asks which one to use; it never picks one for you.
+
+Connect each workspace you work in by its own address. Every workspace has one, ending in `/v1/mcp/w/<url_key>`. Ask Claude to list your workspaces to see them, or copy it from **Settings › MCP Setup** in the Levr app.
+
+1. Add the workspace, naming the entry after it. Keep the name to 30 characters or fewer: it becomes part of every Levr tool's name, and Claude Code refuses every request once a tool name passes 128 characters.
+
+   ```bash
+   claude mcp add --transport http --scope user levr-acme https://ai.levr.one/api/v1/mcp/w/acme
+   ```
+
+   The command line installer does the same once you are signed in to it: `npx @levr-one/cli auth login`, then `npx @levr-one/cli mcp add --client claude-code --workspace acme --name levr-acme`.
+
+   Run `/mcp`, choose the new entry and sign in. If it is not listed, restart Claude Code. Repeat for each workspace you use.
+
+2. Hide the plugin's own connection, so each Levr tool is listed once per workspace instead of once more for a connection that cannot write. Add the `deniedMcpServers` key to `~/.claude/settings.json`, keeping the keys already in the file. If the key is already there, add the entry to its list:
+
+   ```json
+   {
+     "deniedMcpServers": [{ "serverName": "plugin:levr:levr" }]
+   }
+   ```
+
+   This applies in every project. The `/levr:` commands keep working; they use the workspace connections. To hide it in one project only, use `/mcp` and disable `plugin:levr:levr` there instead.
+
+A workspace's address is a different address from the plugin's, so Claude Code keeps both connections until you hide one; that is why the second step is needed. With several workspaces connected, say which one you mean, and Claude asks when you have not.
 
 ## Staging and local servers
 

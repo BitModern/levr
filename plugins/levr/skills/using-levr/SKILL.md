@@ -1,6 +1,6 @@
 ---
 name: using-levr
-description: Habits for writing to Levr safely. Use before changing an issue's description or title, before rewriting a long issue body, and when Levr tools appear twice or a Levr tool name does not resolve.
+description: Habits for writing to Levr safely. Use before changing an issue's description or title, before rewriting a long issue body, when a Levr tool reports that no workspace is selected, and when Levr tools appear twice or a Levr tool name does not resolve.
 ---
 
 # Using Levr well
@@ -34,11 +34,38 @@ A description can only be replaced whole. There is no append and no partial edit
 - To record progress, a decision or a result, use `add_issue_comment`.
 - Rewrite the description only when the description itself is wrong, and pass `epoch` when you do.
 
+## When no workspace is selected
+
+An account in more than one Levr workspace needs a connection that names one. When a Levr tool reports that no workspace is selected:
+
+1. If another Levr connection's `list_workspaces` marks the workspace the user named `[PINNED]` or `[SELECTED]`, use that connection instead. Otherwise stop the task: do not retry the call, and do not try another Levr tool to get around it. The one Levr call still to make is `list_workspaces`.
+2. Call `list_workspaces` and show the user each workspace's name with the MCP URL it lists.
+3. Ask which workspace they mean. Never choose a workspace for the user, even when one looks likely.
+4. For the one they pick, give them this command with its URL. Name the entry `levr-` plus its `url_key`, shortened so the whole name has 30 characters at most: Claude Code refuses every request once a tool name passes 128 characters, and the entry name is part of each tool's name.
+
+   ```bash
+   claude mcp add --transport http --scope user levr-<url_key> <workspace MCP URL>
+   ```
+
+   They sign in with `/mcp`; if the new entry is not listed there, they restart Claude Code. To stop this plugin's own connection from listing every tool a second time, they can add the key `"deniedMcpServers": [{ "serverName": "plugin:levr:levr" }]` to their `~/.claude/settings.json`, keeping the keys already in it.
+
+If `list_workspaces` gives no URL for a workspace, say so and tell the user to open that workspace in the Levr app and copy the URL from **Settings › MCP Setup**. Never build a URL yourself.
+
+The workspace's URL works in every client. Do not send the user to edit a header instead.
+
+## One connection per workspace
+
+With a connection for each workspace, every Levr tool is listed once for each of them. Before the first Levr call of a task, read or write, call `list_workspaces` on each Levr connection. It marks the connection's workspace `[PINNED]` (a workspace URL) or `[SELECTED]`. Use the connection marked with the workspace the user named. If they have not named one and the marked connections name more than one workspace, ask; if they all name the same one, use it. Before a write to an issue the user did not place in a workspace, when `list_workspaces` lists more than one workspace for the account, tell them the identifier, the issue's title and the workspace, and ask first: the same identifier can exist in more than one workspace.
+
+Make every call of that task on the same connection. An id read from one workspace means nothing in another.
+
+A connection whose tools all report that no workspace is selected cannot read or write anything; use the connection for the workspace the user named, or ask which one.
+
 ## Tool names
 
 Levr can be connected by this plugin or by `npx @levr-one/cli mcp add`. The skills in this plugin name each tool by the server's own name, such as `get_issue`, `manage_issues` or `transition_issue`.
 
-Your client may list the same tool with a prefix in front of that name, and the prefix depends on which of the two connected Levr. Use the tool your client lists whose name ends with the name given here. Do not build a prefixed name yourself.
+Your client may list the same tool with a prefix in front of that name, and the prefix depends on which of the two connected Levr. Use the tool your client lists whose name ends with the name given here. Do not build a prefixed name yourself. When several Levr connections list it, choose by workspace, as above.
 
 When both are installed and point at the same address, Claude Code connects once and the tools appear once.
 
