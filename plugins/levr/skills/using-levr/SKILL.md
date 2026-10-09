@@ -63,7 +63,7 @@ A connection whose tools all report that no workspace is selected cannot read or
 
 ## Tool names
 
-Levr can be connected by this plugin or by `npx @levr-one/cli mcp add`. The skills in this plugin name each tool by the server's own name, such as `get_issue`, `manage_issues` or `transition_issue`.
+Levr can be connected by this plugin or by `npx @levr-one/cli@latest mcp add`. The skills in this plugin name each tool by the server's own name, such as `get_issue`, `manage_issues` or `transition_issue`.
 
 Your client may list the same tool with a prefix in front of that name, and the prefix depends on which of the two connected Levr. Use the tool your client lists whose name ends with the name given here. Do not build a prefixed name yourself. When several Levr connections list it, choose by workspace, as above.
 
@@ -74,7 +74,7 @@ When both are installed and point at the same address, Claude Code connects once
 This plugin always connects to the production Levr server. For a staging or local server, add it with the command line instead:
 
 ```bash
-npx @levr-one/cli mcp add --url <mcp-url>
+npx @levr-one/cli@latest mcp add --url <mcp-url>
 ```
 
 With two environments connected at once, every Levr tool appears twice, once for each server. Before you write, check which server a tool belongs to. If you cannot tell, ask the user which environment they mean.

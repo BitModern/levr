@@ -23,7 +23,7 @@ replaces the `levr` bin from the deprecated `@levr-one/setup` package.
 ### Or run it without a global install
 
 ```bash
-npx @levr-one/cli --help
+npx @levr-one/cli@latest --help
 ```
 
 `npx` is right for one-shot use (`mcp add`, trying a command). Two things to
@@ -40,18 +40,22 @@ In scripts and CI, pass `--yes` — **in a terminal the prompt blocks until it i
 answered**, so an unattended run with a TTY hangs rather than failing:
 
 ```bash
-npx --yes @levr-one/cli push ./test-results.xml
+npx --yes @levr-one/cli@latest push ./test-results.xml
 ```
 
-Two things to get right:
+Three things to get right:
 
-- **Always `npx @levr-one/cli`, never `npx levr`.** npx treats the first
+- **Add `@latest`.** Without a version, npx runs any copy of `@levr-one/cli`
+  already installed on the machine, however old, and an old copy does not know
+  newer commands and flags (`No flag registered for --workspace`).
+- **Always `npx @levr-one/cli@latest`, never `npx levr`.** npx treats the first
   positional as a _package_ name, so `npx levr` would fetch and run whatever
   package is published under the unscoped name `levr` — which is not ours.
-- **npm's flags go before the package name.** `npx @levr-one/cli --yes` passes
+- **npm's flags go before the package name.** `npx @levr-one/cli@latest --yes` passes
   `--yes` to `levr`, not to npm.
 
-For reproducible CI, pin `@levr-one/cli` to a version you have validated.
+The examples here use `@latest`. For reproducible CI, replace it with a
+version you have validated, such as `@levr-one/cli@0.11.1`.
 
 ## Quick start
 
@@ -59,7 +63,7 @@ For reproducible CI, pin `@levr-one/cli` to a version you have validated.
 the client opens a browser to authorize the first time it connects:
 
 ```bash
-npx @levr-one/cli mcp add
+npx @levr-one/cli@latest mcp add
 ```
 
 **Pushing test results?** Authentication is all you need — log in once (or
@@ -82,39 +86,71 @@ levr mcp add --dry-run       # preview the changes without writing
 levr mcp add --client cursor,zed --yes   # non-interactive selection
 ```
 
-What it writes is **credential-free** — a `levr` server entry that connects
-via `mcp-remote`. No token or secret is stored; your client opens the browser
-to authorize with Levr on its first connection. After a run, restart the
-client(s) and authorize once.
+What it writes is **credential-free** — a `levr` server entry holding only
+the server's address. No token or secret is stored; your client opens the
+browser to authorize with Levr on its first connection. After a run, restart
+the client(s) and authorize once.
+
+Clients that speak HTTP MCP themselves (Claude Code, VS Code, Gemini CLI,
+Codex CLI, Grok Build, Antigravity) connect to the URL directly. Claude
+Desktop, Cursor, Windsurf and Zed get an entry that runs
+`npx -y mcp-remote <url>`, which connects on their behalf.
 
 **Supported clients:**
 
-| Client         | How it's configured                                                            |
-| -------------- | ------------------------------------------------------------------------------ |
-| Claude Desktop | config file (`claude_desktop_config.json`)                                     |
-| Claude Code    | prints the `claude mcp add --transport http levr <url>` command for you to run |
-| Cursor         | config file (`~/.cursor/mcp.json`)                                             |
-| Windsurf       | config file (`~/.codeium/windsurf/mcp_config.json`)                            |
-| Zed            | config file (`settings.json`, `context_servers`)                               |
-| VS Code, Codex | listed but not yet installable (coming soon)                                   |
+| Client                  | How it's configured                                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Desktop          | config file (`claude_desktop_config.json`)                                                                                       |
+| Claude Code             | runs `claude mcp add --transport http --scope user levr <url>` for you (prints it instead when `claude` is not on your `PATH`) |
+| Cursor                  | config file (`~/.cursor/mcp.json`)                                                                                               |
+| Windsurf                | config file (`~/.codeium/windsurf/mcp_config.json`)                                                                              |
+| Zed                     | config file (`settings.json`, `context_servers`)                                                                                 |
+| VS Code                 | config file (`Code/User/mcp.json` in your VS Code settings folder; `.vscode/mcp.json` with `--scope project`)                    |
+| Gemini CLI              | config file (`~/.gemini/settings.json`)                                                                                          |
+| Codex CLI               | config file (`~/.codex/config.toml`, TOML)                                                                                       |
+| Grok Build              | config file (`~/.grok/config.toml`, TOML)                                                                                        |
+| Antigravity (CLI + IDE) | config file (`~/.gemini/config/mcp_config.json`)                                                                                 |
 
 Config edits are **safe and repeatable**: existing MCP servers and comments
-in your config files are preserved (jsonc-aware merge), and re-running is a
-no-op that reports "already set up".
+in your config files are preserved, and re-running reports "already set up".
+An entry of the same name that points at a different address is left alone
+and reported; pass `--replace` to switch it.
 
 **Flags:**
 
-| Flag              | Alias | Description                                           |
-| ----------------- | ----- | ----------------------------------------------------- |
-| `--client <id,…>` |       | Set up these client ids (comma-separated or repeated) |
-| `--all`           |       | Set up every detected, installable client             |
-| `--yes`           | `-y`  | Non-interactive; auto-select detected clients         |
-| `--dry-run`       |       | Show the changes without writing                      |
-| `--url <url>`     |       | MCP server URL (default derived from the API server)  |
+| Flag                             | Alias | Description                                                                         |
+| -------------------------------- | ----- | ----------------------------------------------------------------------------------- |
+| `--client <id,…>`                |       | Set up these client ids (comma-separated or repeated)                               |
+| `--all`                          |       | Set up every detected, installable client                                           |
+| `--yes`                          | `-y`  | Non-interactive; auto-select detected clients                                       |
+| `--dry-run`                      |       | Show the changes without writing                                                    |
+| `--scope <user\|project\|local>` |       | Where the entry lands: every project (default), this repo for everyone, or just you |
+| `--workspace <url_key\|name>`    |       | Pin the entry to one workspace (needs `levr auth login`)                            |
+| `--name <entry>`                 |       | Name of the client entry (default `levr`), to keep a second one beside it          |
+| `--replace`                      |       | Switch an existing entry of this name to the new address                            |
+| `--url <url>`                    |       | MCP server URL (default derived from the API server)                                |
 
 Runs non-interactively whenever `--all`, `--client`, or `--yes` is passed —
 or automatically when not attached to a terminal (CI). Unknown client ids and
 failed writes exit non-zero.
+
+### More than one workspace
+
+If your account is in more than one workspace, the plain MCP URL does not know
+which one you mean, and its tools reply that no workspace is selected. Connect
+each workspace by its own URL, `https://ai.levr.one/api/v1/mcp/w/<url_key>`:
+
+```bash
+levr auth login
+levr mcp add --workspace acme                   # pin the levr entry to acme
+levr mcp add --workspace beta --name levr-beta  # add a second entry beside it
+levr mcp add --workspace beta --replace         # or switch the entry to beta
+```
+
+Each entry lists every Levr tool once more. A URL for a workspace you are not
+in is refused with `403`; connect the plain URL and ask for `list_workspaces`
+to see the URLs you can use. Full guide:
+[levr CLI Overview › More than one workspace](https://doc.levr.one/cli/levr-cli-overview#more-than-one-workspace).
 
 ## Push test results
 
@@ -233,7 +269,7 @@ levr import ./cases.csv --team-id <uuid> --map "State=labels:state"
   env:
     LEVR_TOKEN: ${{ secrets.LEVR_TOKEN }}
     # LEVR_TEAM_ID is optional — server resolves from automation source or workspace default
-  run: npx --yes @levr-one/cli push ./test-results.xml
+  run: npx --yes @levr-one/cli@latest push ./test-results.xml
 ```
 
 ### GitLab CI
@@ -241,7 +277,7 @@ levr import ./cases.csv --team-id <uuid> --map "State=labels:state"
 ```yaml
 push-results:
   script:
-    - npx --yes @levr-one/cli push ./test-results.xml
+    - npx --yes @levr-one/cli@latest push ./test-results.xml
   variables:
     LEVR_TOKEN: $LEVR_TOKEN
 ```
@@ -250,13 +286,14 @@ push-results:
 
 ```groovy
 withEnv(["LEVR_TOKEN=${LEVR_TOKEN}"]) {
-  sh 'npx --yes @levr-one/cli push ./test-results.xml'
+  sh 'npx --yes @levr-one/cli@latest push ./test-results.xml'
 }
 ```
 
 ## Authentication
 
-Needed for `push` and `workspace` commands (`mcp add` needs none). Three modes:
+Needed for `push` and `workspace` commands, and for `mcp add --workspace`.
+Three modes:
 
 ### Interactive (browser) — default
 

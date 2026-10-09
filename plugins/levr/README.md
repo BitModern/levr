@@ -47,7 +47,7 @@ Connect each workspace you work in by its own address. Every workspace has one, 
    claude mcp add --transport http --scope user levr-acme https://ai.levr.one/api/v1/mcp/w/acme
    ```
 
-   The command line installer does the same once you are signed in to it: `npx @levr-one/cli auth login`, then `npx @levr-one/cli mcp add --client claude-code --workspace acme --name levr-acme`.
+   The command line installer does the same once you are signed in to it: `npx @levr-one/cli@latest auth login`, then `npx @levr-one/cli@latest mcp add --client claude-code --workspace acme --name levr-acme`.
 
    Run `/mcp`, choose the new entry and sign in. If it is not listed, restart Claude Code. Repeat for each workspace you use.
 
@@ -70,22 +70,23 @@ This plugin always connects to the production Levr server at `https://ai.levr.on
 To connect a staging or local server, use the command line installer and give it the address:
 
 ```bash
-npx @levr-one/cli mcp add --url <mcp-url>
+npx @levr-one/cli@latest mcp add --url <mcp-url>
 ```
 
 ## If you already installed Levr another way
 
-You may have connected Levr earlier with `npx @levr-one/cli mcp add` or `claude mcp add`.
+You may have connected Levr earlier with `npx @levr-one/cli@latest mcp add` or `claude mcp add`.
 
 - **Same address as this plugin:** nothing to do. Claude Code connects once, the tools appear once, and you still get the commands above.
 - **A different address, such as staging:** Claude Code connects to both, and every Levr tool appears twice. Check which server a tool belongs to before you let Claude write. To keep only one, remove the other with `claude mcp remove levr` or uninstall this plugin.
+- **A workspace address:** keep it, and hide the plugin's own connection as in step 2 of [More than one workspace](#more-than-one-workspace). Removing the workspace entry instead leaves only a connection that cannot read or write when your account has several workspaces.
 
 ## Other clients
 
 This plugin is for Claude Code. For Cursor, VS Code, Codex and other MCP clients, run:
 
 ```bash
-npx @levr-one/cli mcp add
+npx @levr-one/cli@latest mcp add
 ```
 
 ## License

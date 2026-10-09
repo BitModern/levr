@@ -1,7 +1,7 @@
 {
   "name": "levr",
   "displayName": "Levr",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Work your Levr issues from Claude Code. Connects the Levr MCP server and adds /levr:work, /levr:file and /levr:done.",
   "author": {
     "name": "BitModern",

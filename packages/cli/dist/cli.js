@@ -135,7 +135,7 @@ or when not running in a terminal (CI). Config edits preserve existing
 servers and comments, and re-running is a no-op.
 
 Examples:
-  npx @levr-one/cli mcp add            # detect clients and pick interactively
+  npx @levr-one/cli@latest mcp add     # detect clients and pick interactively
   levr mcp add --all                   # set up every detected client
   levr mcp add --client cursor --yes
   levr mcp add --scope project         # commit the config to this repo
@@ -563,11 +563,16 @@ Examples:
 //#region src/commands/workspace/select.ts
 const selectCommand = buildCommand({
 	docs: {
-		brief: "Select a workspace",
+		brief: "Select the CLI workspace (MCP client configs are unchanged)",
 		fullDescription: `Select a workspace by ID.
 
-The selected workspace is used for all subsequent commands.
+The selected workspace is used for all subsequent levr commands.
 Use 'levr workspace list' to see available workspaces.
+
+It does not change MCP client configs: each AI client keeps using the
+workspace its MCP URL names. To point a client at a workspace, run
+'levr mcp add --workspace <url_key>' (add --replace to switch an existing
+entry).
 
 Requires JWT authentication (levr auth login).
 
@@ -869,7 +874,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.11.2";
+var version = "0.11.3";
 
 //#endregion
 //#region src/app.ts

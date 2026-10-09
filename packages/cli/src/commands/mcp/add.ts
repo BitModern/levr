@@ -52,7 +52,7 @@ or when not running in a terminal (CI). Config edits preserve existing
 servers and comments, and re-running is a no-op.
 
 Examples:
-  npx @levr-one/cli mcp add            # detect clients and pick interactively
+  npx @levr-one/cli@latest mcp add     # detect clients and pick interactively
   levr mcp add --all                   # set up every detected client
   levr mcp add --client cursor --yes
   levr mcp add --scope project         # commit the config to this repo
