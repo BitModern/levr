@@ -529,6 +529,77 @@ describe('cli-command execution reporting (D5)', () => {
       'restart the client(s)',
     );
   });
+
+  // internal: `claude mcp add` refused an entry the installer could not see.
+  const alreadyExists = (): InstallResult =>
+    cmdResult({
+      ok: false,
+      executed: true,
+      command:
+        'claude mcp add --transport http --scope user levr-beta https://x/mcp',
+      commandError: 'MCP server levr-beta already exists in user config',
+    });
+
+  it('says how to recover when the client says the entry already exists', () => {
+    const line = formatReport({
+      ...report(alreadyExists()),
+      entryName: 'levr-beta',
+    });
+    expect(line).toContain('Claude Code: failed');
+    expect(line).toContain('--name <other>');
+    expect(line).toContain('`claude mcp remove --scope user levr-beta`');
+  });
+
+  it('names the scope the client reports, not the one we asked for', () => {
+    const line = formatReport({
+      ...report(
+        cmdResult({
+          ok: false,
+          executed: true,
+          commandError: 'MCP server levr already exists in local config',
+        }),
+      ),
+      entryName: 'levr',
+    });
+    expect(line).toContain('`claude mcp remove --scope local levr`');
+  });
+
+  it('adds no recovery hint to an unrelated command failure', () => {
+    const line = formatReport(
+      report(
+        cmdResult({ ok: false, executed: true, commandError: 'not logged in' }),
+      ),
+    );
+    expect(line).not.toContain('--name <other>');
+  });
+
+  it('does not tell the user to restart when nothing was installed', () => {
+    const next = nextStepsText(report(alreadyExists()));
+    expect(next).not.toContain('restart');
+    expect(next).toBe('Nothing was installed.');
+  });
+
+  it('does not tell the user to restart for a refused url-mismatch', () => {
+    const next = nextStepsText(
+      report(
+        cmdResult({
+          ok: false,
+          executed: false,
+          reason: 'url-mismatch',
+          currentUrl: 'https://other/mcp',
+        }),
+      ),
+    );
+    expect(next).not.toContain('restart');
+  });
+
+  it('does not tell the user to restart a client that was already set up', () => {
+    expect(
+      nextStepsText(
+        report(cmdResult({ executed: false, alreadyConfigured: true })),
+      ),
+    ).toBe('Nothing to do.');
+  });
 });
 
 describe('config-file failure and backup reporting (internal D5)', () => {

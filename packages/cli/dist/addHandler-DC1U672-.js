@@ -143,7 +143,10 @@ const CLAUDE_CODE_COMMAND = [
 	"{name}",
 	"{url}"
 ];
-/** `~/.claude.json` on every platform — read for detection, never written by us. */
+/**
+* `~/.claude.json` on every platform — read for detection, never written by us.
+* `~` is `$CLAUDE_CONFIG_DIR` when that is set (see `configDirEnv`).
+*/
 const CLAUDE_CODE_LOCATIONS = [
 	{
 		platform: "darwin",
@@ -232,6 +235,7 @@ const HARNESSES = [
 		docsUrl: "https://docs.anthropic.com/en/docs/claude-code/mcp",
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
+		configDirEnv: "CLAUDE_CONFIG_DIR",
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -275,7 +279,7 @@ const HARNESSES = [
 				installKind: "cli-command",
 				locations: CLAUDE_CODE_LOCATIONS,
 				command: CLAUDE_CODE_COMMAND,
-				cwdKeyedUnder: "projects"
+				projectKeyedUnder: "projects"
 			}
 		]
 	},
@@ -775,8 +779,19 @@ function defaultEnv() {
 		platform: process.platform,
 		homedir: homedir(),
 		pathVar: process.env.PATH ?? "",
-		cwd: process.cwd()
+		cwd: process.cwd(),
+		vars: process.env
 	};
+}
+/**
+* The directory `~` means for this harness's config paths and signals: the
+* harness's `configDirEnv` when that variable is set, else the home directory
+* (ENG-6696). A relative value resolves against `env.cwd`, the directory a
+* spawned client CLI runs in, so the probe and the client read one file.
+*/
+function configHome(harness, env) {
+	const dir = harness.configDirEnv ? env.vars?.[harness.configDirEnv] : void 0;
+	return dir ? resolve(env.cwd, dir) : env.homedir;
 }
 /** Expand a leading `~` / `~/…` to the given home directory. */
 function expandTilde(p, home) {
@@ -807,7 +822,7 @@ function resolveConfigPath(harness, env, scope = defaultScope(harness)) {
 	if (def.projectPath) return join(resolveProjectRoot(env).root, ...def.projectPath.split("/"));
 	const loc = locationFor(harness, env.platform, scope);
 	if (!loc) return void 0;
-	return expandTilde(loc.configPath, env.homedir);
+	return expandTilde(loc.configPath, configHome(harness, env));
 }
 /**
 * Nearest ancestor of `cwd` containing `.git`, or `undefined`.
@@ -846,25 +861,75 @@ function resolveProjectRoot(env) {
 	};
 }
 /**
+* The key Claude Code files a `local`-scope entry under, in `projects[...]`,
+* for a client run from `env.cwd` (ENG-6696, observed on 2.1.296).
+*
+* It is the PROJECT, not the directory: from `repo/sub` the key is `repo`.
+* A linked git worktree keys to its MAIN checkout (the parent of the common
+* `.git`), a worktree of a bare repository to the bare directory, and a
+* submodule or `--separate-git-dir` checkout to its own work tree. Outside a
+* repository it is the directory itself. Always a real path, with `/`
+* separators on Windows (unverified there: drive-letter case). Claude reads
+* only this key, so an entry under any other key is invisible to it, and a
+* probe that looked elsewhere missed the entry and let `claude mcp add`
+* refuse.
+*/
+function projectKeyFor(env) {
+	return configKey(projectDir(env), env.platform);
+}
+/** Claude Code writes `projects` keys with `/` on Windows too. */
+function configKey(dir, platform) {
+	return platform === "win32" ? dir.replaceAll("\\", "/") : dir;
+}
+function projectDir(env) {
+	const cwd = realOrResolved(env.cwd);
+	const workTree = findRepoRoot(cwd);
+	if (!workTree) return cwd;
+	const dotGit = join(workTree, ".git");
+	let gitDir = dotGit;
+	try {
+		if (statSync(dotGit).isFile()) {
+			const m = /^gitdir:\s*([^\r\n]+)/.exec(readFileSync(dotGit, "utf8").trim());
+			if (!m?.[1]) return workTree;
+			gitDir = resolve(workTree, m[1].trim());
+		}
+	} catch {
+		return workTree;
+	}
+	const commonFile = readTextOrNull(join(gitDir, "commondir"));
+	if (commonFile === null) return workTree;
+	const common = realOrResolved(resolve(gitDir, commonFile.trim()));
+	if (!existsSync(common)) return workTree;
+	if (realOrResolved(dirname(gitDir)) !== join(common, "worktrees")) return workTree;
+	const back = readTextOrNull(join(gitDir, "gitdir"));
+	if (back === null || realOrResolved(dirname(resolve(gitDir, back.trim()))) !== workTree) return workTree;
+	if (basename(common) === ".git") return dirname(common);
+	return existsSync(join(common, ".git")) ? workTree : common;
+}
+function realOrResolved(p) {
+	try {
+		return realpathSync(p);
+	} catch {
+		return resolve(p);
+	}
+}
+/**
 * Where our server entry sits INSIDE a scope's config file.
 *
 * Usually `[<serverProperty>, 'levr']` at the top level. A scope declaring
-* `cwdKeyedUnder` nests one level deeper, keyed by the launch directory:
-* Claude Code's `local` scope lives at
-* `projects[<cwd>].mcpServers.levr` in `~/.claude.json`.
+* `projectKeyedUnder` nests one level deeper, under the project key: Claude
+* Code's `local` scope lives at `projects[<key>].mcpServers.levr` in
+* `~/.claude.json`, with `<key>` from {@link projectKeyFor}.
 *
-* `cwdKey` is passed in rather than read off the env because the key is
-* specifically the directory the CLIENT was launched in — which is NOT the
-* repo root, and callers should have to say which directory they mean.
 * Shared by detect and install so the two can never disagree about where an
 * entry lives.
 */
-function entryPathFor(harness, scope, cwdKey, serverName = DEFAULT_SERVER_NAME) {
+function entryPathFor(harness, scope, projectKey, serverName = DEFAULT_SERVER_NAME) {
 	const tail = [serverPropertyFor(harness, scope), serverName];
-	const nest = scopeDef(harness, scope)?.cwdKeyedUnder;
+	const nest = scopeDef(harness, scope)?.projectKeyedUnder;
 	return nest ? [
 		nest,
-		cwdKey,
+		projectKey,
 		...tail
 	] : tail;
 }
@@ -916,13 +981,14 @@ function collidingScope(harness, env, scope) {
 	if (!scopeDef(harness, scope)?.projectPath) return void 0;
 	const target = resolveConfigPath(harness, env, scope);
 	if (!target) return void 0;
-	const targetEntry = entryPathFor(harness, scope, env.cwd).join("\0");
+	const key = projectKeyFor(env);
+	const targetEntry = entryPathFor(harness, scope, key).join("\0");
 	for (const other of harness.scopes) {
 		if (other.scope === scope) continue;
 		const otherPath = resolveConfigPath(harness, env, other.scope);
 		if (!otherPath) continue;
 		if (!pathsResolveSame(target, otherPath, env.platform)) continue;
-		if (entryPathFor(harness, other.scope, env.cwd).join("\0") === targetEntry) return other.scope;
+		if (entryPathFor(harness, other.scope, key).join("\0") === targetEntry) return other.scope;
 	}
 }
 const WIN_EXTS = [
@@ -958,22 +1024,23 @@ function whichSync(bin, env) {
 	return whichPathSync(bin, env) !== void 0;
 }
 /** Does one `installSignals` entry match on this machine? Supports
-* `which:<bin>`, `~`-prefixed paths, and absolute (app-bundle) paths. */
-function signalMatches(signal, env) {
+* `which:<bin>`, `~`-prefixed paths, and absolute (app-bundle) paths. `home`
+* is what `~` means for the harness — see {@link configHome}. */
+function signalMatches(signal, env, home = env.homedir) {
 	if (signal.startsWith("which:")) return whichSync(signal.slice(6), env);
-	return existsSync(signal.startsWith("~") ? expandTilde(signal, env.homedir) : signal);
+	return existsSync(signal.startsWith("~") ? expandTilde(signal, home) : signal);
 }
 /**
 * The value our server key currently holds for this scope, or `undefined`.
 *
-* Presence alone is not enough for a `cli-command` scope: `claude mcp add` is
-* a no-op when the key exists, so telling "already correct" from "present but
-* pointing somewhere else" needs the value.
+* Presence alone is not enough for a `cli-command` scope: `claude mcp add`
+* refuses when the key exists and never updates its URL, so telling "already
+* correct" from "present but pointing somewhere else" needs the value.
 */
-function readServerEntry(harness, scope, configPath, cwdKey, parseJsonc, serverName = DEFAULT_SERVER_NAME) {
+function readServerEntry(harness, scope, configPath, projectKey, parseJsonc, serverName = DEFAULT_SERVER_NAME) {
 	const text = readTextOrNull(configPath);
 	if (!text) return void 0;
-	return getAtPath(parseJsonc(text), entryPathFor(harness, scope, cwdKey, serverName));
+	return getAtPath(parseJsonc(text), entryPathFor(harness, scope, projectKey, serverName));
 }
 /** Read a text file, or `null` if it doesn't exist / can't be read. */
 function readTextOrNull(path$1) {
@@ -1425,10 +1492,10 @@ function adapterFor(harness) {
 * not by which file is read — hence the entry path rather than a bare
 * top-level lookup.
 */
-function isServerConfigured(harness, scope, configPath, cwdKey) {
+function isServerConfigured(harness, scope, configPath, projectKey) {
 	const text = readTextOrNull(configPath);
 	if (!text) return false;
-	const read = adapterFor(harness).readAt(text, entryPathFor(harness, scope, cwdKey));
+	const read = adapterFor(harness).readAt(text, entryPathFor(harness, scope, projectKey));
 	return read.kind === "value" && read.value !== null;
 }
 function detectScope(harness, env, def) {
@@ -1441,13 +1508,13 @@ function detectScope(harness, env, def) {
 		installKind: def.installKind,
 		configPath: available ? configPath ?? "" : "",
 		available,
-		alreadyConfigured: available && configPath ? isServerConfigured(harness, def.scope, configPath, env.cwd) : false
+		alreadyConfigured: available && configPath ? isServerConfigured(harness, def.scope, configPath, projectKeyFor(env)) : false
 	};
 }
 function detectOne(harness, env) {
 	const scopes = harness.scopes.map((def) => detectScope(harness, env, def));
 	const available = scopes.some((s) => s.available);
-	const installed = detectSignalsFor(harness, env.platform).some((s) => signalMatches(s, env)) || scopes.some((s) => s.configPath !== "" && existsSync(s.configPath));
+	const installed = detectSignalsFor(harness, env.platform).some((s) => signalMatches(s, env, configHome(harness, env))) || scopes.some((s) => s.configPath !== "" && existsSync(s.configPath));
 	const fallback = scopes.find((s) => s.scope === defaultScope(harness));
 	return {
 		id: harness.id,
@@ -1471,6 +1538,21 @@ function detectSync(env = defaultEnv()) {
 const COMMAND_TIMEOUT_MS = 3e4;
 /** Keep a failing client's diagnostics readable in a multi-client report. */
 const MAX_STDERR = 2e3;
+/**
+* The variables a client CLI is spawned with: the real environment minus every
+* catalog `configDirEnv`, then `env.vars` on top (ENG-6696). A config
+* directory therefore reaches the child only when the caller's env carries it
+* — the one the probe read — so `claude` never writes a file the installer
+* did not look at, while PATH and the rest still come through.
+*/
+function childVars(env) {
+	const vars = { ...process.env };
+	for (const h of HARNESSES) if (h.configDirEnv) delete vars[h.configDirEnv];
+	return {
+		...vars,
+		...env.vars
+	};
+}
 /**
 * Windows batch launchers (`.cmd` / `.bat`) cannot be spawned directly.
 *
@@ -1532,7 +1614,7 @@ function runHarnessCommandSync(argv, opts = {}) {
 			],
 			timeout: COMMAND_TIMEOUT_MS,
 			env: {
-				...process.env,
+				...childVars(env),
 				HOME: env.homedir,
 				USERPROFILE: env.homedir
 			},
@@ -1587,7 +1669,7 @@ function currentEntry(harness, env, scope, serverName) {
 	const configPath = resolveConfigPath(harness, env, scope);
 	if (!configPath) return { present: false };
 	const adapter = adapterFor(harness);
-	const entry = readServerEntry(harness, scope, configPath, env.cwd, (t) => {
+	const entry = readServerEntry(harness, scope, configPath, projectKeyFor(env), (t) => {
 		const read = adapter.readAt(t, []);
 		return read.kind === "value" ? read.value : void 0;
 	}, serverName);
@@ -1729,7 +1811,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 	};
 	const { path: path$1 } = target;
 	const entryValue = buildServerEntry(harness, mcpUrl, scope, serverName)[serverName];
-	const modPath = entryPathFor(harness, scope, env.cwd, serverName);
+	const modPath = entryPathFor(harness, scope, projectKeyFor(env), serverName);
 	const adapter = adapterFor(harness);
 	const existing = readTextOrNull(path$1);
 	const baseText = existing && existing.trim() ? existing : adapter.empty;
@@ -2186,7 +2268,7 @@ function runNonInteractive(options, url, urlSource, deps) {
 	};
 }
 /** Why an install was refused, in the user's terms rather than the enum's. */
-function failureText(o, switchCommand) {
+function failureText(o, switchCommand, entryName) {
 	const r = o.result;
 	const harness = getHarness(o.id);
 	switch (r.reason) {
@@ -2198,9 +2280,22 @@ function failureText(o, switchCommand) {
 		case "write-failed": return `its config could not be written` + (r.detail ? ` (${r.detail})` : "") + `; check the file's permissions and re-run`;
 		case "unsupported-config-shape": return `its config could not be edited safely` + (r.detail ? ` (${r.detail})` : "") + `; fix the file or add the entry by hand`;
 		default:
-			if (r.commandError) return `\`${r.command}\` (${r.commandError})${restoreText(r)}`;
+			if (r.commandError) return `\`${r.command}\` (${r.commandError})${restoreText(r)}` + alreadyExistsHint(o, r.commandError, entryName);
 			return "no config location on this platform";
 	}
+}
+/**
+* The client's CLI refused because the entry already exists, in a config the
+* installer did not read — otherwise it would have reported already set up,
+* or a url-mismatch naming --replace. --replace cannot reach an entry it
+* cannot see, so the way out is another name, or removing that entry with the
+* client's own CLI (ENG-6696).
+*/
+function alreadyExistsHint(o, commandError, entryName) {
+	if (!/already exists/i.test(commandError)) return "";
+	const name = entryName ?? DEFAULT_SERVER_NAME;
+	const scope = /already exists in (user|project|local) config/i.exec(commandError)?.[1]?.toLowerCase() ?? o.result.scope;
+	return `; to keep it, add this one beside it with --name <other>; to switch it, remove it with ${o.id === "claude-code" ? `\`claude mcp remove --scope ${scope} ${name}\`` : "the client's own CLI"} and re-run`;
 }
 /** What happened to the entry a failed `--replace` removed (ENG-6300 D6). */
 function restoreText(r) {
@@ -2209,13 +2304,13 @@ function restoreText(r) {
 	return `; the previous entry (${r.replacedUrl}) could NOT be restored` + (r.restoreError ? ` (${r.restoreError})` : "") + " — this client has no Levr entry of that name now";
 }
 /** One human-readable status line per outcome. */
-function outcomeLine(o, dryRun, switchCommand) {
+function outcomeLine(o, dryRun, switchCommand, entryName) {
 	const r = o.result;
 	const note = o.fallbackFrom ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]` : "";
 	const where = r.path ? ` → ${r.path}` : "";
 	const backup = r.backupPath ? dryRun ? ` [original would be backed up to ${r.backupPath}]` : ` [original backed up to ${r.backupPath}]` : "";
 	const replaced = r.replacedUrl ? dryRun ? ` [would replace ${r.replacedUrl}]` : ` [replaced ${r.replacedUrl}]` : "";
-	if (!r.ok) return `${o.label}: failed — ${failureText(o, switchCommand)}`;
+	if (!r.ok) return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
 	if (r.alreadyConfigured) return `${o.label}: already set up (${r.scope})${where}${note}`;
 	if (r.command) {
 		if (r.executed) return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}`;
@@ -2230,7 +2325,7 @@ function formatReport(report) {
 	const lines = [];
 	lines.push(`MCP URL: ${report.url} (${report.urlSource})`);
 	if (report.outcomes.length === 0) lines.push("No clients selected.");
-	else for (const o of report.outcomes) lines.push(outcomeLine(o, report.dryRun, report.switchCommand));
+	else for (const o of report.outcomes) lines.push(outcomeLine(o, report.dryRun, report.switchCommand, report.entryName));
 	if (report.unknownClients.length > 0) lines.push(`Unknown clients (skipped): ${report.unknownClients.join(", ")}`);
 	if (report.outcomes.some((o) => o.id === "claude-code" && o.result.ok)) lines.push(PLUGIN_TIP);
 	return lines.join("\n");
@@ -2240,7 +2335,7 @@ const PLUGIN_TIP = "Tip: the Levr plugin adds /levr:work, /levr:file and /levr:d
 /** Next-steps blurb after a run. */
 function nextStepsText(report) {
 	if (report.dryRun) return "Dry run — re-run without --dry-run to apply these changes.";
-	if (!report.outcomes.some((o) => o.result.wrote || o.result.executed || o.result.command)) return "Nothing to do.";
+	if (!report.outcomes.some((o) => o.result.ok && !o.result.alreadyConfigured && (o.result.wrote || o.result.executed || o.result.command))) return report.outcomes.some((o) => !o.result.ok) ? "Nothing was installed." : "Nothing to do.";
 	const lines = ["Next: restart the client(s) above — each will prompt you to authorize", "Levr once in the browser. Then ask it: \"What issues are assigned to me?\""];
 	if (report.outcomes.some((o) => o.result.scope === "project" && o.result.wrote)) lines.push("", "Project-scoped config was written into this repository — commit it to", "share the Levr MCP with everyone who checks it out.");
 	return lines.join("\n");
@@ -2380,7 +2475,8 @@ async function mcpAddHandler(flags) {
 	if (options.all || clients.length > 0 || options.yes || !process.stdout.isTTY) {
 		const report = {
 			...runNonInteractive(options, url, source, depsFor(entry)),
-			switchCommand: switchCommandFor(flags, urlKey)
+			switchCommand: switchCommandFor(flags, urlKey),
+			entryName: entry.serverName
 		};
 		this.process.stdout.write(`${formatReport(report)}\n`);
 		if (!isScopedMcpUrl(url) && servedBySessionApi(url)) {
@@ -2513,7 +2609,8 @@ async function interactive(ctx, dryRun, baseUrl, baseSource, flags, entry, resol
 		outcomes,
 		unknownClients: [],
 		dryRun,
-		switchCommand: switchCommandFor(flags, urlKey)
+		switchCommand: switchCommandFor(flags, urlKey),
+		entryName: entry.serverName
 	};
 	p.note(formatReport(report), "Results");
 	p.outro(nextStepsText(report));

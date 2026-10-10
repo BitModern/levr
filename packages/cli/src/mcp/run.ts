@@ -6,6 +6,7 @@
  * (addHandler.ts) reuses the same primitives.
  */
 import {
+  DEFAULT_SERVER_NAME,
   defaultScope,
   getHarness,
   HARNESS_SCOPES,
@@ -88,6 +89,8 @@ export interface RunReport {
    * (`… --replace`), so the refusal can say exactly what to run (internal D6).
    */
   switchCommand?: string;
+  /** The entry name the run wrote under (`--name`, else `levr`). */
+  entryName?: string;
 }
 
 /** Harness ids to pre-select in interactive mode: detected + installable +
@@ -285,7 +288,11 @@ export function runNonInteractive(
 }
 
 /** Why an install was refused, in the user's terms rather than the enum's. */
-function failureText(o: InstalledOutcome, switchCommand?: string): string {
+function failureText(
+  o: InstalledOutcome,
+  switchCommand?: string,
+  entryName?: string,
+): string {
   const r = o.result;
   const harness = getHarness(o.id);
   switch (r.reason) {
@@ -340,10 +347,43 @@ function failureText(o: InstalledOutcome, switchCommand?: string): string {
     default:
       // A command we ran that failed reports the client's own diagnostics.
       if (r.commandError) {
-        return `\`${r.command}\` (${r.commandError})${restoreText(r)}`;
+        return (
+          `\`${r.command}\` (${r.commandError})${restoreText(r)}` +
+          alreadyExistsHint(o, r.commandError, entryName)
+        );
       }
       return 'no config location on this platform';
   }
+}
+
+/**
+ * The client's CLI refused because the entry already exists, in a config the
+ * installer did not read — otherwise it would have reported already set up,
+ * or a url-mismatch naming --replace. --replace cannot reach an entry it
+ * cannot see, so the way out is another name, or removing that entry with the
+ * client's own CLI (internal).
+ */
+function alreadyExistsHint(
+  o: InstalledOutcome,
+  commandError: string,
+  entryName?: string,
+): string {
+  if (!/already exists/i.test(commandError)) return '';
+  const name = entryName ?? DEFAULT_SERVER_NAME;
+  // The scope the client names ("… already exists in local config"), which
+  // need not be the scope we asked for; ours when it names none.
+  const scope =
+    /already exists in (user|project|local) config/i
+      .exec(commandError)?.[1]
+      ?.toLowerCase() ?? o.result.scope;
+  const remove =
+    o.id === 'claude-code'
+      ? `\`claude mcp remove --scope ${scope} ${name}\``
+      : "the client's own CLI";
+  return (
+    `; to keep it, add this one beside it with --name <other>; ` +
+    `to switch it, remove it with ${remove} and re-run`
+  );
 }
 
 /** What happened to the entry a failed `--replace` removed (internal D6). */
@@ -364,6 +404,7 @@ function outcomeLine(
   o: InstalledOutcome,
   dryRun: boolean,
   switchCommand?: string,
+  entryName?: string,
 ): string {
   const r = o.result;
   // A fallback is always stated — never let a client land somewhere the user
@@ -388,7 +429,9 @@ function outcomeLine(
 
   // Failure first: a refusal must never be dressed up as pending work, and
   // several refusals (url-mismatch, a failed command) carry a `command`.
-  if (!r.ok) return `${o.label}: failed — ${failureText(o, switchCommand)}`;
+  if (!r.ok) {
+    return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
+  }
   if (r.alreadyConfigured) {
     return `${o.label}: already set up (${r.scope})${where}${note}`;
   }
@@ -414,7 +457,9 @@ export function formatReport(report: RunReport): string {
     lines.push('No clients selected.');
   } else {
     for (const o of report.outcomes)
-      lines.push(outcomeLine(o, report.dryRun, report.switchCommand));
+      lines.push(
+        outcomeLine(o, report.dryRun, report.switchCommand, report.entryName),
+      );
   }
   if (report.unknownClients.length > 0) {
     lines.push(
@@ -442,10 +487,20 @@ export function nextStepsText(report: RunReport): string {
   if (report.dryRun) {
     return 'Dry run — re-run without --dry-run to apply these changes.';
   }
+  // Only a client that now has a new entry needs restarting. A refused or
+  // failed install carries a `command` too, and must not be told to restart
+  // and authorize when nothing changed (internal).
   const didSomething = report.outcomes.some(
-    (o) => o.result.wrote || o.result.executed || o.result.command,
+    (o) =>
+      o.result.ok &&
+      !o.result.alreadyConfigured &&
+      (o.result.wrote || o.result.executed || o.result.command),
   );
-  if (!didSomething) return 'Nothing to do.';
+  if (!didSomething) {
+    return report.outcomes.some((o) => !o.result.ok)
+      ? 'Nothing was installed.'
+      : 'Nothing to do.';
+  }
   const lines = [
     'Next: restart the client(s) above — each will prompt you to authorize',
     'Levr once in the browser. Then ask it: "What issues are assigned to me?"',

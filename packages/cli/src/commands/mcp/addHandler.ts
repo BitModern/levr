@@ -228,6 +228,7 @@ export async function mcpAddHandler(
     const report = {
       ...runNonInteractive(options, url, source, depsFor(entry)),
       switchCommand: switchCommandFor(flags, urlKey),
+      entryName: entry.serverName,
     };
     this.process.stdout.write(`${formatReport(report)}\n`);
     // fail_fallback(unscoped + note): nobody is there to ask which workspace,
@@ -413,6 +414,7 @@ async function interactive(
     unknownClients: [],
     dryRun,
     switchCommand: switchCommandFor(flags, urlKey),
+    entryName: entry.serverName,
   };
   p.note(formatReport(report), 'Results');
   p.outro(nextStepsText(report));

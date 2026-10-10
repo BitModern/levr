@@ -446,6 +446,35 @@ describe('mcpAddHandler --workspace / --name / --replace (internal D6)', () => {
   });
 });
 
+describe('mcpAddHandler refusal output (internal)', () => {
+  it('a refused --name install names that entry in the remove hint, and prints no restart', async () => {
+    mockDetectSync.mockReturnValue([det('claude-code')]);
+    mockInstall.mockReturnValue(
+      okResult({
+        ok: false,
+        wrote: false,
+        path: '',
+        executed: true,
+        command:
+          'claude mcp add --transport http --scope user levr-beta https://ai.levr.one/api/v1/mcp',
+        commandError: 'MCP server levr-beta already exists in user config',
+      }),
+    );
+    const ctx = createMockContext();
+    await mcpAddHandler.call(ctx, {
+      ...BASE,
+      client: ['claude-code'],
+      name: 'levr-beta',
+    });
+    const out = ctx.output.join('');
+    expect(ctx.process.exitCode).toBe(1);
+    expect(out).toContain('`claude mcp remove --scope user levr-beta`');
+    expect(out).toContain('--name <other>');
+    expect(out).not.toContain('restart');
+    expect(out).toContain('Nothing was installed.');
+  });
+});
+
 describe('mcpAddHandler interactive workspace picker (internal D6)', () => {
   const INTERACTIVE = {
     all: false,
