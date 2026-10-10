@@ -575,3 +575,417 @@ describe('mcpAddHandler interactive workspace picker (internal D6)', () => {
     expect(prompts.multiselect).not.toHaveBeenCalled();
   });
 });
+
+describe('mcpAddHandler: an entry pointing at another workspace (internal)', () => {
+  const ACME = 'https://ai.levr.one/api/v1/mcp/w/acme';
+  const BETA = 'https://ai.levr.one/api/v1/mcp/w/beta';
+  /** cursor, with a levr entry at user scope pointing at `currentUrl`. */
+  function pointingAt(
+    currentUrl: string | null,
+    besideConfigured = false,
+  ): DetectedHarness {
+    return det('cursor', {
+      alreadyConfigured: true,
+      scopes: [
+        {
+          scope: 'user',
+          installKind: 'config-file',
+          configPath: '/fake/cursor.json',
+          available: true,
+          alreadyConfigured: true,
+          ...(currentUrl ? { currentUrl } : {}),
+          ...(besideConfigured ? { besideConfigured } : {}),
+        },
+      ],
+    });
+  }
+  const installOpts = (): Record<string, unknown> =>
+    mockInstall.mock.calls[0]?.[2] as Record<string, unknown>;
+
+  describe('interactive', () => {
+    const INTERACTIVE = {
+      all: false,
+      yes: false,
+      'dry-run': false,
+      scope: 'user' as const,
+      url: 'https://ai.levr.one/api/v1/mcp',
+      workspace: 'beta',
+    };
+    let wasTTY: boolean | undefined;
+    beforeEach(() => {
+      wasTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+      loggedIn();
+      mockDetectSync.mockReturnValue([pointingAt(ACME)]);
+      prompts.multiselect.mockResolvedValue(['cursor']);
+    });
+    afterEach(() => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: wasTTY,
+        configurable: true,
+      });
+    });
+    const notes = (): string =>
+      prompts.note.mock.calls.map((c) => String(c[0])).join('\n');
+
+    it('pre-selects the client and says where its entry points', async () => {
+      prompts.select.mockResolvedValue('leave');
+      await mcpAddHandler.call(createMockContext(), INTERACTIVE);
+      expect(prompts.multiselect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: [
+            expect.objectContaining({
+              value: 'cursor',
+              hint: 'points at workspace acme (user)',
+            }),
+          ],
+          initialValues: ['cursor'],
+        }),
+      );
+    });
+
+    it('asks switch / add beside / leave', async () => {
+      prompts.select.mockResolvedValue('leave');
+      await mcpAddHandler.call(createMockContext(), INTERACTIVE);
+      expect(prompts.select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'cursor: its levr entry points at workspace acme',
+          options: [
+            expect.objectContaining({
+              value: 'switch',
+              label: 'Switch it to workspace beta',
+            }),
+            expect.objectContaining({
+              value: 'beside',
+              label: 'Add beside it as levr-beta',
+            }),
+            expect.objectContaining({ value: 'leave', label: 'Leave it' }),
+          ],
+        }),
+      );
+    });
+
+    it('an entry with no Levr URL is asked about once, without "switch"', async () => {
+      mockDetectSync.mockReturnValue([pointingAt(null)]);
+      prompts.select.mockResolvedValue('leave');
+      await mcpAddHandler.call(createMockContext(), INTERACTIVE);
+      expect(prompts.multiselect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: [
+            expect.objectContaining({
+              hint: 'its levr entry holds no Levr URL (user)',
+            }),
+          ],
+        }),
+      );
+      expect(prompts.select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'cursor: its levr entry holds no Levr URL',
+          options: [
+            expect.objectContaining({ value: 'beside' }),
+            expect.objectContaining({ value: 'leave' }),
+          ],
+        }),
+      );
+    });
+
+    it('does not offer "Add beside it" when that name already holds another entry', async () => {
+      mockDetectSync.mockReturnValue([pointingAt(ACME, true)]);
+      prompts.select.mockResolvedValue('leave');
+      await mcpAddHandler.call(createMockContext(), INTERACTIVE);
+      expect(prompts.select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            'cursor: its levr entry points at workspace acme, and levr-beta is taken too',
+          options: [
+            expect.objectContaining({ value: 'switch' }),
+            expect.objectContaining({ value: 'leave' }),
+          ],
+        }),
+      );
+    });
+
+    it('with neither "switch" nor "Add beside it" possible, leaves it without asking', async () => {
+      mockDetectSync.mockReturnValue([pointingAt(null, true)]);
+      const ctx = createMockContext();
+      await mcpAddHandler.call(ctx, INTERACTIVE);
+      expect(prompts.select).not.toHaveBeenCalled();
+      expect(mockInstall).not.toHaveBeenCalled();
+      expect(notes()).toContain(
+        'cursor: left as it was (its levr entry holds no Levr URL; levr-beta is taken too, so add this one with --name <other>)',
+      );
+      expect(ctx.process.exitCode).toBe(0);
+    });
+
+    it('"Add beside it" never replaces, even under --replace', async () => {
+      mockDetectSync.mockReturnValue([pointingAt(null)]);
+      prompts.select.mockResolvedValue('beside');
+      await mcpAddHandler.call(createMockContext(), {
+        ...INTERACTIVE,
+        replace: true,
+      });
+      expect(installOpts()).toMatchObject({
+        serverName: 'levr-beta',
+        replaceExisting: false,
+      });
+    });
+
+    it('"Switch it" replaces the entry', async () => {
+      prompts.select.mockResolvedValue('switch');
+      const ctx = createMockContext();
+      await mcpAddHandler.call(ctx, INTERACTIVE);
+      expect(mockInstall).toHaveBeenCalledWith(
+        expect.anything(),
+        BETA,
+        expect.anything(),
+      );
+      expect(installOpts()).toMatchObject({
+        serverName: 'levr',
+        replaceExisting: true,
+      });
+      expect(ctx.process.exitCode).toBe(0);
+    });
+
+    it('"Add beside it" writes a second entry named for the workspace', async () => {
+      prompts.select.mockResolvedValue('beside');
+      await mcpAddHandler.call(createMockContext(), INTERACTIVE);
+      expect(installOpts()).toMatchObject({
+        serverName: 'levr-beta',
+        replaceExisting: false,
+      });
+      expect(notes()).toContain('[as levr-beta]');
+    });
+
+    it('"Leave it" installs nothing, says so, and succeeds', async () => {
+      prompts.select.mockResolvedValue('leave');
+      const ctx = createMockContext();
+      await mcpAddHandler.call(ctx, INTERACTIVE);
+      expect(mockInstall).not.toHaveBeenCalled();
+      expect(notes()).toContain(
+        'cursor: left as it was (points at workspace acme)',
+      );
+      expect(prompts.outro).toHaveBeenLastCalledWith('Nothing to do.');
+      expect(ctx.process.exitCode).toBe(0);
+    });
+
+    it('cancelling the question exits 1 and installs nothing', async () => {
+      prompts.select.mockResolvedValue(prompts.CANCEL);
+      const ctx = createMockContext();
+      await mcpAddHandler.call(ctx, INTERACTIVE);
+      expect(ctx.process.exitCode).toBe(1);
+      expect(mockInstall).not.toHaveBeenCalled();
+    });
+
+    it('--replace already answered it: no question, the entry is switched', async () => {
+      await mcpAddHandler.call(createMockContext(), {
+        ...INTERACTIVE,
+        replace: true,
+      });
+      expect(prompts.select).not.toHaveBeenCalled();
+      expect(installOpts()).toMatchObject({ replaceExisting: true });
+    });
+
+    it('an entry with no Levr URL is not pre-selected, and is never offered a switch', async () => {
+      mockDetectSync.mockReturnValue([pointingAt(null)]);
+      prompts.select.mockResolvedValue('leave');
+      await mcpAddHandler.call(createMockContext(), INTERACTIVE);
+      expect(prompts.multiselect).toHaveBeenCalledWith(
+        expect.objectContaining({ initialValues: [] }),
+      );
+      const options = (
+        prompts.select.mock.calls[0]?.[0] as { options: { value: string }[] }
+      ).options.map((o) => o.value);
+      expect(options).toEqual(['beside', 'leave']);
+    });
+
+    it('an entry already on this workspace is "already set up", not pre-selected, not asked', async () => {
+      mockDetectSync.mockReturnValue([pointingAt(BETA)]);
+      prompts.multiselect.mockResolvedValue([]);
+      await mcpAddHandler.call(createMockContext(), INTERACTIVE);
+      expect(prompts.multiselect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: [expect.objectContaining({ hint: 'already set up (user)' })],
+          initialValues: [],
+        }),
+      );
+      expect(prompts.select).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('--yes', () => {
+    const YES = {
+      all: false,
+      yes: true,
+      'dry-run': false,
+      url: 'https://ai.levr.one/api/v1/mcp',
+      workspace: 'beta',
+    };
+    beforeEach(() => {
+      loggedIn();
+      mockDetectSync.mockReturnValue([pointingAt(ACME)]);
+    });
+
+    it('no longer skips the client: the refusal is reported and the run exits 1', async () => {
+      mockInstall.mockReturnValue(
+        okResult({
+          ok: false,
+          wrote: false,
+          reason: 'url-mismatch',
+          currentUrl: ACME,
+        }),
+      );
+      const ctx = createMockContext();
+      await mcpAddHandler.call(ctx, YES);
+      expect(mockInstall).toHaveBeenCalledWith(
+        expect.anything(),
+        BETA,
+        expect.anything(),
+      );
+      expect(installOpts()).toMatchObject({ replaceExisting: false });
+      const out = ctx.output.join('');
+      expect(out).toContain(
+        'Cursor: failed — already configured with a different URL',
+      );
+      expect(out).toContain('--replace');
+      expect(ctx.process.exitCode).toBe(1);
+    });
+
+    it('--yes --replace switches it', async () => {
+      const ctx = createMockContext();
+      await mcpAddHandler.call(ctx, { ...YES, replace: true });
+      expect(installOpts()).toMatchObject({ replaceExisting: true });
+      expect(ctx.process.exitCode).toBe(0);
+    });
+
+    it('--yes --name reads the entry under that name', async () => {
+      await mcpAddHandler.call(createMockContext(), {
+        ...YES,
+        name: 'levr-beta',
+      });
+      expect(mockDetectSync).toHaveBeenCalledWith(undefined, {
+        serverName: 'levr-beta',
+        besideName: 'levr-beta-beta',
+      });
+    });
+
+    it('an entry already on this workspace is still skipped', async () => {
+      mockDetectSync.mockReturnValue([pointingAt(BETA)]);
+      const ctx = createMockContext();
+      await mcpAddHandler.call(ctx, YES);
+      expect(mockInstall).not.toHaveBeenCalled();
+      expect(ctx.process.exitCode).toBe(0);
+    });
+  });
+});
+
+describe('mcpAddHandler: re-running after "Add beside it" (internal)', () => {
+  const ACME = 'https://ai.levr.one/api/v1/mcp/w/acme';
+  const BETA = 'https://ai.levr.one/api/v1/mcp/w/beta';
+  const besideSetUp = (): DetectedHarness =>
+    det('cursor', {
+      alreadyConfigured: true,
+      scopes: [
+        {
+          scope: 'user',
+          installKind: 'config-file',
+          configPath: '/fake/cursor.json',
+          available: true,
+          alreadyConfigured: true,
+          currentUrl: ACME,
+          besideUrl: BETA,
+        },
+      ],
+    });
+  beforeEach(() => {
+    loggedIn();
+    mockDetectSync.mockReturnValue([besideSetUp()]);
+  });
+
+  it('--yes leaves it alone and exits 0', async () => {
+    const ctx = createMockContext();
+    await mcpAddHandler.call(ctx, {
+      all: false,
+      yes: true,
+      'dry-run': false,
+      url: 'https://ai.levr.one/api/v1/mcp',
+      workspace: 'beta',
+    });
+    expect(mockDetectSync).toHaveBeenCalledWith(undefined, {
+      serverName: 'levr',
+      besideName: 'levr-beta',
+    });
+    expect(mockInstall).not.toHaveBeenCalled();
+    expect(ctx.process.exitCode).toBe(0);
+  });
+
+  describe('interactive', () => {
+    let wasTTY: boolean | undefined;
+    beforeEach(() => {
+      wasTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+    });
+    afterEach(() => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: wasTTY,
+        configurable: true,
+      });
+    });
+
+    it('under --replace, a client already set up beside it is still not replaced', async () => {
+      prompts.multiselect.mockResolvedValue(['cursor']);
+      mockInstall.mockReturnValue(
+        okResult({ wrote: false, alreadyConfigured: true }),
+      );
+      await mcpAddHandler.call(createMockContext(), {
+        all: false,
+        yes: false,
+        'dry-run': false,
+        scope: 'user' as const,
+        url: 'https://ai.levr.one/api/v1/mcp',
+        workspace: 'beta',
+        replace: true,
+      });
+      expect(mockInstall.mock.calls[0]?.[2]).toMatchObject({
+        serverName: 'levr-beta',
+        replaceExisting: false,
+      });
+    });
+
+    it('is not pre-selected, and if ticked is installed under the beside name without a question', async () => {
+      prompts.multiselect.mockResolvedValue(['cursor']);
+      mockInstall.mockReturnValue(
+        okResult({ wrote: false, alreadyConfigured: true }),
+      );
+      const ctx = createMockContext();
+      await mcpAddHandler.call(ctx, {
+        all: false,
+        yes: false,
+        'dry-run': false,
+        scope: 'user' as const,
+        url: 'https://ai.levr.one/api/v1/mcp',
+        workspace: 'beta',
+      });
+      expect(prompts.multiselect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: [
+            expect.objectContaining({
+              hint: 'already set up as levr-beta (user)',
+            }),
+          ],
+          initialValues: [],
+        }),
+      );
+      expect(prompts.select).not.toHaveBeenCalled();
+      expect(mockInstall.mock.calls[0]?.[2]).toMatchObject({
+        serverName: 'levr-beta',
+      });
+      expect(ctx.process.exitCode).toBe(0);
+    });
+  });
+});

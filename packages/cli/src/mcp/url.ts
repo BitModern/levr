@@ -128,6 +128,17 @@ export function servedBySessionApi(mcpUrl: string): boolean {
 /** `…/v1/mcp/w/<url_key>`: the URL already names one workspace (internal). */
 const SCOPED_SUFFIX = /\/w\/[^/]+$/;
 
+/** The workspace a scoped MCP URL names (`…/w/<url_key>`), if any. */
+export function workspaceKeyOf(url: string): string | undefined {
+  const m = /\/w\/([^/]+)$/.exec(stripSlash(url));
+  if (!m?.[1]) return undefined;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1];
+  }
+}
+
 /** Does this MCP URL already name a workspace? */
 export function isScopedMcpUrl(url: string): boolean {
   return SCOPED_SUFFIX.test(stripSlash(url));

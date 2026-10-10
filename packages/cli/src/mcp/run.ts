@@ -13,10 +13,12 @@ import {
   supportedScopes,
   supportsScope,
   type DetectedHarness,
+  type DetectedScope,
   type HarnessDef,
   type HarnessScope,
   type InstallResult,
 } from '@levr/mcp-harnesses/node';
+import { workspaceKeyOf } from './url.js';
 
 /**
  * Scope used when the caller passes no `--scope`.
@@ -29,16 +31,27 @@ import {
  */
 export const DEFAULT_SCOPE: HarnessScope = 'user';
 
+/**
+ * What one client is told about its entry when it differs from the run's
+ * (`--name`, `--replace`): the answer to "Switch it" or "Add beside it".
+ */
+export interface EntryOverride {
+  serverName?: string;
+  replaceExisting?: boolean;
+}
+
 /** Install a single harness. Injected so tests avoid touching the real FS. */
 export type InstallFn = (
   harness: HarnessDef,
   mcpUrl: string,
   dryRun: boolean,
   scope: HarnessScope,
+  override?: EntryOverride,
 ) => InstallResult;
 
 export interface RunDeps {
-  detect: () => DetectedHarness[];
+  /** Detection for the URL about to be written (it names the beside entry). */
+  detect: (url: string) => DetectedHarness[];
   install: InstallFn;
 }
 
@@ -61,6 +74,8 @@ export interface InstalledOutcome {
    * fail rather than silently landing somewhere else.
    */
   fallbackFrom?: HarnessScope;
+  /** Set when this client was written under another name than the run's. */
+  entryName?: string;
 }
 
 /** What to install, where, and which clients the user named by hand. */
@@ -74,6 +89,17 @@ export interface InstallPlan {
    * — whereas a client swept in by `--all` or a multiselect falls back.
    */
   namedIds: ReadonlySet<string>;
+  /** Per-client answers to "Switch it / Add beside it" (internal). */
+  overrides?: ReadonlyMap<string, EntryOverride>;
+}
+
+/** A client the user chose to leave pointing where it points (internal). */
+export interface LeftClient {
+  id: string;
+  label: string;
+  currentUrl?: string;
+  /** The beside name, when "Add beside it" was not offered because it is taken. */
+  besideTaken?: string;
 }
 
 export interface RunReport {
@@ -91,24 +117,92 @@ export interface RunReport {
   switchCommand?: string;
   /** The entry name the run wrote under (`--name`, else `levr`). */
   entryName?: string;
+  /** Clients left as they were, by choice, so the results still name them. */
+  left?: LeftClient[];
 }
 
-/** Harness ids to pre-select in interactive mode: detected + installable +
- * not-already-configured. "Already configured" is judged in the scope we are
- * about to install into, not the harness's default one. */
+/**
+ * What a client holds under the entry name, against the URL we are about to
+ * write: nothing, this URL, this URL under the beside name (an earlier "Add
+ * beside it"), another URL (another workspace or server), or an entry with no
+ * URL we can read.
+ */
+export type EntryState =
+  | 'absent'
+  | 'same-url'
+  | 'beside'
+  | 'other-url'
+  | 'unrecognized';
+
+export function entryState(
+  s: DetectedScope | undefined,
+  url: string,
+): EntryState {
+  // Exact, as the installer compares: anything else is not "already set up".
+  if (s?.alreadyConfigured && s.currentUrl === url) return 'same-url';
+  // Set up already, beside the first entry: adding it again under the main
+  // name would show every tool twice, and refusing it would fail a re-run.
+  if (s?.besideUrl === url) return 'beside';
+  if (!s?.alreadyConfigured) return 'absent';
+  return s.currentUrl === undefined ? 'unrecognized' : 'other-url';
+}
+
+/**
+ * Allowed client entry names: 1-64 of `A-Za-z0-9_-`, and never starting with
+ * `-`. The name is passed as an argv element to the client's own CLI
+ * (`claude mcp add … <name> <url>`), so a leading `-` would be read there as a
+ * flag — the internal argument-injection family.
+ */
+const ENTRY_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+
+export function isValidEntryName(name: string): boolean {
+  return ENTRY_NAME.test(name) && !name.startsWith('-');
+}
+
+/**
+ * The scope an install would land in: the requested one, or, for a harness
+ * that cannot do it, its own default, which is where the fallback goes.
+ */
+function landingScope(
+  d: DetectedHarness,
+  scope?: HarnessScope,
+): DetectedScope | undefined {
+  const inScope = scope ? d.scopes.find((s) => s.scope === scope) : undefined;
+  if (inScope) return inScope;
+  const harness = getHarness(d.id);
+  return harness
+    ? d.scopes.find((s) => s.scope === defaultScope(harness))
+    : undefined;
+}
+
+/** Where an entry points, in the user's terms: the workspace, else the URL. */
+export function describeTarget(url: string): string {
+  const key = workspaceKeyOf(url);
+  return key ? `workspace ${key}` : url;
+}
+
+/**
+ * Harness ids to pre-select in interactive mode, and to take under `--yes`:
+ * detected + installable + not already set up for THIS url. Judged in the
+ * scope we are about to install into, not the harness's default one.
+ *
+ * An entry pointing at another URL is selected (internal): it is not set up
+ * for the workspace asked for, and skipping it would report success while
+ * leaving the client on the old one. Interactively the user is then asked
+ * what to do with it; under `--yes` the installer refuses it (url-mismatch,
+ * exit 1) unless `--replace` or `--name` was given. An entry with no URL we
+ * can read is someone else's, and is never picked on the user's behalf.
+ */
 export function autoSelectIds(
   detected: DetectedHarness[],
-  scope?: HarnessScope,
+  scope: HarnessScope | undefined,
+  url: string,
 ): string[] {
   return detected
     .filter((d) => {
       if (!d.available || !d.installed) return false;
-      const inScope = scope
-        ? d.scopes.find((s) => s.scope === scope)
-        : undefined;
-      // A harness that cannot do the requested scope is judged on its own
-      // default, which is where the fallback would land it anyway.
-      return !(inScope ? inScope.alreadyConfigured : d.alreadyConfigured);
+      const state = entryState(landingScope(d, scope), url);
+      return state === 'absent' || state === 'other-url';
     })
     .map((d) => d.id);
 }
@@ -134,8 +228,11 @@ export interface ClientChoice {
 export function clientChoices(
   detected: DetectedHarness[],
   scope: HarnessScope,
+  url: string,
+  serverName: string = DEFAULT_SERVER_NAME,
 ): ClientChoice[] {
-  const preselect = new Set(autoSelectIds(detected, scope));
+  const preselect = new Set(autoSelectIds(detected, scope, url));
+  const beside = besideName(serverName, url);
   return detected
     .filter((d) => d.available)
     .map((d) => {
@@ -147,8 +244,14 @@ export function clientChoices(
         // the user with a fallback line in the results.
         const fallback = harness ? defaultScope(harness) : DEFAULT_SCOPE;
         hint = `no ${scope} scope — will use ${fallback}`;
-      } else if (inScope.alreadyConfigured) {
+      } else if (entryState(inScope, url) === 'same-url') {
         hint = `already set up (${scope})`;
+      } else if (entryState(inScope, url) === 'beside') {
+        hint = `already set up as ${beside ?? 'a second entry'} (${scope})`;
+      } else if (inScope.currentUrl !== undefined) {
+        hint = `points at ${describeTarget(inScope.currentUrl)} (${scope})`;
+      } else if (inScope.alreadyConfigured) {
+        hint = `its ${serverName} entry holds no Levr URL (${scope})`;
       } else {
         hint = d.installed ? 'detected' : 'not detected';
       }
@@ -159,6 +262,78 @@ export function clientChoices(
         selected: preselect.has(d.id),
       };
     });
+}
+
+/** A selected client whose entry points elsewhere, and what may be done. */
+export interface EntryConflict {
+  id: string;
+  label: string;
+  /** `beside`: already set up under the beside name; nothing to ask. */
+  state: 'other-url' | 'unrecognized' | 'beside';
+  currentUrl?: string;
+  /** The name "Add beside it" would use; absent when there is none to offer. */
+  besideName?: string;
+  /** That name, when it is not offered because another entry already has it. */
+  besideTaken?: string;
+}
+
+/** Claude Code tool names are `mcp__<entry>__<tool>`; keep that well short. */
+const BESIDE_NAME_MAX = 30;
+
+/**
+ * The name for a second entry beside `serverName`: `<serverName>-<url_key>`,
+ * so it says which workspace it is. Undefined — and "Add beside it" is not
+ * offered — when the target URL names no workspace, or when that name would
+ * be too long or not a valid entry name. It is never shortened: a cut name
+ * could drop the workspace, or give two workspaces the same entry.
+ */
+export function besideName(
+  serverName: string,
+  url: string,
+): string | undefined {
+  const key = workspaceKeyOf(url);
+  if (!key) return undefined;
+  const name = `${serverName}-${key}`;
+  return name.length <= BESIDE_NAME_MAX && isValidEntryName(name)
+    ? name
+    : undefined;
+}
+
+/**
+ * The selected clients whose entry is not this URL's: each needs a decision —
+ * switch it, add beside it, or leave it — before anything is installed
+ * (internal). A client already set up beside it is listed too, as `beside`,
+ * so it is installed under that name (and reads as already set up) rather
+ * than refused under the main one. Pure, so it is testable without a TTY.
+ */
+export function entryConflicts(
+  selection: readonly string[],
+  detected: DetectedHarness[],
+  scope: HarnessScope,
+  url: string,
+  serverName: string,
+): EntryConflict[] {
+  const conflicts: EntryConflict[] = [];
+  const beside = besideName(serverName, url);
+  for (const id of selection) {
+    const d = detected.find((x) => x.id === id);
+    if (!d) continue;
+    const landing = landingScope(d, scope);
+    const state = entryState(landing, url);
+    if (state === 'absent' || state === 'same-url') continue;
+    // A beside name already holding something else is not offered: adding
+    // there could only be refused.
+    const offer = state === 'beside' || !landing?.besideConfigured;
+    conflicts.push({
+      id,
+      label: d.label,
+      state,
+      ...(landing?.currentUrl ? { currentUrl: landing.currentUrl } : {}),
+      ...(beside && offer ? { besideName: beside } : {}),
+      ...(beside && !offer ? { besideTaken: beside } : {}),
+    });
+  }
+  return conflicts;
 }
 
 /** Scopes worth offering for a selection: any scope at least one selected
@@ -230,12 +405,14 @@ export function installSelected(
     const canHonor = supportsScope(harness, plan.scope);
     const named = plan.namedIds.has(id);
     const effective = canHonor || named ? plan.scope : defaultScope(harness);
+    const override = plan.overrides?.get(id);
 
     outcomes.push({
       id,
       label: harness.label,
-      result: install(harness, plan.mcpUrl, plan.dryRun, effective),
+      result: install(harness, plan.mcpUrl, plan.dryRun, effective, override),
       ...(canHonor ? {} : named ? {} : { fallbackFrom: plan.scope }),
+      ...(override?.serverName ? { entryName: override.serverName } : {}),
     });
   }
   return outcomes;
@@ -252,7 +429,7 @@ export function runNonInteractive(
   urlSource: string,
   deps: RunDeps,
 ): RunReport {
-  const detected = deps.detect();
+  const detected = deps.detect(url);
   const scope = options.scope ?? DEFAULT_SCOPE;
 
   let ids: string[];
@@ -264,7 +441,7 @@ export function runNonInteractive(
     unknown = requested.unknown;
   } else {
     // `--yes` (or non-TTY) with no explicit selection: take what we detected.
-    ids = autoSelectIds(detected, scope);
+    ids = autoSelectIds(detected, scope, url);
   }
 
   return {
@@ -319,7 +496,7 @@ function failureText(
         (r.currentUrl ? ` (${r.currentUrl})` : '') +
         (switchCommand
           ? `; run \`${switchCommand}\` to switch it, or add --name <other> to keep both`
-          : '; remove it first, then re-run')
+          : `; ${removeHow(o, entryName)}, then re-run`)
       );
     case 'unrecognized-entry':
       // Not a URL entry we wrote or can read, so it is never replaced on a
@@ -386,6 +563,20 @@ function alreadyExistsHint(
   );
 }
 
+/**
+ * Where to remove an entry by hand: the exact command for Claude Code, else
+ * the config file it sits in (internal).
+ */
+function removeHow(o: InstalledOutcome, entryName?: string): string {
+  const name = entryName ?? DEFAULT_SERVER_NAME;
+  const r = o.result;
+  if (o.id === 'claude-code')
+    return `remove it with \`claude mcp remove --scope ${r.scope} ${name}\``;
+  return r.path
+    ? `remove the ${name} entry from ${r.path}`
+    : `remove the ${name} entry from the client's config`;
+}
+
 /** What happened to the entry a failed `--replace` removed (internal D6). */
 function restoreText(r: InstallResult): string {
   if (r.restored === undefined) return '';
@@ -409,9 +600,11 @@ function outcomeLine(
   const r = o.result;
   // A fallback is always stated — never let a client land somewhere the user
   // did not ask for without saying so.
-  const note = o.fallbackFrom
-    ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]`
-    : '';
+  const note =
+    (o.entryName ? ` [as ${o.entryName}]` : '') +
+    (o.fallbackFrom
+      ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]`
+      : '');
   const where = r.path ? ` → ${r.path}` : '';
   // A format that keeps far more than our entry in one file (TOML) gets a
   // one-shot backup of the original; the user is told where, before and after.
@@ -430,6 +623,12 @@ function outcomeLine(
   // Failure first: a refusal must never be dressed up as pending work, and
   // several refusals (url-mismatch, a failed command) carry a `command`.
   if (!r.ok) {
+    // An entry written under its own name ("Add beside it") must not be told
+    // to run the switch command: that targets the run's entry, the one the
+    // user just chose to keep.
+    if (o.entryName) {
+      return `${o.label}: failed [as ${o.entryName}] — ${failureText(o, undefined, o.entryName)}`;
+    }
     return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
   }
   if (r.alreadyConfigured) {
@@ -453,13 +652,23 @@ function outcomeLine(
 export function formatReport(report: RunReport): string {
   const lines: string[] = [];
   lines.push(`MCP URL: ${report.url} (${report.urlSource})`);
-  if (report.outcomes.length === 0) {
+  if (report.outcomes.length === 0 && (report.left ?? []).length === 0) {
     lines.push('No clients selected.');
   } else {
     for (const o of report.outcomes)
       lines.push(
         outcomeLine(o, report.dryRun, report.switchCommand, report.entryName),
       );
+  }
+  for (const l of report.left ?? []) {
+    const why = l.currentUrl
+      ? `points at ${describeTarget(l.currentUrl)}`
+      : `its ${report.entryName ?? DEFAULT_SERVER_NAME} entry holds no Levr URL`;
+    // Say why "Add beside it" was not there, and the way out.
+    const taken = l.besideTaken
+      ? `; ${l.besideTaken} is taken too, so add this one with --name <other>`
+      : '';
+    lines.push(`${l.label}: left as it was (${why}${taken})`);
   }
   if (report.unknownClients.length > 0) {
     lines.push(

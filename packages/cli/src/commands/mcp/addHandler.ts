@@ -21,14 +21,20 @@ import {
 } from '../../workspace/find-workspace.js';
 import { fetchSites } from '../../workspace/resolve-workspace.js';
 import {
+  besideName,
   clientChoices,
   DEFAULT_SCOPE,
+  describeTarget,
+  entryConflicts,
   formatReport,
   installSelected,
+  isValidEntryName,
   nextStepsText,
   offerableScopes,
   runNonInteractive,
+  type EntryOverride,
   type InstallFn,
+  type LeftClient,
   type RunDeps,
   type RunReport,
 } from '../../mcp/run.js';
@@ -45,18 +51,6 @@ interface McpAddFlags {
   replace?: boolean;
 }
 
-/**
- * Allowed client entry names: 1-64 of `A-Za-z0-9_-`, and never starting with
- * `-`. The name is passed as an argv element to the client's own CLI
- * (`claude mcp add … <name> <url>`), so a leading `-` would be read there as a
- * flag — the internal argument-injection family.
- */
-const ENTRY_NAME = /^[A-Za-z0-9_-]{1,64}$/;
-
-function isValidEntryName(name: string): boolean {
-  return ENTRY_NAME.test(name) && !name.startsWith('-');
-}
-
 /** What the installer is told about the entry (internal D6). */
 interface EntryOptions {
   serverName: string;
@@ -65,14 +59,23 @@ interface EntryOptions {
 }
 
 function depsFor(entry: EntryOptions): RunDeps {
-  const install: InstallFn = (harness, mcpUrl, dryRun, scope) =>
+  const install: InstallFn = (harness, mcpUrl, dryRun, scope, override) =>
     installHarnessSync(harness, mcpUrl, {
       dryRun,
       scope,
-      serverName: entry.serverName,
-      replaceExisting: entry.replaceExisting,
+      serverName: override?.serverName ?? entry.serverName,
+      replaceExisting: override?.replaceExisting ?? entry.replaceExisting,
     });
-  return { detect: () => detectSync(), install };
+  // Detection reads the entry under the name we are about to write, so
+  // `--name levr-beta` is judged on levr-beta, not on levr (internal).
+  return {
+    detect: (url) =>
+      detectSync(undefined, {
+        serverName: entry.serverName,
+        besideName: besideName(entry.serverName, url),
+      }),
+    install,
+  };
 }
 
 type SitesLoad =
@@ -331,7 +334,7 @@ async function interactive(
 
   p.note(`${url}\n(${urlSource})`, 'MCP endpoint');
 
-  const detected = deps.detect();
+  const detected = deps.detect(url);
   const installable = detected.filter((d) => d.available);
   if (installable.length === 0) {
     p.outro('No supported MCP clients found on this machine.');
@@ -369,7 +372,7 @@ async function interactive(
     scope = choices[0] ?? DEFAULT_SCOPE;
   }
 
-  const rows = clientChoices(detected, scope);
+  const rows = clientChoices(detected, scope, url, entry.serverName);
   const selection = await p.multiselect<string>({
     message: `Select clients to set up (${scope} scope)`,
     options: rows.map((r) => ({
@@ -390,10 +393,83 @@ async function interactive(
     return;
   }
 
+  // A selected client whose entry points elsewhere: ask what to do with it,
+  // rather than refusing it after the fact (internal). --replace already
+  // answered "switch" for every client, so it is not asked again.
+  const overrides = new Map<string, EntryOverride>();
+  const left: LeftClient[] = [];
+  for (const c of entryConflicts(
+    selection,
+    detected,
+    scope,
+    url,
+    entry.serverName,
+  )) {
+    if (c.state === 'beside') {
+      // Already set up under the beside name: install there, which reports it.
+      if (c.besideName)
+        overrides.set(c.id, {
+          serverName: c.besideName,
+          replaceExisting: false,
+        });
+      continue;
+    }
+    if (c.state === 'other-url' && entry.replaceExisting) continue;
+    const where = c.currentUrl
+      ? `points at ${describeTarget(c.currentUrl)}`
+      : 'holds no Levr URL';
+    const options: { value: string; label: string; hint?: string }[] = [];
+    // An entry we cannot read cannot be restored, so it is never replaced.
+    if (c.state === 'other-url') {
+      options.push({
+        value: 'switch',
+        label: `Switch it to ${describeTarget(url)}`,
+        hint: 'replaces the entry',
+      });
+    }
+    if (c.besideName) {
+      options.push({
+        value: 'beside',
+        label: `Add beside it as ${c.besideName}`,
+        hint: 'keeps both; each repeats every tool',
+      });
+    }
+    options.push({ value: 'leave', label: 'Leave it' });
+    const answer =
+      options.length === 1
+        ? 'leave'
+        : await p.select<string>({
+            message:
+              `${c.label}: its ${entry.serverName} entry ${where}` +
+              (c.besideTaken ? `, and ${c.besideTaken} is taken too` : ''),
+            options,
+          });
+    if (p.isCancel(answer)) {
+      p.cancel('Cancelled.');
+      ctx.process.exitCode = 1;
+      return;
+    }
+    if (answer === 'switch') overrides.set(c.id, { replaceExisting: true });
+    else if (answer === 'beside' && c.besideName)
+      overrides.set(c.id, {
+        serverName: c.besideName,
+        replaceExisting: false,
+      });
+    else
+      left.push({
+        id: c.id,
+        label: c.label,
+        ...(c.currentUrl ? { currentUrl: c.currentUrl } : {}),
+        ...(c.besideTaken ? { besideTaken: c.besideTaken } : {}),
+      });
+  }
+  const leftIds = new Set(left.map((l) => l.id));
+  const toInstall = selection.filter((id) => !leftIds.has(id));
+
   const spin = p.spinner();
   spin.start(dryRun ? 'Previewing changes' : 'Installing');
   const outcomes = installSelected(
-    selection,
+    toInstall,
     {
       mcpUrl: url,
       dryRun,
@@ -401,6 +477,7 @@ async function interactive(
       // Interactively-picked clients were not asserted against this scope,
       // so an unsupported one falls back rather than failing the run.
       namedIds: new Set<string>(),
+      overrides,
     },
     deps.install,
   );
@@ -415,6 +492,7 @@ async function interactive(
     dryRun,
     switchCommand: switchCommandFor(flags, urlKey),
     entryName: entry.serverName,
+    left,
   };
   p.note(formatReport(report), 'Results');
   p.outro(nextStepsText(report));

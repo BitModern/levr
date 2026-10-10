@@ -4,7 +4,12 @@ vi.mock('../auth/credentials.js', () => ({
   readCredentials: vi.fn(() => null),
 }));
 
-import { isScopedMcpUrl, resolveMcpUrl, scopedMcpUrl } from './url.js';
+import {
+  isScopedMcpUrl,
+  resolveMcpUrl,
+  scopedMcpUrl,
+  workspaceKeyOf,
+} from './url.js';
 import { resetSessionApiUrl } from '../utils/env.js';
 
 describe('resolveMcpUrl', () => {
@@ -155,5 +160,17 @@ describe('scopedMcpUrl / isScopedMcpUrl (internal D6)', () => {
     expect(isScopedMcpUrl('https://ai.levr.one/api/v1/mcp/w/acme')).toBe(true);
     expect(isScopedMcpUrl('https://ai.levr.one/api/v1/mcp/w/acme/')).toBe(true);
     expect(isScopedMcpUrl('https://ai.levr.one/api/v1/mcp')).toBe(false);
+  });
+});
+
+describe('workspaceKeyOf (internal)', () => {
+  it('reads the url_key of a scoped URL, and nothing from an unscoped one', () => {
+    expect(workspaceKeyOf('https://ai.levr.one/api/v1/mcp/w/acme')).toBe(
+      'acme',
+    );
+    expect(workspaceKeyOf('https://ai.levr.one/api/v1/mcp/w/acme/')).toBe(
+      'acme',
+    );
+    expect(workspaceKeyOf('https://ai.levr.one/api/v1/mcp')).toBeUndefined();
   });
 });

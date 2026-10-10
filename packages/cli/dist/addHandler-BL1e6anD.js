@@ -1042,6 +1042,25 @@ function readServerEntry(harness, scope, configPath, projectKey, parseJsonc, ser
 	if (!text) return void 0;
 	return getAtPath(parseJsonc(text), entryPathFor(harness, scope, projectKey, serverName));
 }
+/**
+* The http(s) URL an entry points at, read in every shape the catalog writes:
+* the harness's declared HTTP key (`url`, Antigravity's `serverUrl`), the last
+* argv of an `mcp-remote` spawn, or Zed's nested `command.args`. Anything that
+* is not an http(s) URL is not one — a script path in `args` must never be
+* mistaken for the server the entry points at.
+*/
+function entryUrl(harness, entry) {
+	if (entry === null || typeof entry !== "object") return void 0;
+	const e = entry;
+	const urlKey = harness.nativeHttpEntry?.urlKey ?? "url";
+	const command = e["command"];
+	const args = Array.isArray(e["args"]) ? e["args"] : command !== null && typeof command === "object" && Array.isArray(command.args) ? command.args : [];
+	return [
+		e[urlKey],
+		e["url"],
+		args[args.length - 1]
+	].find((c) => typeof c === "string" && /^https?:\/\//i.test(c));
+}
 /** Read a text file, or `null` if it doesn't exist / can't be read. */
 function readTextOrNull(path$1) {
 	try {
@@ -1485,34 +1504,42 @@ function adapterFor(harness) {
 //#endregion
 //#region ../mcp-harnesses/dist/node/detect.js
 /**
-* Is our server key present for this scope?
+* Our server key's entry for this scope, or undefined when it is absent.
 *
 * Claude Code shares one file (`~/.claude.json`) between its `user` and
 * `local` scopes, so the two are told apart by WHERE in the file they sit,
 * not by which file is read — hence the entry path rather than a bare
 * top-level lookup.
 */
-function isServerConfigured(harness, scope, configPath, projectKey) {
+function serverEntry(harness, scope, configPath, projectKey, serverName) {
 	const text = readTextOrNull(configPath);
-	if (!text) return false;
-	const read = adapterFor(harness).readAt(text, entryPathFor(harness, scope, projectKey));
-	return read.kind === "value" && read.value !== null;
+	if (!text) return void 0;
+	const read = adapterFor(harness).readAt(text, entryPathFor(harness, scope, projectKey, serverName));
+	return read.kind === "value" && read.value !== null ? read.value : void 0;
 }
-function detectScope(harness, env, def) {
+function detectScope(harness, env, def, opts) {
 	const configPath = resolveConfigPath(harness, env, def.scope);
 	const inRepo = def.projectPath ? resolveProjectRoot(env).isRepo : true;
 	const collides = collidingScope(harness, env, def.scope) !== void 0;
 	const available = Boolean(configPath) && inRepo && !collides;
+	const read = (name) => available && configPath && name ? serverEntry(harness, def.scope, configPath, projectKeyFor(env), name) : void 0;
+	const entry = read(opts.serverName);
+	const currentUrl = entry === void 0 ? void 0 : entryUrl(harness, entry);
+	const beside = read(opts.besideName);
+	const besideUrl = beside === void 0 ? void 0 : entryUrl(harness, beside);
 	return {
 		scope: def.scope,
 		installKind: def.installKind,
 		configPath: available ? configPath ?? "" : "",
 		available,
-		alreadyConfigured: available && configPath ? isServerConfigured(harness, def.scope, configPath, projectKeyFor(env)) : false
+		alreadyConfigured: entry !== void 0,
+		...currentUrl === void 0 ? {} : { currentUrl },
+		...besideUrl === void 0 ? {} : { besideUrl },
+		...beside === void 0 ? {} : { besideConfigured: true }
 	};
 }
-function detectOne(harness, env) {
-	const scopes = harness.scopes.map((def) => detectScope(harness, env, def));
+function detectOne(harness, env, opts) {
+	const scopes = harness.scopes.map((def) => detectScope(harness, env, def, opts));
 	const available = scopes.some((s) => s.available);
 	const installed = detectSignalsFor(harness, env.platform).some((s) => signalMatches(s, env, configHome(harness, env))) || scopes.some((s) => s.configPath !== "" && existsSync(s.configPath));
 	const fallback = scopes.find((s) => s.scope === defaultScope(harness));
@@ -1527,8 +1554,12 @@ function detectOne(harness, env) {
 	};
 }
 /** Synchronous detection over the whole catalog. Exported for tests. */
-function detectSync(env = defaultEnv()) {
-	return HARNESSES.map((h) => detectOne(h, env));
+function detectSync(env = defaultEnv(), opts = {}) {
+	const resolved = {
+		...opts,
+		serverName: opts.serverName ?? DEFAULT_SERVER_NAME
+	};
+	return HARNESSES.map((h) => detectOne(h, env, resolved));
 }
 
 //#endregion
@@ -1679,25 +1710,6 @@ function currentEntry(harness, env, scope, serverName) {
 		present: true,
 		url
 	};
-}
-/**
-* The http(s) URL an entry points at, read in every shape the catalog writes:
-* the harness's declared HTTP key (`url`, Antigravity's `serverUrl`), the last
-* argv of an `mcp-remote` spawn, or Zed's nested `command.args`. Anything that
-* is not an http(s) URL is not one — a script path in `args` must never be
-* mistaken for the server the entry points at.
-*/
-function entryUrl(harness, entry) {
-	if (entry === null || typeof entry !== "object") return void 0;
-	const e = entry;
-	const urlKey = harness.nativeHttpEntry?.urlKey ?? "url";
-	const command = e["command"];
-	const args = Array.isArray(e["args"]) ? e["args"] : command !== null && typeof command === "object" && Array.isArray(command.args) ? command.args : [];
-	return [
-		e[urlKey],
-		e["url"],
-		args[args.length - 1]
-	].find((c) => typeof c === "string" && /^https?:\/\//i.test(c));
 }
 /** `claude mcp remove` argv — the inverse of the catalog's add command. */
 function removeCommandArgv(scope, serverName) {
@@ -2090,6 +2102,16 @@ function servedBySessionApi(mcpUrl) {
 }
 /** `…/v1/mcp/w/<url_key>`: the URL already names one workspace (ENG-6300). */
 const SCOPED_SUFFIX = /\/w\/[^/]+$/;
+/** The workspace a scoped MCP URL names (`…/w/<url_key>`), if any. */
+function workspaceKeyOf(url) {
+	const m = /\/w\/([^/]+)$/.exec(stripSlash(url));
+	if (!m?.[1]) return void 0;
+	try {
+		return decodeURIComponent(m[1]);
+	} catch {
+		return m[1];
+	}
+}
 /** Does this MCP URL already name a workspace? */
 function isScopedMcpUrl(url) {
 	return SCOPED_SUFFIX.test(stripSlash(url));
@@ -2150,14 +2172,54 @@ function findWorkspaceByKeyOrName(sites, input) {
 * what someone running an installer once expects: available in every project.
 */
 const DEFAULT_SCOPE = "user";
-/** Harness ids to pre-select in interactive mode: detected + installable +
-* not-already-configured. "Already configured" is judged in the scope we are
-* about to install into, not the harness's default one. */
-function autoSelectIds(detected, scope) {
+function entryState(s, url) {
+	if (s?.alreadyConfigured && s.currentUrl === url) return "same-url";
+	if (s?.besideUrl === url) return "beside";
+	if (!s?.alreadyConfigured) return "absent";
+	return s.currentUrl === void 0 ? "unrecognized" : "other-url";
+}
+/**
+* Allowed client entry names: 1-64 of `A-Za-z0-9_-`, and never starting with
+* `-`. The name is passed as an argv element to the client's own CLI
+* (`claude mcp add … <name> <url>`), so a leading `-` would be read there as a
+* flag — the ENG-4159 argument-injection family.
+*/
+const ENTRY_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+function isValidEntryName(name) {
+	return ENTRY_NAME.test(name) && !name.startsWith("-");
+}
+/**
+* The scope an install would land in: the requested one, or, for a harness
+* that cannot do it, its own default, which is where the fallback goes.
+*/
+function landingScope(d, scope) {
+	const inScope = scope ? d.scopes.find((s) => s.scope === scope) : void 0;
+	if (inScope) return inScope;
+	const harness = getHarness(d.id);
+	return harness ? d.scopes.find((s) => s.scope === defaultScope(harness)) : void 0;
+}
+/** Where an entry points, in the user's terms: the workspace, else the URL. */
+function describeTarget(url) {
+	const key = workspaceKeyOf(url);
+	return key ? `workspace ${key}` : url;
+}
+/**
+* Harness ids to pre-select in interactive mode, and to take under `--yes`:
+* detected + installable + not already set up for THIS url. Judged in the
+* scope we are about to install into, not the harness's default one.
+*
+* An entry pointing at another URL is selected (ENG-6736): it is not set up
+* for the workspace asked for, and skipping it would report success while
+* leaving the client on the old one. Interactively the user is then asked
+* what to do with it; under `--yes` the installer refuses it (url-mismatch,
+* exit 1) unless `--replace` or `--name` was given. An entry with no URL we
+* can read is someone else's, and is never picked on the user's behalf.
+*/
+function autoSelectIds(detected, scope, url) {
 	return detected.filter((d) => {
 		if (!d.available || !d.installed) return false;
-		const inScope = scope ? d.scopes.find((s) => s.scope === scope) : void 0;
-		return !(inScope ? inScope.alreadyConfigured : d.alreadyConfigured);
+		const state = entryState(landingScope(d, scope), url);
+		return state === "absent" || state === "other-url";
 	}).map((d) => d.id);
 }
 /**
@@ -2169,14 +2231,18 @@ function autoSelectIds(detected, scope) {
 * NOT configured at `project`, and labelling it "already set up" while
 * installing to `project` is simply wrong.
 */
-function clientChoices(detected, scope) {
-	const preselect = new Set(autoSelectIds(detected, scope));
+function clientChoices(detected, scope, url, serverName = DEFAULT_SERVER_NAME) {
+	const preselect = new Set(autoSelectIds(detected, scope, url));
+	const beside = besideName(serverName, url);
 	return detected.filter((d) => d.available).map((d) => {
 		const inScope = d.scopes.find((s) => s.scope === scope);
 		const harness = getHarness(d.id);
 		let hint;
 		if (!inScope) hint = `no ${scope} scope — will use ${harness ? defaultScope(harness) : DEFAULT_SCOPE}`;
-		else if (inScope.alreadyConfigured) hint = `already set up (${scope})`;
+		else if (entryState(inScope, url) === "same-url") hint = `already set up (${scope})`;
+		else if (entryState(inScope, url) === "beside") hint = `already set up as ${beside ?? "a second entry"} (${scope})`;
+		else if (inScope.currentUrl !== void 0) hint = `points at ${describeTarget(inScope.currentUrl)} (${scope})`;
+		else if (inScope.alreadyConfigured) hint = `its ${serverName} entry holds no Levr URL (${scope})`;
 		else hint = d.installed ? "detected" : "not detected";
 		return {
 			value: d.id,
@@ -2185,6 +2251,49 @@ function clientChoices(detected, scope) {
 			selected: preselect.has(d.id)
 		};
 	});
+}
+/** Claude Code tool names are `mcp__<entry>__<tool>`; keep that well short. */
+const BESIDE_NAME_MAX = 30;
+/**
+* The name for a second entry beside `serverName`: `<serverName>-<url_key>`,
+* so it says which workspace it is. Undefined — and "Add beside it" is not
+* offered — when the target URL names no workspace, or when that name would
+* be too long or not a valid entry name. It is never shortened: a cut name
+* could drop the workspace, or give two workspaces the same entry.
+*/
+function besideName(serverName, url) {
+	const key = workspaceKeyOf(url);
+	if (!key) return void 0;
+	const name = `${serverName}-${key}`;
+	return name.length <= BESIDE_NAME_MAX && isValidEntryName(name) ? name : void 0;
+}
+/**
+* The selected clients whose entry is not this URL's: each needs a decision —
+* switch it, add beside it, or leave it — before anything is installed
+* (ENG-6736). A client already set up beside it is listed too, as `beside`,
+* so it is installed under that name (and reads as already set up) rather
+* than refused under the main one. Pure, so it is testable without a TTY.
+*/
+function entryConflicts(selection, detected, scope, url, serverName) {
+	const conflicts = [];
+	const beside = besideName(serverName, url);
+	for (const id of selection) {
+		const d = detected.find((x) => x.id === id);
+		if (!d) continue;
+		const landing = landingScope(d, scope);
+		const state = entryState(landing, url);
+		if (state === "absent" || state === "same-url") continue;
+		const offer = state === "beside" || !landing?.besideConfigured;
+		conflicts.push({
+			id,
+			label: d.label,
+			state,
+			...landing?.currentUrl ? { currentUrl: landing.currentUrl } : {},
+			...beside && offer ? { besideName: beside } : {},
+			...beside && !offer ? { besideTaken: beside } : {}
+		});
+	}
+	return conflicts;
 }
 /** Scopes worth offering for a selection: any scope at least one selected
 * client can actually use here. Availability already accounts for "are we
@@ -2228,11 +2337,13 @@ function installSelected(ids, plan, install) {
 		const canHonor = supportsScope(harness, plan.scope);
 		const named = plan.namedIds.has(id);
 		const effective = canHonor || named ? plan.scope : defaultScope(harness);
+		const override = plan.overrides?.get(id);
 		outcomes.push({
 			id,
 			label: harness.label,
-			result: install(harness, plan.mcpUrl, plan.dryRun, effective),
-			...canHonor ? {} : named ? {} : { fallbackFrom: plan.scope }
+			result: install(harness, plan.mcpUrl, plan.dryRun, effective, override),
+			...canHonor ? {} : named ? {} : { fallbackFrom: plan.scope },
+			...override?.serverName ? { entryName: override.serverName } : {}
 		});
 	}
 	return outcomes;
@@ -2243,7 +2354,7 @@ function installSelected(ids, plan, install) {
 * report. No console output — the caller formats it.
 */
 function runNonInteractive(options, url, urlSource, deps) {
-	const detected = deps.detect();
+	const detected = deps.detect(url);
 	const scope = options.scope ?? DEFAULT_SCOPE;
 	let ids;
 	let unknown = [];
@@ -2252,7 +2363,7 @@ function runNonInteractive(options, url, urlSource, deps) {
 		const requested = resolveRequestedIds(options, detected);
 		ids = requested.ids;
 		unknown = requested.unknown;
-	} else ids = autoSelectIds(detected, scope);
+	} else ids = autoSelectIds(detected, scope, url);
 	return {
 		url,
 		urlSource,
@@ -2275,7 +2386,7 @@ function failureText(o, switchCommand, entryName) {
 		case "unsupported-scope": return `no ${r.scope} scope` + (harness ? ` (supports: ${supportedScopes(harness).join(", ")})` : "");
 		case "not-a-repo": return "project scope needs a git repository (run from inside one)";
 		case "scope-collision": return `${r.scope} scope resolves to the same file as ${r.collidesWith ?? "another"} scope here — refusing rather than overwriting it`;
-		case "url-mismatch": return "already configured with a different URL" + (r.currentUrl ? ` (${r.currentUrl})` : "") + (switchCommand ? `; run \`${switchCommand}\` to switch it, or add --name <other> to keep both` : "; remove it first, then re-run");
+		case "url-mismatch": return "already configured with a different URL" + (r.currentUrl ? ` (${r.currentUrl})` : "") + (switchCommand ? `; run \`${switchCommand}\` to switch it, or add --name <other> to keep both` : `; ${removeHow(o, entryName)}, then re-run`);
 		case "unrecognized-entry": return "an entry of that name already exists but holds no Levr URL we can read; remove it from the client's config by hand, or add this one with --name <other>";
 		case "write-failed": return `its config could not be written` + (r.detail ? ` (${r.detail})` : "") + `; check the file's permissions and re-run`;
 		case "unsupported-config-shape": return `its config could not be edited safely` + (r.detail ? ` (${r.detail})` : "") + `; fix the file or add the entry by hand`;
@@ -2297,6 +2408,16 @@ function alreadyExistsHint(o, commandError, entryName) {
 	const scope = /already exists in (user|project|local) config/i.exec(commandError)?.[1]?.toLowerCase() ?? o.result.scope;
 	return `; to keep it, add this one beside it with --name <other>; to switch it, remove it with ${o.id === "claude-code" ? `\`claude mcp remove --scope ${scope} ${name}\`` : "the client's own CLI"} and re-run`;
 }
+/**
+* Where to remove an entry by hand: the exact command for Claude Code, else
+* the config file it sits in (ENG-6736).
+*/
+function removeHow(o, entryName) {
+	const name = entryName ?? DEFAULT_SERVER_NAME;
+	const r = o.result;
+	if (o.id === "claude-code") return `remove it with \`claude mcp remove --scope ${r.scope} ${name}\``;
+	return r.path ? `remove the ${name} entry from ${r.path}` : `remove the ${name} entry from the client's config`;
+}
 /** What happened to the entry a failed `--replace` removed (ENG-6300 D6). */
 function restoreText(r) {
 	if (r.restored === void 0) return "";
@@ -2306,11 +2427,14 @@ function restoreText(r) {
 /** One human-readable status line per outcome. */
 function outcomeLine(o, dryRun, switchCommand, entryName) {
 	const r = o.result;
-	const note = o.fallbackFrom ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]` : "";
+	const note = (o.entryName ? ` [as ${o.entryName}]` : "") + (o.fallbackFrom ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]` : "");
 	const where = r.path ? ` → ${r.path}` : "";
 	const backup = r.backupPath ? dryRun ? ` [original would be backed up to ${r.backupPath}]` : ` [original backed up to ${r.backupPath}]` : "";
 	const replaced = r.replacedUrl ? dryRun ? ` [would replace ${r.replacedUrl}]` : ` [replaced ${r.replacedUrl}]` : "";
-	if (!r.ok) return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
+	if (!r.ok) {
+		if (o.entryName) return `${o.label}: failed [as ${o.entryName}] — ${failureText(o, void 0, o.entryName)}`;
+		return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
+	}
 	if (r.alreadyConfigured) return `${o.label}: already set up (${r.scope})${where}${note}`;
 	if (r.command) {
 		if (r.executed) return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}`;
@@ -2324,8 +2448,13 @@ function outcomeLine(o, dryRun, switchCommand, entryName) {
 function formatReport(report) {
 	const lines = [];
 	lines.push(`MCP URL: ${report.url} (${report.urlSource})`);
-	if (report.outcomes.length === 0) lines.push("No clients selected.");
+	if (report.outcomes.length === 0 && (report.left ?? []).length === 0) lines.push("No clients selected.");
 	else for (const o of report.outcomes) lines.push(outcomeLine(o, report.dryRun, report.switchCommand, report.entryName));
+	for (const l of report.left ?? []) {
+		const why = l.currentUrl ? `points at ${describeTarget(l.currentUrl)}` : `its ${report.entryName ?? DEFAULT_SERVER_NAME} entry holds no Levr URL`;
+		const taken = l.besideTaken ? `; ${l.besideTaken} is taken too, so add this one with --name <other>` : "";
+		lines.push(`${l.label}: left as it was (${why}${taken})`);
+	}
 	if (report.unknownClients.length > 0) lines.push(`Unknown clients (skipped): ${report.unknownClients.join(", ")}`);
 	if (report.outcomes.some((o) => o.id === "claude-code" && o.result.ok)) lines.push(PLUGIN_TIP);
 	return lines.join("\n");
@@ -2343,25 +2472,18 @@ function nextStepsText(report) {
 
 //#endregion
 //#region src/commands/mcp/addHandler.ts
-/**
-* Allowed client entry names: 1-64 of `A-Za-z0-9_-`, and never starting with
-* `-`. The name is passed as an argv element to the client's own CLI
-* (`claude mcp add … <name> <url>`), so a leading `-` would be read there as a
-* flag — the ENG-4159 argument-injection family.
-*/
-const ENTRY_NAME = /^[A-Za-z0-9_-]{1,64}$/;
-function isValidEntryName(name) {
-	return ENTRY_NAME.test(name) && !name.startsWith("-");
-}
 function depsFor(entry) {
-	const install = (harness, mcpUrl, dryRun, scope) => installHarnessSync(harness, mcpUrl, {
+	const install = (harness, mcpUrl, dryRun, scope, override) => installHarnessSync(harness, mcpUrl, {
 		dryRun,
 		scope,
-		serverName: entry.serverName,
-		replaceExisting: entry.replaceExisting
+		serverName: override?.serverName ?? entry.serverName,
+		replaceExisting: override?.replaceExisting ?? entry.replaceExisting
 	});
 	return {
-		detect: () => detectSync(),
+		detect: (url) => detectSync(void 0, {
+			serverName: entry.serverName,
+			besideName: besideName(entry.serverName, url)
+		}),
 		install
 	};
 }
@@ -2548,7 +2670,7 @@ async function interactive(ctx, dryRun, baseUrl, baseSource, flags, entry, resol
 		}
 	}
 	p.note(`${url}\n(${urlSource})`, "MCP endpoint");
-	const detected = deps.detect();
+	const detected = deps.detect(url);
 	const installable = detected.filter((d) => d.available);
 	if (installable.length === 0) {
 		p.outro("No supported MCP clients found on this machine.");
@@ -2573,7 +2695,7 @@ async function interactive(ctx, dryRun, baseUrl, baseSource, flags, entry, resol
 		}
 		scope = picked;
 	} else if (!requestedScope && choices.length === 1) scope = choices[0] ?? DEFAULT_SCOPE;
-	const rows = clientChoices(detected, scope);
+	const rows = clientChoices(detected, scope, url, entry.serverName);
 	const selection = await p.multiselect({
 		message: `Select clients to set up (${scope} scope)`,
 		options: rows.map((r) => ({
@@ -2593,13 +2715,64 @@ async function interactive(ctx, dryRun, baseUrl, baseSource, flags, entry, resol
 		p.outro("Nothing selected — bye.");
 		return;
 	}
+	const overrides = /* @__PURE__ */ new Map();
+	const left = [];
+	for (const c of entryConflicts(selection, detected, scope, url, entry.serverName)) {
+		if (c.state === "beside") {
+			if (c.besideName) overrides.set(c.id, {
+				serverName: c.besideName,
+				replaceExisting: false
+			});
+			continue;
+		}
+		if (c.state === "other-url" && entry.replaceExisting) continue;
+		const where = c.currentUrl ? `points at ${describeTarget(c.currentUrl)}` : "holds no Levr URL";
+		const options = [];
+		if (c.state === "other-url") options.push({
+			value: "switch",
+			label: `Switch it to ${describeTarget(url)}`,
+			hint: "replaces the entry"
+		});
+		if (c.besideName) options.push({
+			value: "beside",
+			label: `Add beside it as ${c.besideName}`,
+			hint: "keeps both; each repeats every tool"
+		});
+		options.push({
+			value: "leave",
+			label: "Leave it"
+		});
+		const answer = options.length === 1 ? "leave" : await p.select({
+			message: `${c.label}: its ${entry.serverName} entry ${where}` + (c.besideTaken ? `, and ${c.besideTaken} is taken too` : ""),
+			options
+		});
+		if (p.isCancel(answer)) {
+			p.cancel("Cancelled.");
+			ctx.process.exitCode = 1;
+			return;
+		}
+		if (answer === "switch") overrides.set(c.id, { replaceExisting: true });
+		else if (answer === "beside" && c.besideName) overrides.set(c.id, {
+			serverName: c.besideName,
+			replaceExisting: false
+		});
+		else left.push({
+			id: c.id,
+			label: c.label,
+			...c.currentUrl ? { currentUrl: c.currentUrl } : {},
+			...c.besideTaken ? { besideTaken: c.besideTaken } : {}
+		});
+	}
+	const leftIds = new Set(left.map((l) => l.id));
+	const toInstall = selection.filter((id) => !leftIds.has(id));
 	const spin = p.spinner();
 	spin.start(dryRun ? "Previewing changes" : "Installing");
-	const outcomes = installSelected(selection, {
+	const outcomes = installSelected(toInstall, {
 		mcpUrl: url,
 		dryRun,
 		scope,
-		namedIds: /* @__PURE__ */ new Set()
+		namedIds: /* @__PURE__ */ new Set(),
+		overrides
 	}, deps.install);
 	spin.stop(dryRun ? "Preview ready" : "Done");
 	const report = {
@@ -2610,7 +2783,8 @@ async function interactive(ctx, dryRun, baseUrl, baseSource, flags, entry, resol
 		unknownClients: [],
 		dryRun,
 		switchCommand: switchCommandFor(flags, urlKey),
-		entryName: entry.serverName
+		entryName: entry.serverName,
+		left
 	};
 	p.note(formatReport(report), "Results");
 	p.outro(nextStepsText(report));

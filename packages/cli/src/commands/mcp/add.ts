@@ -42,9 +42,11 @@ the scope it does support, and the report says so.
 interactive run with several workspaces asks which one; a non-interactive run
 writes the unpinned URL and lists the --workspace choices.
 
-The entry is called "levr" unless you pass --name. An entry of that name that
-already points somewhere else is left alone: re-run with --replace to switch it
-to the new URL, or pick another --name to keep both side by side. Two entries
+The entry is called "levr" unless you pass --name. When an entry of that name
+already points somewhere else, the interactive picker asks whether to switch
+it, add a second one beside it, or leave it. A non-interactive run leaves it
+alone and exits 1: re-run with --replace to switch it to the new URL, or pick
+another --name to keep both side by side. Two entries
 means every Levr tool appears twice in that client, once per workspace.
 
 Interactive by default; non-interactive when --all/--client/--yes is passed

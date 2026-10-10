@@ -1,31 +1,58 @@
-import { supportsScope } from '@levr/mcp-harnesses/node';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import {
+  detectSync,
+  installHarnessSync,
+  supportsScope,
+  type HarnessEnv,
+} from '@levr/mcp-harnesses/node';
 import type {
   DetectedHarness,
   DetectedScope,
   HarnessScope,
   InstallResult,
 } from '@levr/mcp-harnesses/node';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   PLUGIN_TIP,
   autoSelectIds,
+  besideName,
   clientChoices,
+  entryConflicts,
+  entryState,
   formatReport,
+  installSelected,
   nextStepsText,
   offerableScopes,
   resolveRequestedIds,
   runNonInteractive,
   type InstallFn,
   type McpAddOptions,
+  type RunDeps,
   type RunReport,
 } from './run.js';
 
-/** One DetectedScope entry, for building multi-scope fixtures. */
+const URL = 'https://ai.levr.one/api/v1/mcp';
+const SOURCE = 'derived:https://api.levr.one';
+
+/**
+ * One DetectedScope entry, for building multi-scope fixtures. A configured
+ * scope points at URL unless told otherwise; `null` is an entry with no URL.
+ */
 function scopeState(
   scope: HarnessScope,
   available: boolean,
   alreadyConfigured = false,
+  currentUrl: string | null = URL,
 ): DetectedScope {
   return {
     scope,
@@ -33,6 +60,7 @@ function scopeState(
     configPath: available ? `/fake/${scope}.json` : '',
     available,
     alreadyConfigured,
+    ...(alreadyConfigured && currentUrl !== null ? { currentUrl } : {}),
   };
 }
 
@@ -86,12 +114,9 @@ function options(over: Partial<McpAddOptions> = {}): McpAddOptions {
   };
 }
 
-const URL = 'https://ai.levr.one/api/v1/mcp';
-const SOURCE = 'derived:https://api.levr.one';
-
 describe('selection', () => {
   it('autoSelectIds picks detected, installable, not-already-configured', () => {
-    expect(autoSelectIds(DETECTED)).toEqual(['cursor']);
+    expect(autoSelectIds(DETECTED, undefined, URL)).toEqual(['cursor']);
   });
 
   it('resolveRequestedIds --all takes every available client', () => {
@@ -472,9 +497,9 @@ describe('scope selection', () => {
       }),
     ];
     // Nothing to do at user scope...
-    expect(autoSelectIds(detected, 'user')).toEqual([]);
+    expect(autoSelectIds(detected, 'user', URL)).toEqual([]);
     // ...but project scope is still unconfigured, so it stays selected.
-    expect(autoSelectIds(detected, 'project')).toEqual(['cursor']);
+    expect(autoSelectIds(detected, 'project', URL)).toEqual(['cursor']);
   });
 });
 
@@ -694,23 +719,23 @@ describe('F-007 · the client picker is resolved for the scope in use', () => {
   ];
 
   it('labels "already set up" against the chosen scope, not the default', () => {
-    const atUser = clientChoices(detected, 'user');
+    const atUser = clientChoices(detected, 'user', URL);
     expect(atUser.find((c) => c.value === 'cursor')?.hint).toBe(
       'already set up (user)',
     );
     // Same client, same machine, different scope — and it is NOT set up there.
-    const atProject = clientChoices(detected, 'project');
+    const atProject = clientChoices(detected, 'project', URL);
     expect(atProject.find((c) => c.value === 'cursor')?.hint).toBe('detected');
   });
 
   it('preselects on the chosen scope', () => {
     // Nothing to do at user; still work to do at project.
     expect(
-      clientChoices(detected, 'user').find((c) => c.value === 'cursor')
+      clientChoices(detected, 'user', URL).find((c) => c.value === 'cursor')
         ?.selected,
     ).toBe(false);
     expect(
-      clientChoices(detected, 'project').find((c) => c.value === 'cursor')
+      clientChoices(detected, 'project', URL).find((c) => c.value === 'cursor')
         ?.selected,
     ).toBe(true);
   });
@@ -718,8 +743,9 @@ describe('F-007 · the client picker is resolved for the scope in use', () => {
   it('warns up front where a client that cannot do the scope will land', () => {
     // Better than a surprise fallback line after the install has happened.
     expect(
-      clientChoices(detected, 'project').find((c) => c.value === 'windsurf')
-        ?.hint,
+      clientChoices(detected, 'project', URL).find(
+        (c) => c.value === 'windsurf',
+      )?.hint,
     ).toBe('no project scope — will use user');
   });
 
@@ -727,6 +753,7 @@ describe('F-007 · the client picker is resolved for the scope in use', () => {
     const rows = clientChoices(
       [...detected, det('zed', { available: false })],
       'user',
+      URL,
     );
     expect(rows.map((r) => r.value)).toEqual(['cursor', 'windsurf']);
   });
@@ -811,5 +838,381 @@ describe('formatReport — entry refusals and replace outcomes (internal D6)', (
       }),
     );
     expect(out).toContain('could NOT be restored (still broken)');
+  });
+});
+
+describe('entry state, beside names and conflicts (internal)', () => {
+  const ACME = `${URL}/w/acme`;
+  const BETA = `${URL}/w/beta`;
+
+  it('entryState compares the entry against the URL being written', () => {
+    expect(entryState(scopeState('user', true), URL)).toBe('absent');
+    expect(entryState(scopeState('user', true, true, BETA), BETA)).toBe(
+      'same-url',
+    );
+    expect(entryState(scopeState('user', true, true, ACME), BETA)).toBe(
+      'other-url',
+    );
+    expect(entryState(scopeState('user', true, true, null), BETA)).toBe(
+      'unrecognized',
+    );
+    expect(entryState(undefined, BETA)).toBe('absent');
+  });
+
+  it('autoSelectIds takes an entry on another URL, never an unreadable one', () => {
+    const detected = [
+      det('a', {
+        installed: true,
+        scopes: [scopeState('user', true, true, ACME)],
+      }),
+      det('b', {
+        installed: true,
+        scopes: [scopeState('user', true, true, BETA)],
+      }),
+      det('c', {
+        installed: true,
+        scopes: [scopeState('user', true, true, null)],
+      }),
+      det('d', { installed: true }),
+    ];
+    expect(autoSelectIds(detected, 'user', BETA)).toEqual(['a', 'd']);
+  });
+
+  it('besideName is <name>-<url_key>, never shortened, and absent when it cannot be used', () => {
+    expect(besideName('levr', BETA)).toBe('levr-beta');
+    expect(besideName('mine', BETA)).toBe('mine-beta');
+    // No workspace in the URL: nothing to tell two entries apart by.
+    expect(besideName('levr', URL)).toBeUndefined();
+    // 30 is the limit; one more is refused rather than cut.
+    expect(besideName('levr', `${URL}/w/${'a'.repeat(25)}`)).toBe(
+      `levr-${'a'.repeat(25)}`,
+    );
+    expect(besideName('levr', `${URL}/w/${'a'.repeat(26)}`)).toBeUndefined();
+    // A long --name leaves no room for the workspace: no beside name.
+    expect(besideName('x'.repeat(30), BETA)).toBeUndefined();
+    // Two long keys that share a prefix never collapse onto one name.
+    expect(
+      besideName('levr', `${URL}/w/bitmodern-engineering-team-a`),
+    ).toBeUndefined();
+    // A hand-written URL whose key is not a valid entry name.
+    expect(besideName('levr', `${URL}/w/my%20ws.prod`)).toBeUndefined();
+  });
+
+  it('entryState: the beside entry holding this URL is already set up', () => {
+    const s = { ...scopeState('user', true, true, ACME), besideUrl: BETA };
+    expect(entryState(s, BETA)).toBe('beside');
+    expect(entryState(s, ACME)).toBe('same-url');
+    // Beside entry present, main entry gone: still set up, never re-added.
+    expect(
+      entryState({ ...scopeState('user', true), besideUrl: BETA }, BETA),
+    ).toBe('beside');
+    expect(
+      autoSelectIds([det('a', { installed: true, scopes: [s] })], 'user', BETA),
+    ).toEqual([]);
+    expect(
+      clientChoices(
+        [det('a', { installed: true, scopes: [s] })],
+        'user',
+        BETA,
+      )[0]?.hint,
+    ).toBe('already set up as levr-beta (user)');
+  });
+
+  it('a refused install under its own name names that entry and never suggests the run-level switch', () => {
+    const text = formatReport({
+      url: BETA,
+      urlSource: SOURCE,
+      scope: 'user',
+      outcomes: [
+        {
+          id: 'cursor',
+          label: 'Cursor',
+          entryName: 'levr-beta',
+          result: {
+            ok: false,
+            wrote: false,
+            path: '/fake/cursor.json',
+            alreadyConfigured: false,
+            dryRun: false,
+            scope: 'user',
+            reason: 'url-mismatch',
+            currentUrl: `${URL}/w/beta2`,
+          },
+        },
+        {
+          id: 'claude-code',
+          label: 'Claude Code',
+          entryName: 'levr-beta',
+          result: {
+            ok: false,
+            wrote: false,
+            path: '/fake/.claude.json',
+            alreadyConfigured: false,
+            dryRun: false,
+            scope: 'user',
+            reason: 'url-mismatch',
+            currentUrl: `${URL}/w/beta2`,
+          },
+        },
+      ],
+      unknownClients: [],
+      dryRun: false,
+      switchCommand: 'levr mcp add --workspace beta --replace',
+      entryName: 'levr',
+    });
+    expect(text).toContain(
+      'Cursor: failed [as levr-beta] — already configured',
+    );
+    expect(text).toContain(
+      'remove the levr-beta entry from /fake/cursor.json, then re-run',
+    );
+    expect(text).toContain(
+      'Claude Code: failed [as levr-beta] — already configured with a different URL' +
+        ` (${URL}/w/beta2); remove it with \`claude mcp remove --scope user levr-beta\`, then re-run`,
+    );
+    expect(text).not.toContain('--replace');
+  });
+
+  it('entryConflicts lists only selected clients on another or an unreadable entry', () => {
+    const detected = [
+      det('a', {
+        installed: true,
+        scopes: [scopeState('user', true, true, ACME)],
+      }),
+      det('b', {
+        installed: true,
+        scopes: [scopeState('user', true, true, BETA)],
+      }),
+      det('c', {
+        installed: true,
+        scopes: [scopeState('user', true, true, null)],
+      }),
+      det('d', { installed: true }),
+    ];
+    expect(
+      entryConflicts(['a', 'b', 'c', 'd'], detected, 'user', BETA, 'levr'),
+    ).toEqual([
+      {
+        id: 'a',
+        label: 'a',
+        state: 'other-url',
+        currentUrl: ACME,
+        besideName: 'levr-beta',
+      },
+      { id: 'c', label: 'c', state: 'unrecognized', besideName: 'levr-beta' },
+    ]);
+    expect(entryConflicts(['b', 'd'], detected, 'user', BETA, 'levr')).toEqual(
+      [],
+    );
+  });
+
+  it('entryConflicts does not offer a beside name that already holds another entry', () => {
+    const taken = (currentUrl: string | null, besideUrl?: string) =>
+      det('a', {
+        installed: true,
+        scopes: [
+          {
+            ...scopeState('user', true, true, currentUrl),
+            besideConfigured: true,
+            ...(besideUrl ? { besideUrl } : {}),
+          },
+        ],
+      });
+    const first = (d: DetectedHarness) =>
+      entryConflicts(['a'], [d], 'user', BETA, 'levr')[0];
+    expect(first(taken(ACME))).not.toHaveProperty('besideName');
+    expect(first(taken(ACME))).toHaveProperty('besideTaken', 'levr-beta');
+    expect(first(taken(null))).not.toHaveProperty('besideName');
+    expect(first(taken(ACME, `${URL}/w/gamma`))).not.toHaveProperty(
+      'besideName',
+    );
+    // A URL naming no workspace has no beside name to offer or to call taken.
+    const plain = entryConflicts(['a'], [taken(ACME)], 'user', URL, 'levr')[0];
+    expect(plain).not.toHaveProperty('besideName');
+    expect(plain).not.toHaveProperty('besideTaken');
+    // Taken by this very workspace: that is "already set up beside it".
+    expect(first(taken(ACME, BETA))).toMatchObject({
+      state: 'beside',
+      besideName: 'levr-beta',
+    });
+  });
+
+  it('installSelected passes each client its own override, and the report names it', () => {
+    const seen: unknown[] = [];
+    const install: InstallFn = (h, url, dryRun, scope, override) => {
+      seen.push(override);
+      return fakeInstall(h, url, dryRun, scope);
+    };
+    const outcomes = installSelected(
+      ['cursor', 'zed'],
+      {
+        mcpUrl: BETA,
+        dryRun: false,
+        scope: 'user',
+        namedIds: new Set(),
+        overrides: new Map([['cursor', { serverName: 'levr-beta' }]]),
+      },
+      install,
+    );
+    expect(seen).toEqual([{ serverName: 'levr-beta' }, undefined]);
+    const text = formatReport({
+      url: BETA,
+      urlSource: SOURCE,
+      scope: 'user',
+      outcomes,
+      unknownClients: [],
+      dryRun: false,
+      left: [{ id: 'windsurf', label: 'Windsurf', currentUrl: ACME }],
+    });
+    expect(text).toContain(
+      'Cursor: installed (user) → /fake/cursor.json [as levr-beta]',
+    );
+    expect(text).not.toContain('Zed: installed (user) → /fake/zed.json [as');
+    expect(text).toContain(
+      'Windsurf: left as it was (points at workspace acme)',
+    );
+  });
+
+  it('a report with only left clients is not "No clients selected"', () => {
+    const report: RunReport = {
+      url: BETA,
+      urlSource: SOURCE,
+      scope: 'user',
+      outcomes: [],
+      unknownClients: [],
+      dryRun: false,
+      left: [{ id: 'cursor', label: 'Cursor' }],
+    };
+    expect(formatReport(report)).toContain(
+      'Cursor: left as it was (its levr entry holds no Levr URL)',
+    );
+    expect(formatReport(report)).not.toContain('No clients selected');
+    expect(nextStepsText(report)).toBe('Nothing to do.');
+  });
+
+  it("a left client names the run's entry, and a taken beside name", () => {
+    const text = formatReport({
+      url: BETA,
+      urlSource: SOURCE,
+      scope: 'user',
+      outcomes: [],
+      unknownClients: [],
+      dryRun: false,
+      entryName: 'foo',
+      left: [
+        { id: 'cursor', label: 'Cursor' },
+        {
+          id: 'windsurf',
+          label: 'Windsurf',
+          currentUrl: ACME,
+          besideTaken: 'foo-beta',
+        },
+      ],
+    });
+    expect(text).toContain(
+      'Cursor: left as it was (its foo entry holds no Levr URL)',
+    );
+    expect(text).toContain(
+      'Windsurf: left as it was (points at workspace acme; foo-beta is taken too, so add this one with --name <other>)',
+    );
+  });
+});
+
+describe('internal · real detection and the real installer agree', () => {
+  // Win32 + an empty PATH: only Cursor (a config file) is detected, and no
+  // client CLI can ever be spawned.
+  const ACME = `${URL}/w/acme`;
+  const BETA = `${URL}/w/beta`;
+  let home: string;
+  let env: HarnessEnv;
+  const config = (): string => join(home, '.cursor', 'mcp.json');
+  const entries = (): Record<string, { args: string[] }> =>
+    (
+      JSON.parse(readFileSync(config(), 'utf8')) as {
+        mcpServers: Record<string, { args: string[] }>;
+      }
+    ).mcpServers;
+  function realDeps(serverName = 'levr'): RunDeps {
+    return {
+      detect: (url) =>
+        detectSync(env, {
+          serverName,
+          besideName: besideName(serverName, url),
+        }),
+      install: (harness, mcpUrl, dryRun, scope, override) =>
+        installHarnessSync(harness, mcpUrl, {
+          env,
+          dryRun,
+          scope,
+          serverName: override?.serverName ?? serverName,
+          replaceExisting: override?.replaceExisting ?? false,
+        }),
+    };
+  }
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), 'mcp-6736-'));
+    env = { platform: 'win32', homedir: home, pathVar: '', cwd: home };
+    mkdirSync(join(home, '.cursor'));
+    writeFileSync(
+      config(),
+      JSON.stringify({
+        mcpServers: {
+          levr: { command: 'npx', args: ['-y', 'mcp-remote', ACME] },
+        },
+      }),
+    );
+  });
+  afterEach(() => rmSync(home, { recursive: true, force: true }));
+  const cursorOutcome = (r: RunReport) =>
+    r.outcomes.find((o) => o.id === 'cursor');
+
+  it('--yes for another workspace reaches the installer, which refuses, and changes nothing', () => {
+    const r = runNonInteractive(
+      options({ yes: true }),
+      BETA,
+      SOURCE,
+      realDeps(),
+    );
+    expect(cursorOutcome(r)?.result).toMatchObject({
+      ok: false,
+      reason: 'url-mismatch',
+      currentUrl: ACME,
+    });
+    expect(Object.keys(entries())).toEqual(['levr']);
+  });
+
+  it('--yes for the same workspace is skipped', () => {
+    const r = runNonInteractive(
+      options({ yes: true }),
+      ACME,
+      SOURCE,
+      realDeps(),
+    );
+    expect(cursorOutcome(r)).toBeUndefined();
+  });
+
+  it('after "Add beside it", a --yes re-run recognises the beside entry', () => {
+    const add = installSelected(
+      ['cursor'],
+      {
+        mcpUrl: BETA,
+        dryRun: false,
+        scope: 'user',
+        namedIds: new Set(),
+        overrides: new Map([['cursor', { serverName: 'levr-beta' }]]),
+      },
+      realDeps().install,
+    );
+    expect(add[0]?.result.ok).toBe(true);
+    expect(entries()['levr-beta']?.args.at(-1)).toBe(BETA);
+
+    const again = runNonInteractive(
+      options({ yes: true }),
+      BETA,
+      SOURCE,
+      realDeps(),
+    );
+    expect(cursorOutcome(again)).toBeUndefined();
+    expect(Object.keys(entries()).sort()).toEqual(['levr', 'levr-beta']);
   });
 });
