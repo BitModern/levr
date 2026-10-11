@@ -34,6 +34,16 @@ A description can only be replaced whole. There is no append and no partial edit
 - To record progress, a decision or a result, use `add_issue_comment`.
 - Rewrite the description only when the description itself is wrong, and pass `epoch` when you do.
 
+## Moving an issue through its workflow
+
+Passing gates or runs never move an issue. You move it, and the server instructions say when. This adds how:
+
+- **Find the states first.** `get_labels(groups:["Type"], include_workflow_states:true)` lists each type's states in order. A type with no states of its own uses its team's states, which that call does not list; `transition_issue` with a `state_name` it cannot match lists the states it accepts. State names differ between workspaces and types, so prefer `state_type` (`in_progress`, `done`) in `transition_issue`. It takes the first state of that type in the issue's workflow.
+- **Use a review state when the workflow has one.** Some workflows have more than one `in_progress` state, such as Gates Pending or In Review. `state_type:"in_progress"` always lands on the first, so name a later one with `state_name`.
+- **Read the `next_step` line.** The gate tools end with `Next step (<issue>, <action>): …` when there is something to do about the issue's state: start it, finish reporting its gates, redeploy untyped gates, clear what would refuse Done, or close it. `close` still means: ask before closing unless the user asked for it.
+- **Check blockers before closing.** `get_issue` returns the issue's `relations`; look for `blocks` and `blocked_by`. An open blocker does not stop the transition, but tell the user about it.
+- **A merged PR can close the issue for you.** When a PR names the issue as one it closes, merging it moves the issue to done. For ongoing work, reference it on an `Issue: <identifier>` line in the PR body instead, so the merge leaves it open.
+
 ## When no workspace is selected
 
 An account in more than one Levr workspace needs a connection that names one. When a Levr tool reports that no workspace is selected:
