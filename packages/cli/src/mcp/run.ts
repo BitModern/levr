@@ -9,6 +9,7 @@ import {
   DEFAULT_SERVER_NAME,
   defaultScope,
   getHarness,
+  besideName,
   HARNESS_SCOPES,
   supportedScopes,
   supportsScope,
@@ -19,6 +20,9 @@ import {
   type InstallResult,
 } from '@levr/mcp-harnesses/node';
 import { workspaceKeyOf } from './url.js';
+
+// Shared with the desktop app's setup cards (internal).
+export { besideName, isValidEntryName } from '@levr/mcp-harnesses/node';
 
 /**
  * Scope used when the caller passes no `--scope`.
@@ -148,18 +152,6 @@ export function entryState(
 }
 
 /**
- * Allowed client entry names: 1-64 of `A-Za-z0-9_-`, and never starting with
- * `-`. The name is passed as an argv element to the client's own CLI
- * (`claude mcp add … <name> <url>`), so a leading `-` would be read there as a
- * flag — the internal argument-injection family.
- */
-const ENTRY_NAME = /^[A-Za-z0-9_-]{1,64}$/;
-
-export function isValidEntryName(name: string): boolean {
-  return ENTRY_NAME.test(name) && !name.startsWith('-');
-}
-
-/**
  * The scope an install would land in: the requested one, or, for a harness
  * that cannot do it, its own default, which is where the fallback goes.
  */
@@ -275,28 +267,6 @@ export interface EntryConflict {
   besideName?: string;
   /** That name, when it is not offered because another entry already has it. */
   besideTaken?: string;
-}
-
-/** Claude Code tool names are `mcp__<entry>__<tool>`; keep that well short. */
-const BESIDE_NAME_MAX = 30;
-
-/**
- * The name for a second entry beside `serverName`: `<serverName>-<url_key>`,
- * so it says which workspace it is. Undefined — and "Add beside it" is not
- * offered — when the target URL names no workspace, or when that name would
- * be too long or not a valid entry name. It is never shortened: a cut name
- * could drop the workspace, or give two workspaces the same entry.
- */
-export function besideName(
-  serverName: string,
-  url: string,
-): string | undefined {
-  const key = workspaceKeyOf(url);
-  if (!key) return undefined;
-  const name = `${serverName}-${key}`;
-  return name.length <= BESIDE_NAME_MAX && isValidEntryName(name)
-    ? name
-    : undefined;
 }
 
 /**

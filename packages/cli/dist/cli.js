@@ -209,7 +209,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-DJqJGqz3.js");
+		const { mcpAddHandler } = await import("./addHandler-BqLLDeKp.js");
 		return mcpAddHandler;
 	}
 });
@@ -876,7 +876,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.11.6";
+var version = "0.11.7";
 
 //#endregion
 //#region src/app.ts

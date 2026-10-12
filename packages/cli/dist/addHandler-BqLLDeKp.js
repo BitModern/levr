@@ -773,6 +773,41 @@ function buildServerEntry(harness, mcpUrl, scope = defaultScope(harness), server
 		args
 	} };
 }
+/** The workspace a scoped MCP URL names (`…/w/<url_key>`), if any. */
+function workspaceKeyOf(url) {
+	const m = /\/w\/([^/]+)$/.exec(url.replace(/\/+$/, ""));
+	if (!m?.[1]) return void 0;
+	try {
+		return decodeURIComponent(m[1]);
+	} catch {
+		return m[1];
+	}
+}
+/**
+* Allowed client entry names: 1-64 of `A-Za-z0-9_-`, and never starting with
+* `-`. The name is passed as an argv element to the client's own CLI
+* (`claude mcp add … <name> <url>`), so a leading `-` would be read there as a
+* flag — the ENG-4159 argument-injection family.
+*/
+const ENTRY_NAME = /^[A-Za-z0-9_-]{1,64}$/;
+function isValidEntryName(name) {
+	return ENTRY_NAME.test(name) && !name.startsWith("-");
+}
+/** Claude Code tool names are `mcp__<entry>__<tool>`; keep that well short. */
+const BESIDE_NAME_MAX = 30;
+/**
+* The name for a second entry beside `serverName`: `<serverName>-<url_key>`,
+* so it says which workspace it is. Undefined — and "Add beside it" is not
+* offered — when the target URL names no workspace, or when that name would
+* be too long or not a valid entry name. It is never shortened: a cut name
+* could drop the workspace, or give two workspaces the same entry.
+*/
+function besideName(serverName, url) {
+	const key = workspaceKeyOf(url);
+	if (!key) return void 0;
+	const name = `${serverName}-${key}`;
+	return name.length <= BESIDE_NAME_MAX && isValidEntryName(name) ? name : void 0;
+}
 
 //#endregion
 //#region ../mcp-harnesses/dist/node/paths.js
@@ -1611,47 +1646,44 @@ function needsShell(binPath) {
 */
 const SHELL_METACHARACTERS = /[&|<>^"%!`]/;
 /**
-* Run a harness CLI invocation, or explain why it was not run.
+* Everything decided before a command is spawned, shared by both runners: an
+* outcome when it must not run, else how to run it.
 *
 * Resolution uses {@link whichPathSync} — a pure `PATH` scan that spawns
 * nothing, so the "is this installed" check can never itself be the thing
 * that hangs. It returns the resolved path rather than a boolean because the
 * extension decides how the command must be launched.
 */
-function runHarnessCommandSync(argv, opts = {}) {
+function prepare(argv, opts) {
 	const env = opts.env ?? defaultEnv();
 	const dryRun = opts.dryRun ?? false;
 	const [bin, ...args] = argv;
-	if (!bin) return {
+	if (!bin) return { skip: {
 		executed: false,
 		ok: false,
 		reason: "empty-command"
-	};
-	if (dryRun) return {
+	} };
+	if (dryRun) return { skip: {
 		executed: false,
 		ok: true,
 		reason: "dry-run"
-	};
+	} };
 	const binPath = whichPathSync(bin, env);
-	if (!binPath) return {
+	if (!binPath) return { skip: {
 		executed: false,
 		ok: true,
 		reason: "binary-not-found"
-	};
+	} };
 	const useShell = needsShell(binPath);
-	if (useShell && args.some((a) => SHELL_METACHARACTERS.test(a))) return {
+	if (useShell && (binPath.includes("\"") || args.some((a) => SHELL_METACHARACTERS.test(a)))) return { skip: {
 		executed: false,
 		ok: false,
 		reason: "unsafe-argument"
-	};
-	try {
-		execFileSync(binPath, args, {
-			encoding: "utf8",
-			stdio: [
-				"ignore",
-				"pipe",
-				"pipe"
-			],
+	} };
+	return { spawn: {
+		binPath: useShell ? `"${binPath}"` : binPath,
+		args,
+		options: {
 			timeout: COMMAND_TIMEOUT_MS,
 			env: {
 				...childVars(env),
@@ -1660,20 +1692,42 @@ function runHarnessCommandSync(argv, opts = {}) {
 			},
 			cwd: env.cwd,
 			...useShell ? { shell: true } : {}
+		}
+	} };
+}
+/** A command that ran and failed (or could not start), as an outcome. */
+function failureOutcome(err) {
+	const e = err;
+	const exitCode = typeof e.status === "number" ? e.status : typeof e.code === "number" ? e.code : void 0;
+	const raw = typeof e.stderr === "string" ? e.stderr : e.stderr?.toString("utf8") ?? "";
+	return {
+		executed: true,
+		ok: false,
+		...exitCode === void 0 ? {} : { exitCode },
+		stderr: (raw.trim() || e.message || "command failed").slice(0, MAX_STDERR)
+	};
+}
+/** Run a harness CLI invocation, or explain why it was not run. */
+function runHarnessCommandSync(argv, opts = {}) {
+	const prepared = prepare(argv, opts);
+	if ("skip" in prepared) return prepared.skip;
+	const { binPath, args, options } = prepared.spawn;
+	try {
+		execFileSync(binPath, args, {
+			...options,
+			encoding: "utf8",
+			stdio: [
+				"ignore",
+				"pipe",
+				"pipe"
+			]
 		});
 		return {
 			executed: true,
 			ok: true
 		};
 	} catch (err) {
-		const e = err;
-		const raw = typeof e.stderr === "string" ? e.stderr : e.stderr?.toString("utf8") ?? "";
-		return {
-			executed: true,
-			ok: false,
-			...typeof e.status === "number" ? { exitCode: e.status } : {},
-			stderr: (raw.trim() || e.message || "command failed").slice(0, MAX_STDERR)
-		};
+		return failureOutcome(err);
 	}
 }
 
@@ -1745,8 +1799,16 @@ function canonical(value) {
 	if (value !== null && typeof value === "object") return `{${Object.entries(value).filter(([, v]) => v !== void 0).sort(([x], [y]) => x < y ? -1 : x > y ? 1 : 0).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
 	return JSON.stringify(value) ?? "undefined";
 }
+function drive(steps, run) {
+	let step = steps.next();
+	while (!step.done) step = steps.next(run(step.value.argv, step.value.opts));
+	return step.value;
+}
 /** Merge (or preview) our MCP into a harness config. */
 function installHarnessSync(harness, mcpUrl, opts = {}) {
+	return drive(installSteps(harness, mcpUrl, opts), opts.runCommand ?? runHarnessCommandSync);
+}
+function* installSteps(harness, mcpUrl, opts) {
 	const env = opts.env ?? defaultEnv();
 	const dryRun = opts.dryRun ?? false;
 	const scope = opts.scope ?? defaultScope(harness);
@@ -1785,13 +1847,12 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 				alreadyConfigured: false,
 				reason: "unrecognized-entry"
 			};
-			if (opts.replaceExisting) return replaceViaCommand(harness, argv, existing$1.url, {
+			if (opts.replaceExisting) return yield* replaceSteps(harness, argv, existing$1.url, {
 				env,
 				dryRun,
 				scope,
 				serverName,
-				execute: opts.execute ?? true,
-				run: opts.runCommand ?? runHarnessCommandSync
+				execute: opts.execute ?? true
 			});
 			return {
 				...base,
@@ -1802,11 +1863,13 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 				...existing$1.url ? { currentUrl: existing$1.url } : {}
 			};
 		}
-		const run = opts.runCommand ?? runHarnessCommandSync;
-		const outcome = opts.execute ?? true ? run(argv, {
-			env,
-			dryRun
-		}) : {
+		const outcome = opts.execute ?? true ? yield {
+			argv,
+			opts: {
+				env,
+				dryRun
+			}
+		} : {
 			executed: false,
 			ok: true,
 			reason: "not-requested"
@@ -1815,7 +1878,7 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 			...base,
 			ok: outcome.ok,
 			executed: outcome.executed,
-			...outcome.ok ? {} : { commandError: outcome.stderr },
+			...outcome.ok ? {} : { commandError: notRunError(outcome) },
 			alreadyConfigured: false
 		};
 	}
@@ -1907,7 +1970,14 @@ function installHarnessSync(harness, mcpUrl, opts = {}) {
 * second command must not leave the user with no entry at all without saying
 * so.
 */
-function replaceViaCommand(harness, addArgv, previousUrl, ctx) {
+/**
+* What went wrong with a failed command: its stderr, else why it was never
+* run — so a refusal never reads as "unknown reason" (ENG-6737).
+*/
+function notRunError(outcome) {
+	return outcome.stderr ?? (outcome.reason ? `not run: ${outcome.reason}` : void 0);
+}
+function* replaceSteps(harness, addArgv, previousUrl, ctx) {
 	const removeArgv = removeCommandArgv(ctx.scope, ctx.serverName);
 	const base = {
 		wrote: false,
@@ -1923,11 +1993,15 @@ function replaceViaCommand(harness, addArgv, previousUrl, ctx) {
 		ok: true,
 		executed: false
 	};
-	const removed = ctx.run(removeArgv, { env: ctx.env });
+	const removed = yield {
+		argv: removeArgv,
+		opts: { env: ctx.env }
+	};
 	if (!removed.executed) return {
 		...base,
 		ok: removed.ok,
-		executed: false
+		executed: false,
+		...removed.ok ? {} : { commandError: notRunError(removed) }
 	};
 	if (!removed.ok) return {
 		...base,
@@ -1935,21 +2009,26 @@ function replaceViaCommand(harness, addArgv, previousUrl, ctx) {
 		executed: true,
 		commandError: `could not remove the existing entry: ${removed.stderr ?? "unknown error"}`
 	};
-	const added = ctx.run(addArgv, { env: ctx.env });
+	const added = yield {
+		argv: addArgv,
+		opts: { env: ctx.env }
+	};
 	if (added.ok) return {
 		...base,
 		ok: true,
 		executed: true
 	};
-	const restoreArgv = renderHarnessCommand(harness, previousUrl, ctx.scope, ctx.serverName);
-	const restore = ctx.run(restoreArgv, { env: ctx.env });
+	const restore = yield {
+		argv: renderHarnessCommand(harness, previousUrl, ctx.scope, ctx.serverName),
+		opts: { env: ctx.env }
+	};
 	return {
 		...base,
 		ok: false,
 		executed: true,
-		commandError: added.stderr ?? "unknown error",
+		commandError: notRunError(added) ?? "unknown error",
 		restored: restore.ok && restore.executed,
-		...restore.ok && restore.executed ? {} : { restoreError: restore.stderr ?? "the restore command did not run" }
+		...restore.ok && restore.executed ? {} : { restoreError: notRunError(restore) ?? "the restore command did not run" }
 	};
 }
 /**
@@ -2111,16 +2190,6 @@ function servedBySessionApi(mcpUrl) {
 }
 /** `…/v1/mcp/w/<url_key>`: the URL already names one workspace (ENG-6300). */
 const SCOPED_SUFFIX = /\/w\/[^/]+$/;
-/** The workspace a scoped MCP URL names (`…/w/<url_key>`), if any. */
-function workspaceKeyOf(url) {
-	const m = /\/w\/([^/]+)$/.exec(stripSlash(url));
-	if (!m?.[1]) return void 0;
-	try {
-		return decodeURIComponent(m[1]);
-	} catch {
-		return m[1];
-	}
-}
 /** Does this MCP URL already name a workspace? */
 function isScopedMcpUrl(url) {
 	return SCOPED_SUFFIX.test(stripSlash(url));
@@ -2188,16 +2257,6 @@ function entryState(s, url) {
 	return s.currentUrl === void 0 ? "unrecognized" : "other-url";
 }
 /**
-* Allowed client entry names: 1-64 of `A-Za-z0-9_-`, and never starting with
-* `-`. The name is passed as an argv element to the client's own CLI
-* (`claude mcp add … <name> <url>`), so a leading `-` would be read there as a
-* flag — the ENG-4159 argument-injection family.
-*/
-const ENTRY_NAME = /^[A-Za-z0-9_-]{1,64}$/;
-function isValidEntryName(name) {
-	return ENTRY_NAME.test(name) && !name.startsWith("-");
-}
-/**
 * The scope an install would land in: the requested one, or, for a harness
 * that cannot do it, its own default, which is where the fallback goes.
 */
@@ -2260,21 +2319,6 @@ function clientChoices(detected, scope, url, serverName = DEFAULT_SERVER_NAME) {
 			selected: preselect.has(d.id)
 		};
 	});
-}
-/** Claude Code tool names are `mcp__<entry>__<tool>`; keep that well short. */
-const BESIDE_NAME_MAX = 30;
-/**
-* The name for a second entry beside `serverName`: `<serverName>-<url_key>`,
-* so it says which workspace it is. Undefined — and "Add beside it" is not
-* offered — when the target URL names no workspace, or when that name would
-* be too long or not a valid entry name. It is never shortened: a cut name
-* could drop the workspace, or give two workspaces the same entry.
-*/
-function besideName(serverName, url) {
-	const key = workspaceKeyOf(url);
-	if (!key) return void 0;
-	const name = `${serverName}-${key}`;
-	return name.length <= BESIDE_NAME_MAX && isValidEntryName(name) ? name : void 0;
 }
 /**
 * The selected clients whose entry is not this URL's: each needs a decision —

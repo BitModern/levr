@@ -1,5 +1,8 @@
 import { getApiUrl } from '../utils/env.js';
 
+// Shared with the desktop app's setup cards (internal).
+export { workspaceKeyOf } from '@levr/mcp-harnesses/node';
+
 // The MCP OAuth resource is the APP host plus an `/api` prefix
 // (`ai.levr.<env>/api/v1/mcp`), NOT the bare backend API host — RFC 9728
 // protected-resource discovery advertises the app host, and dialing
@@ -127,17 +130,6 @@ export function servedBySessionApi(mcpUrl: string): boolean {
 
 /** `…/v1/mcp/w/<url_key>`: the URL already names one workspace (internal). */
 const SCOPED_SUFFIX = /\/w\/[^/]+$/;
-
-/** The workspace a scoped MCP URL names (`…/w/<url_key>`), if any. */
-export function workspaceKeyOf(url: string): string | undefined {
-  const m = /\/w\/([^/]+)$/.exec(stripSlash(url));
-  if (!m?.[1]) return undefined;
-  try {
-    return decodeURIComponent(m[1]);
-  } catch {
-    return m[1];
-  }
-}
 
 /** Does this MCP URL already name a workspace? */
 export function isScopedMcpUrl(url: string): boolean {
