@@ -642,6 +642,8 @@ const HARNESSES = [
 		docsUrl: "https://github.com/openai/codex",
 		verifiedVersion: "0.154.0",
 		verifiedOn: "2026-09-17",
+		configDirEnv: "CODEX_HOME",
+		configDirReplaces: "~/.codex",
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -784,14 +786,20 @@ function defaultEnv() {
 	};
 }
 /**
-* The directory `~` means for this harness's config paths and signals: the
-* harness's `configDirEnv` when that variable is set, else the home directory
-* (ENG-6696). A relative value resolves against `env.cwd`, the directory a
-* spawned client CLI runs in, so the probe and the client read one file.
+* A config path or signal with `~` expanded. When the harness's `configDirEnv`
+* is set to a non-empty value, the prefix it stands for (`configDirReplaces`,
+* `~` by default) resolves to that directory instead (ENG-6696, ENG-6761). A
+* relative value resolves against `env.cwd`, the directory a spawned client
+* CLI runs in, so the probe and the client read one file.
 */
-function configHome(harness, env) {
+function expandConfigPath(p, harness, env) {
 	const dir = harness.configDirEnv ? env.vars?.[harness.configDirEnv] : void 0;
-	return dir ? resolve(env.cwd, dir) : env.homedir;
+	if (dir) {
+		const prefix = harness.configDirReplaces ?? "~";
+		if (p === prefix) return resolve(env.cwd, dir);
+		if (p.startsWith(`${prefix}/`) || p.startsWith(`${prefix}\\`)) return join(resolve(env.cwd, dir), p.slice(prefix.length + 1));
+	}
+	return expandTilde(p, env.homedir);
 }
 /** Expand a leading `~` / `~/…` to the given home directory. */
 function expandTilde(p, home) {
@@ -822,7 +830,7 @@ function resolveConfigPath(harness, env, scope = defaultScope(harness)) {
 	if (def.projectPath) return join(resolveProjectRoot(env).root, ...def.projectPath.split("/"));
 	const loc = locationFor(harness, env.platform, scope);
 	if (!loc) return void 0;
-	return expandTilde(loc.configPath, configHome(harness, env));
+	return expandConfigPath(loc.configPath, harness, env);
 }
 /**
 * Nearest ancestor of `cwd` containing `.git`, or `undefined`.
@@ -1024,11 +1032,12 @@ function whichSync(bin, env) {
 	return whichPathSync(bin, env) !== void 0;
 }
 /** Does one `installSignals` entry match on this machine? Supports
-* `which:<bin>`, `~`-prefixed paths, and absolute (app-bundle) paths. `home`
-* is what `~` means for the harness — see {@link configHome}. */
-function signalMatches(signal, env, home = env.homedir) {
+* `which:<bin>`, `~`-prefixed paths, and absolute (app-bundle) paths.
+* `expand` turns a `~` path into the one this harness reads — see
+* {@link expandConfigPath}. */
+function signalMatches(signal, env, expand = (p) => expandTilde(p, env.homedir)) {
 	if (signal.startsWith("which:")) return whichSync(signal.slice(6), env);
-	return existsSync(signal.startsWith("~") ? expandTilde(signal, home) : signal);
+	return existsSync(signal.startsWith("~") ? expand(signal) : signal);
 }
 /**
 * The value our server key currently holds for this scope, or `undefined`.
@@ -1541,7 +1550,7 @@ function detectScope(harness, env, def, opts) {
 function detectOne(harness, env, opts) {
 	const scopes = harness.scopes.map((def) => detectScope(harness, env, def, opts));
 	const available = scopes.some((s) => s.available);
-	const installed = detectSignalsFor(harness, env.platform).some((s) => signalMatches(s, env, configHome(harness, env))) || scopes.some((s) => s.configPath !== "" && existsSync(s.configPath));
+	const installed = detectSignalsFor(harness, env.platform).some((s) => signalMatches(s, env, (p) => expandConfigPath(p, harness, env))) || scopes.some((s) => s.configPath !== "" && existsSync(s.configPath));
 	const fallback = scopes.find((s) => s.scope === defaultScope(harness));
 	return {
 		id: harness.id,
