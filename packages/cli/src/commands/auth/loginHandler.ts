@@ -11,7 +11,17 @@ import {
   pollForDeviceToken,
 } from '../../auth/device-flow.js';
 import { writeCredentials } from '../../auth/credentials.js';
-import { autoSelectWorkspace } from '../../workspace/resolve-workspace.js';
+import { resolveMcpUrl, scopedMcpUrl } from '../../mcp/url.js';
+import {
+  findWorkspaceByKeyOrName,
+  looksLikeUrlKey,
+  type WorkspaceSite,
+} from '../../workspace/find-workspace.js';
+import {
+  autoSelectWorkspace,
+  fetchSites,
+} from '../../workspace/resolve-workspace.js';
+import { saveWorkspace } from '../../workspace/workspace-store.js';
 import {
   getApiUrl,
   getAuthUrl,
@@ -27,11 +37,18 @@ import type {
 interface LoginFlags {
   'device-code': boolean;
   url?: string;
+  workspace?: string;
 }
 
 export interface LoginOptions {
   deviceCode: boolean;
   url?: string;
+  /**
+   * Workspace to select once logged in, by url_key or name (internal). A
+   * url_key is also sent with the authorize request so auth-web can skip
+   * its workspace picker for a member. Never stored on a token.
+   */
+  workspace?: string;
 }
 
 function formatCountdown(ms: number): string {
@@ -48,13 +65,14 @@ export async function loginHandler(
   await performLogin(this, {
     deviceCode: flags['device-code'],
     url: flags.url,
+    workspace: flags.workspace,
   });
 }
 
 /**
  * Run the login flow (PKCE or device code). Reusable outside the Stricli
- * handler (levr init composes it). Returns true on success; on failure the
- * error has been printed and `exitCode` set.
+ * handler. Returns true on success; on failure the error has been printed
+ * and `exitCode` set.
  */
 export async function performLogin(
   ctx: LocalContext,
@@ -64,12 +82,15 @@ export async function performLogin(
     setSessionApiUrl(options.url);
   }
   if (options.deviceCode) {
-    return deviceCodeLogin(ctx);
+    return deviceCodeLogin(ctx, options.workspace);
   }
-  return pkceLogin(ctx);
+  return pkceLogin(ctx, options.workspace);
 }
 
-async function pkceLogin(ctx: LocalContext): Promise<boolean> {
+async function pkceLogin(
+  ctx: LocalContext,
+  workspace?: string,
+): Promise<boolean> {
   const apiUrl = getApiUrl();
   let authUrl: string;
   try {
@@ -80,6 +101,22 @@ async function pkceLogin(ctx: LocalContext): Promise<boolean> {
     );
     ctx.process.exitCode = 1;
     return false;
+  }
+
+  // internal: a url_key names the workspace's MCP URL as the RFC 8707
+  // `resource`, which auth-web already reads to skip its picker for a
+  // member (internal). Only the picker is affected: tokens stay account-only.
+  // An MCP URL that cannot carry it (unusable, or already pinned to a
+  // workspace) just leaves the picker in place; the login does not need it.
+  let resource: string | undefined;
+  if (workspace !== undefined && looksLikeUrlKey(workspace)) {
+    try {
+      resource = scopedMcpUrl(resolveMcpUrl().url, workspace);
+    } catch (err) {
+      ctx.logger.debug(
+        `Workspace picker not skipped: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   // 1. Generate PKCE pair + state
@@ -107,6 +144,7 @@ async function pkceLogin(ctx: LocalContext): Promise<boolean> {
     scope: 'read:own write:own',
     state,
   });
+  if (resource) params.append('resource', resource);
   // auth-web uses React Router basename '/auth/' — all routes resolve under
   // /auth/, so the consent page is at /auth/oauth/authorize.
   const authorizeUrl = `${authUrl}/auth/oauth/authorize?${params.toString()}`;
@@ -174,7 +212,7 @@ async function pkceLogin(ctx: LocalContext): Promise<boolean> {
 
     const tokenData = (await tokenRes.json()) as OAuthTokenResponse;
 
-    return await saveTokensAndFinish(ctx, tokenData);
+    return await saveTokensAndFinish(ctx, tokenData, workspace);
   } catch (err) {
     ctx.process.stdout.write('\n');
     ctx.logger.error(
@@ -185,15 +223,28 @@ async function pkceLogin(ctx: LocalContext): Promise<boolean> {
   }
 }
 
-async function deviceCodeLogin(ctx: LocalContext): Promise<boolean> {
+async function deviceCodeLogin(
+  ctx: LocalContext,
+  workspace?: string,
+): Promise<boolean> {
   try {
     // 1. Request device code
     const device = await requestDeviceCode();
 
-    // 2. Display code and URL
-    ctx.process.stdout.write(
-      `\nVisit: ${chalk.cyan(device.verification_uri)}\n`,
-    );
+    // 2. Display code and URL. A url_key rides on the URL so auth-web can
+    // skip its workspace picker for a member (internal); the approval itself
+    // names no workspace.
+    let visit = device.verification_uri;
+    if (workspace !== undefined && looksLikeUrlKey(workspace)) {
+      try {
+        const url = new URL(device.verification_uri);
+        url.searchParams.set('workspace', workspace);
+        visit = url.toString();
+      } catch {
+        // Not a URL we can extend: the picker stays, the login still works.
+      }
+    }
+    ctx.process.stdout.write(`\nVisit: ${chalk.cyan(visit)}\n`);
     ctx.process.stdout.write(
       `Enter code: ${chalk.bold.yellow(device.user_code)}\n\n`,
     );
@@ -223,7 +274,7 @@ async function deviceCodeLogin(ctx: LocalContext): Promise<boolean> {
     }
     clearInterval(deviceTimer);
 
-    return await saveTokensAndFinish(ctx, tokenData);
+    return await saveTokensAndFinish(ctx, tokenData, workspace);
   } catch (err) {
     ctx.process.stdout.write('\n');
     ctx.logger.error(
@@ -237,6 +288,7 @@ async function deviceCodeLogin(ctx: LocalContext): Promise<boolean> {
 async function saveTokensAndFinish(
   ctx: LocalContext,
   tokenData: OAuthTokenResponse,
+  workspace?: string,
 ): Promise<boolean> {
   const apiUrl = getApiUrl();
 
@@ -250,6 +302,40 @@ async function saveTokensAndFinish(
     ctx.logger.error('Token response missing user data.');
     ctx.process.exitCode = 1;
     return false;
+  }
+
+  // internal: the hint is resolved BEFORE anything is written, by key or
+  // name exactly as `mcp add --workspace` resolves it. An unknown workspace
+  // is fail_closed: no credentials, no selection — a bad --workspace has no
+  // effect on any surface.
+  let selected: WorkspaceSite | undefined;
+  if (workspace !== undefined) {
+    let sites: WorkspaceSite[];
+    try {
+      sites = await fetchSites();
+    } catch (err) {
+      // A lookup that failed is not a workspace that does not exist: say so,
+      // and keep nothing either way.
+      ctx.process.stdout.write('\n');
+      ctx.logger.error(
+        `${err instanceof Error ? err.message : 'Could not list your workspaces.'}\n` +
+          'Nothing was saved. Try again.',
+      );
+      ctx.process.exitCode = 1;
+      return false;
+    }
+    try {
+      selected = findWorkspaceByKeyOrName(sites, workspace);
+    } catch (err) {
+      ctx.process.stdout.write('\n');
+      ctx.logger.error(
+        `${err instanceof Error ? err.message : 'Unknown workspace.'}\n` +
+          "Nothing was saved. Run 'levr auth login --workspace <url_key>' " +
+          "with one of them, or 'levr auth login' to choose later.",
+      );
+      ctx.process.exitCode = 1;
+      return false;
+    }
   }
 
   const creds: StoredCredentials = {
@@ -272,6 +358,14 @@ async function saveTokensAndFinish(
   ctx.process.stdout.write(` ${chalk.green('done')}\n\n`);
   ctx.logger.success(`Logged in as ${chalk.bold(user.email)}`);
   ctx.process.stdout.write('Credentials saved.\n');
+
+  if (selected) {
+    saveWorkspace(selected.workspace_id);
+    ctx.process.stdout.write(
+      `Workspace: ${chalk.bold(selected.workspace_name)} (${selected.workspace_url_key})\n`,
+    );
+    return true;
+  }
 
   // Auto-select workspace if only one available
   const wsResult = await autoSelectWorkspace();

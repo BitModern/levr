@@ -83,27 +83,50 @@ type SitesLoad =
   | { ok: false; error: string };
 
 /**
- * The workspaces of the logged-in user. Reads the session only; it never
- * reads or changes the workspace the CLI has selected.
+ * The login that makes `--workspace <x>` work. With the hint, the login
+ * skips the workspace picker for that workspace and selects it (internal).
+ * Double quotes: the one quoting POSIX shells and cmd.exe both take.
  */
-async function loadSites(): Promise<SitesLoad> {
+export function loginCommandFor(workspace?: string): string {
+  if (workspace === undefined) return 'levr auth login';
+  const word = /^[A-Za-z0-9_.@:/-]+$/.test(workspace)
+    ? workspace
+    : `"${workspace.replace(/"/g, '\\"')}"`;
+  return `levr auth login --workspace ${word}`;
+}
+
+/**
+ * The workspaces of the logged-in user. Reads the session only; it never
+ * reads or changes the workspace the CLI has selected. `workspace` is the
+ * `--workspace` value, for the refusal to name the exact login to run.
+ */
+async function loadSites(workspace?: string): Promise<SitesLoad> {
   let auth;
   try {
     auth = await resolveToken();
   } catch (err) {
+    // The cause stays (a server mismatch, an expired session); the hint
+    // adds the login that will pin this entry.
+    const cause =
+      err instanceof Error
+        ? err.message
+        : "Not authenticated. Run 'levr auth login' first.";
+    if (workspace === undefined) return { ok: false, error: cause };
+    // The generic no-credentials message offers LEVR_TOKEN as the other way
+    // in, but --workspace refuses a PAT (below), so that way is not open.
+    const forWorkspace = cause.replace(
+      ' or set LEVR_TOKEN environment variable',
+      '',
+    );
     return {
       ok: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : "Not authenticated. Run 'levr auth login' first.",
+      error: `${forWorkspace}\nTo pin this entry, log in naming the workspace: ${loginCommandFor(workspace)} (add --device-code on a headless machine), then re-run this command.`,
     };
   }
   if (auth.type === 'pat') {
     return {
       ok: false,
-      error:
-        "--workspace needs a login session, not a personal access token. Run 'levr auth login'.",
+      error: `--workspace needs a login session, not a personal access token. Run '${loginCommandFor(workspace)}'.`,
     };
   }
   configureClient(auth);
@@ -188,7 +211,7 @@ export async function mcpAddHandler(
       this.process.exitCode = 1;
       return;
     }
-    const loaded = await loadSites();
+    const loaded = await loadSites(flags.workspace);
     if (!loaded.ok) {
       this.logger.error(loaded.error);
       this.process.exitCode = 1;

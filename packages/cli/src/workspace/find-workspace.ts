@@ -11,6 +11,18 @@ import type { SitesResponseDto } from '@levr-one/sdk';
 
 export type WorkspaceSite = SitesResponseDto['sites'][number];
 
+/** The url_key syntax the backend and auth-web accept (reserved keys aside). */
+const URL_KEY_SYNTAX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
+
+/**
+ * Could this `--workspace` value be a url_key? Only a url_key can name a
+ * workspace before a session exists, so only one can skip the login picker
+ * (internal); a name is resolved once the token has arrived.
+ */
+export function looksLikeUrlKey(input: string): boolean {
+  return input.length <= 100 && URL_KEY_SYNTAX.test(input);
+}
+
 /** `  - Name (url_key)` per workspace, for error messages and hints. */
 export function describeWorkspaces(sites: readonly WorkspaceSite[]): string {
   return sites

@@ -296,8 +296,43 @@ describe('mcpAddHandler --workspace / --name / --replace (internal D6)', () => {
     const ctx = createMockContext();
     await mcpAddHandler.call(ctx, { ...BASE, workspace: 'acme' });
     expect(ctx.process.exitCode).toBe(1);
-    expect(loggedErrors(ctx)).toContain('levr auth login');
+    // The exact next command, hint included (internal): the login then
+    // skips the workspace picker for that workspace. The cause stays too.
+    expect(loggedErrors(ctx)).toContain('levr auth login --workspace acme');
+    expect(loggedErrors(ctx)).toContain('Not authenticated');
     expect(mockInstall).not.toHaveBeenCalled();
+  });
+
+  it('--workspace when not logged in does not suggest LEVR_TOKEN, which --workspace refuses', async () => {
+    mockResolveToken.mockRejectedValue(
+      new Error(
+        "Not authenticated. Run 'levr auth login' or set LEVR_TOKEN environment variable.",
+      ),
+    );
+    const ctx = createMockContext();
+    await mcpAddHandler.call(ctx, { ...BASE, workspace: 'acme' });
+    expect(ctx.process.exitCode).toBe(1);
+    expect(loggedErrors(ctx)).not.toContain('LEVR_TOKEN');
+    expect(loggedErrors(ctx)).toContain('levr auth login --workspace acme');
+  });
+
+  it('--workspace when not logged in keeps the real cause, e.g. another server', async () => {
+    mockResolveToken.mockRejectedValue(
+      new Error('Credentials are for https://api.levr.now, not this server.'),
+    );
+    const ctx = createMockContext();
+    await mcpAddHandler.call(ctx, { ...BASE, workspace: 'acme' });
+    expect(ctx.process.exitCode).toBe(1);
+    expect(loggedErrors(ctx)).toContain('https://api.levr.now');
+    expect(loggedErrors(ctx)).toContain('levr auth login --workspace acme');
+  });
+
+  it('the suggested login quotes a workspace name with spaces for every shell', async () => {
+    const ctx = createMockContext();
+    await mcpAddHandler.call(ctx, { ...BASE, workspace: 'My Team' });
+    expect(loggedErrors(ctx)).toContain(
+      'levr auth login --workspace "My Team"',
+    );
   });
 
   it('--workspace with a personal access token exits 1', async () => {
@@ -305,6 +340,7 @@ describe('mcpAddHandler --workspace / --name / --replace (internal D6)', () => {
     const ctx = createMockContext();
     await mcpAddHandler.call(ctx, { ...BASE, workspace: 'acme' });
     expect(ctx.process.exitCode).toBe(1);
+    expect(loggedErrors(ctx)).toContain('levr auth login --workspace acme');
     expect(mockInstall).not.toHaveBeenCalled();
   });
 

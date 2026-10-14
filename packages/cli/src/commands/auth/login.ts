@@ -9,9 +9,13 @@ By default, opens a browser for PKCE-based authentication.
 For headless environments (SSH, containers), use --device-code
 to authenticate via a code displayed in the terminal.
 
+With --workspace, the login selects that workspace for the CLI, and a
+url_key also skips the workspace picker in the browser.
+
 Examples:
-  levr auth login                 # Browser-based PKCE login
-  levr auth login --device-code   # Device flow for SSH/headless`,
+  levr auth login                   # Browser-based PKCE login
+  levr auth login --device-code     # Device flow for SSH/headless
+  levr auth login --workspace acme  # Skip the picker; select acme`,
   },
   parameters: {
     flags: {
@@ -25,6 +29,14 @@ Examples:
         parse: String,
         brief: 'API base URL (default: https://api.levr.one)',
         placeholder: 'url',
+        optional: true,
+      },
+      workspace: {
+        kind: 'parsed',
+        parse: String,
+        brief:
+          'Workspace to select, by url_key or name (a url_key also skips the workspace picker)',
+        placeholder: 'url_key|name',
         optional: true,
       },
     },

@@ -1,12 +1,13 @@
 import { configureClient } from "./sdk-client-DYv-0CfA.js";
 import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-CdwyPHGV.js";
-import "./workspace-store-CnrxyYRB.js";
-import { autoSelectWorkspace } from "./resolve-workspace-CStHisUb.js";
+import { saveWorkspace } from "./workspace-store-CnrxyYRB.js";
+import { autoSelectWorkspace, fetchSites } from "./resolve-workspace-CStHisUb.js";
 import { sleep } from "./sleep-BpJ39Ypm.js";
+import { findWorkspaceByKeyOrName, looksLikeUrlKey, resolveMcpUrl, scopedMcpUrl } from "./find-workspace-T4xuXwtS.js";
 import chalk from "chalk";
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import { URL } from "node:url";
+import { URL as URL$1 } from "node:url";
 
 //#region src/auth/pkce.ts
 /**
@@ -103,7 +104,7 @@ function startCallbackServer(options = {}) {
 		rejectCode = reject;
 	});
 	const server = createServer((req, res) => {
-		const url = new URL(req.url ?? "/", `http://127.0.0.1`);
+		const url = new URL$1(req.url ?? "/", `http://127.0.0.1`);
 		if (url.pathname === "/callback") {
 			const code = url.searchParams.get("code");
 			const error = url.searchParams.get("error");
@@ -225,20 +226,21 @@ function formatCountdown(ms) {
 async function loginHandler(flags) {
 	await performLogin(this, {
 		deviceCode: flags["device-code"],
-		url: flags.url
+		url: flags.url,
+		workspace: flags.workspace
 	});
 }
 /**
 * Run the login flow (PKCE or device code). Reusable outside the Stricli
-* handler (levr init composes it). Returns true on success; on failure the
-* error has been printed and `exitCode` set.
+* handler. Returns true on success; on failure the error has been printed
+* and `exitCode` set.
 */
 async function performLogin(ctx, options) {
 	if (options.url) setSessionApiUrl(options.url);
-	if (options.deviceCode) return deviceCodeLogin(ctx);
-	return pkceLogin(ctx);
+	if (options.deviceCode) return deviceCodeLogin(ctx, options.workspace);
+	return pkceLogin(ctx, options.workspace);
 }
-async function pkceLogin(ctx) {
+async function pkceLogin(ctx, workspace) {
 	const apiUrl = getApiUrl();
 	let authUrl;
 	try {
@@ -247,6 +249,12 @@ async function pkceLogin(ctx) {
 		ctx.logger.error(err instanceof Error ? err.message : "Invalid auth server configuration.");
 		ctx.process.exitCode = 1;
 		return false;
+	}
+	let resource;
+	if (workspace !== void 0 && looksLikeUrlKey(workspace)) try {
+		resource = scopedMcpUrl(resolveMcpUrl().url, workspace);
+	} catch (err) {
+		ctx.logger.debug(`Workspace picker not skipped: ${err instanceof Error ? err.message : String(err)}`);
 	}
 	const codeVerifier = generateCodeVerifier();
 	const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -265,6 +273,7 @@ async function pkceLogin(ctx) {
 		scope: "read:own write:own",
 		state
 	});
+	if (resource) params.append("resource", resource);
 	const authorizeUrl = `${authUrl}/auth/oauth/authorize?${params.toString()}`;
 	ctx.process.stdout.write("Opening browser to authenticate...\n\n");
 	ctx.process.stdout.write(`  If the browser doesn't open, visit:\n  ${chalk.cyan(authorizeUrl)}\n\n`);
@@ -306,7 +315,7 @@ async function pkceLogin(ctx) {
 			const errBody = await tokenRes.text();
 			throw new Error(`Token exchange failed (${tokenRes.status}): ${errBody}`);
 		}
-		return await saveTokensAndFinish(ctx, await tokenRes.json());
+		return await saveTokensAndFinish(ctx, await tokenRes.json(), workspace);
 	} catch (err) {
 		ctx.process.stdout.write("\n");
 		ctx.logger.error(err instanceof Error ? err.message : "Token exchange failed.");
@@ -314,10 +323,16 @@ async function pkceLogin(ctx) {
 		return false;
 	}
 }
-async function deviceCodeLogin(ctx) {
+async function deviceCodeLogin(ctx, workspace) {
 	try {
 		const device = await requestDeviceCode();
-		ctx.process.stdout.write(`\nVisit: ${chalk.cyan(device.verification_uri)}\n`);
+		let visit = device.verification_uri;
+		if (workspace !== void 0 && looksLikeUrlKey(workspace)) try {
+			const url = new URL(device.verification_uri);
+			url.searchParams.set("workspace", workspace);
+			visit = url.toString();
+		} catch {}
+		ctx.process.stdout.write(`\nVisit: ${chalk.cyan(visit)}\n`);
 		ctx.process.stdout.write(`Enter code: ${chalk.bold.yellow(device.user_code)}\n\n`);
 		const deviceDeadline = Date.now() + device.expires_in * 1e3;
 		const deviceTimer = setInterval(() => {
@@ -337,7 +352,7 @@ async function deviceCodeLogin(ctx) {
 			throw err;
 		}
 		clearInterval(deviceTimer);
-		return await saveTokensAndFinish(ctx, tokenData);
+		return await saveTokensAndFinish(ctx, tokenData, workspace);
 	} catch (err) {
 		ctx.process.stdout.write("\n");
 		ctx.logger.error(err instanceof Error ? err.message : "Device flow failed.");
@@ -345,7 +360,7 @@ async function deviceCodeLogin(ctx) {
 		return false;
 	}
 }
-async function saveTokensAndFinish(ctx, tokenData) {
+async function saveTokensAndFinish(ctx, tokenData, workspace) {
 	const apiUrl = getApiUrl();
 	configureClient({
 		token: tokenData.access_token,
@@ -357,6 +372,26 @@ async function saveTokensAndFinish(ctx, tokenData) {
 		ctx.logger.error("Token response missing user data.");
 		ctx.process.exitCode = 1;
 		return false;
+	}
+	let selected;
+	if (workspace !== void 0) {
+		let sites;
+		try {
+			sites = await fetchSites();
+		} catch (err) {
+			ctx.process.stdout.write("\n");
+			ctx.logger.error(`${err instanceof Error ? err.message : "Could not list your workspaces."}\nNothing was saved. Try again.`);
+			ctx.process.exitCode = 1;
+			return false;
+		}
+		try {
+			selected = findWorkspaceByKeyOrName(sites, workspace);
+		} catch (err) {
+			ctx.process.stdout.write("\n");
+			ctx.logger.error(`${err instanceof Error ? err.message : "Unknown workspace."}\nNothing was saved. Run 'levr auth login --workspace <url_key>' with one of them, or 'levr auth login' to choose later.`);
+			ctx.process.exitCode = 1;
+			return false;
+		}
 	}
 	writeCredentials({
 		version: 1,
@@ -373,6 +408,11 @@ async function saveTokensAndFinish(ctx, tokenData) {
 	ctx.process.stdout.write(` ${chalk.green("done")}\n\n`);
 	ctx.logger.success(`Logged in as ${chalk.bold(user.email)}`);
 	ctx.process.stdout.write("Credentials saved.\n");
+	if (selected) {
+		saveWorkspace(selected.workspace_id);
+		ctx.process.stdout.write(`Workspace: ${chalk.bold(selected.workspace_name)} (${selected.workspace_url_key})\n`);
+		return true;
+	}
 	const wsResult = await autoSelectWorkspace();
 	if (wsResult.kind === "single") ctx.process.stdout.write(`Workspace: ${chalk.bold(wsResult.workspaceName)}\n`);
 	else if (wsResult.kind === "multiple") ctx.process.stdout.write(`\n${wsResult.count} workspaces available. Run ${chalk.cyan("'levr workspace list'")} to see them.\n`);

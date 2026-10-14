@@ -209,7 +209,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-BqLLDeKp.js");
+		const { mcpAddHandler } = await import("./addHandler-B_3UmMbj.js");
 		return mcpAddHandler;
 	}
 });
@@ -225,9 +225,13 @@ By default, opens a browser for PKCE-based authentication.
 For headless environments (SSH, containers), use --device-code
 to authenticate via a code displayed in the terminal.
 
+With --workspace, the login selects that workspace for the CLI, and a
+url_key also skips the workspace picker in the browser.
+
 Examples:
-  levr auth login                 # Browser-based PKCE login
-  levr auth login --device-code   # Device flow for SSH/headless`
+  levr auth login                   # Browser-based PKCE login
+  levr auth login --device-code     # Device flow for SSH/headless
+  levr auth login --workspace acme  # Skip the picker; select acme`
 	},
 	parameters: {
 		flags: {
@@ -242,12 +246,19 @@ Examples:
 				brief: "API base URL (default: https://api.levr.one)",
 				placeholder: "url",
 				optional: true
+			},
+			workspace: {
+				kind: "parsed",
+				parse: String,
+				brief: "Workspace to select, by url_key or name (a url_key also skips the workspace picker)",
+				placeholder: "url_key|name",
+				optional: true
 			}
 		},
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-DzyfdKc2.js");
+		const { loginHandler } = await import("./loginHandler-DE0L1ehF.js");
 		return loginHandler;
 	}
 });
@@ -266,7 +277,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-TSQlZGpU.js");
+		const { logoutHandler } = await import("./logoutHandler-S4TFYFwz.js");
 		return logoutHandler;
 	}
 });
@@ -286,7 +297,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-B_xmACZl.js");
+		const { statusHandler } = await import("./statusHandler-BNiWlC7e.js");
 		return statusHandler;
 	}
 });
@@ -415,7 +426,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-DRFf9Zeu.js");
+		const { pushHandler } = await import("./pushHandler-DdNyVQ5t.js");
 		return pushHandler;
 	}
 });
@@ -535,7 +546,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-D2_Ol-Vp.js");
+		const { importHandler } = await import("./importHandler-zw5GKb-S.js");
 		return importHandler;
 	}
 });
@@ -556,7 +567,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-hmLz8zm8.js");
+		const { listHandler } = await import("./listHandler-YA-0RkwS.js");
 		return listHandler;
 	}
 });
@@ -594,7 +605,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-DNb1KJvM.js");
+		const { selectHandler } = await import("./selectHandler-Cejme5nY.js");
 		return selectHandler;
 	}
 });
@@ -611,7 +622,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-B_sWXNeW.js");
+		const { currentHandler } = await import("./currentHandler-u89l068v.js");
 		return currentHandler;
 	}
 });
@@ -680,7 +691,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-9tfiD3ZK.js");
+		const { gatesRunHandler } = await import("./runHandler-BFDjtxbt.js");
 		return gatesRunHandler;
 	}
 });
@@ -869,14 +880,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { resultAppendHandler } = await import("./appendHandler-9WDDNkkA.js");
+		const { resultAppendHandler } = await import("./appendHandler-KVsJMxpX.js");
 		return resultAppendHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.11.7";
+var version = "0.11.8";
 
 //#endregion
 //#region src/app.ts

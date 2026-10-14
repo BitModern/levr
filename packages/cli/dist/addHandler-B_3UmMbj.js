@@ -4,12 +4,13 @@ import "./token-refresh-DeusLK8H.js";
 import { resolveToken } from "./resolve-token-7xb7kG7h.js";
 import "./workspace-store-CnrxyYRB.js";
 import { fetchSites } from "./resolve-workspace-CStHisUb.js";
+import { describeWorkspaces, findWorkspaceByKeyOrName, isScopedMcpUrl, resolveMcpUrl, scopedMcpUrl, servedBySessionApi } from "./find-workspace-T4xuXwtS.js";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
-import { execFileSync } from "node:child_process";
 import { applyEdits, modify, parse, printParseErrorCode } from "jsonc-parser";
 import { TomlError, parse as parse$1 } from "smol-toml";
+import { execFileSync } from "node:child_process";
 
 //#region ../mcp-harnesses/dist/format/toml-render.js
 /**
@@ -2105,140 +2106,6 @@ function writeConfigAtomic(path$1, text) {
 }
 
 //#endregion
-//#region src/mcp/url.ts
-const KNOWN_MCP_URLS = {
-	"api.levr.one": "https://ai.levr.one/api/v1/mcp",
-	"api.levr.now": "https://ai.levr.now/api/v1/mcp"
-};
-/**
-* Resolve the MCP server URL: `--url` flag > `LEVR_MCP_URL` env > derived
-* from the resolved API URL (which itself honors `LEVR_URL` > the URL stored
-* at login > production default, ENG-2361). Known Levr hosts map to their
-* app-host MCP resource; anything else (localhost dev stacks, custom
-* deployments) derives `<api-url>/v1/mcp`.
-*/
-function resolveMcpUrl(flagUrl) {
-	const resolved = resolveRaw(flagUrl);
-	assertUsableMcpUrl(resolved.url, resolved.source);
-	return resolved;
-}
-function resolveRaw(flagUrl) {
-	if (flagUrl) return {
-		url: stripSlash(flagUrl),
-		source: "flag"
-	};
-	const envVar = process.env["LEVR_MCP_URL"];
-	if (envVar) return {
-		url: stripSlash(envVar),
-		source: "env:LEVR_MCP_URL"
-	};
-	const apiUrl = getApiUrl();
-	return {
-		url: knownMcpUrl(apiUrl) ?? `${apiUrl}/v1/mcp`,
-		source: `derived:${apiUrl}`
-	};
-}
-/** Name the input the user has to change, not our internal source tag. */
-function sourceLabel(source) {
-	if (source === "flag") return "--url";
-	if (source === "env:LEVR_MCP_URL") return "LEVR_MCP_URL";
-	return `the API URL (${source.slice(8)})`;
-}
-/**
-* Reject a URL that must not reach a client config or a spawned CLI (ENG-4159).
-*
-* Three things this stops:
-*
-* 1. **No scheme.** `claude mcp add --transport http --scope user levr <value>`
-*    is spawned with fixed argv since ENG-4156, so a value like `--foo` is read
-*    by that CLI as a FLAG rather than as its URL operand — argument injection.
-*    Requiring a parseable absolute URL removes the shape entirely.
-* 2. **A non-http(s) scheme.** `file:` / `javascript:` is never a valid MCP
-*    endpoint, but would be written verbatim into every client's config.
-* 3. **Embedded credentials.** `https://user:pass@host` would be written into
-*    a config file — and since ENG-4151 a config file can be `--scope project`,
-*    which the user is told to COMMIT. That turns a bad URL into a secret in
-*    git history. MCP authenticates via OAuth in the browser; credentials in
-*    the URL are never needed.
-*/
-function assertUsableMcpUrl(url, source) {
-	const from = sourceLabel(source);
-	let parsed;
-	try {
-		parsed = new URL(url);
-	} catch {
-		throw new Error(`Invalid MCP URL from ${from}: ${JSON.stringify(url)} is not a URL. Expected an absolute http(s) URL, e.g. https://ai.levr.one/api/v1/mcp`);
-	}
-	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error(`Invalid MCP URL from ${from}: ${JSON.stringify(url)} uses "${parsed.protocol}" — only http and https are supported.`);
-	if (!parsed.hostname) throw new Error(`Invalid MCP URL from ${from}: ${JSON.stringify(url)} has no host.`);
-	if (parsed.username || parsed.password) throw new Error(`Invalid MCP URL from ${from}: ${JSON.stringify(url)} embeds credentials. They would be written into client config files — including project-scoped ones you are told to commit. Levr authenticates in the browser; remove the user:password@ prefix.`);
-}
-/**
-* Is this MCP URL served by the API the CLI is logged in to? `--workspace`
-* and the workspace picker read that API's workspaces, so pinning a URL on
-* another server to one of them would name the wrong workspace, or none
-* (ENG-6300 D6).
-*/
-function servedBySessionApi(mcpUrl) {
-	const apiUrl = getApiUrl();
-	const derived = knownMcpUrl(apiUrl) ?? `${apiUrl}/v1/mcp`;
-	try {
-		return new URL(mcpUrl).origin === new URL(derived).origin;
-	} catch {
-		return false;
-	}
-}
-/** `…/v1/mcp/w/<url_key>`: the URL already names one workspace (ENG-6300). */
-const SCOPED_SUFFIX = /\/w\/[^/]+$/;
-/** Does this MCP URL already name a workspace? */
-function isScopedMcpUrl(url) {
-	return SCOPED_SUFFIX.test(stripSlash(url));
-}
-/**
-* The MCP URL for one workspace, `<base>/w/<url_key>` (ENG-6300 D6). A base
-* that already names a workspace is an error rather than a silent re-point:
-* `--url …/w/a --workspace b` asks for two different workspaces at once.
-*/
-function scopedMcpUrl(base, urlKey) {
-	const root = stripSlash(base);
-	if (isScopedMcpUrl(root)) throw new Error(`The MCP URL ${root} already names a workspace. Drop --workspace, or pass the URL without its /w/<url_key> suffix.`);
-	return `${root}/w/${encodeURIComponent(urlKey)}`;
-}
-function knownMcpUrl(apiUrl) {
-	try {
-		return KNOWN_MCP_URLS[new URL(apiUrl).host];
-	} catch {
-		return;
-	}
-}
-function stripSlash(url) {
-	return url.replace(/\/+$/, "");
-}
-
-//#endregion
-//#region src/workspace/find-workspace.ts
-/** `  - Name (url_key)` per workspace, for error messages and hints. */
-function describeWorkspaces(sites) {
-	return sites.map((s) => `  - ${s.workspace_name} (${s.workspace_url_key})`).join("\n");
-}
-/**
-* An exact `url_key` wins; otherwise a case-insensitive name that matches
-* exactly one workspace. Anything else throws, listing the choices.
-*/
-function findWorkspaceByKeyOrName(sites, input) {
-	const wanted = input.trim();
-	if (!wanted) throw new Error("--workspace needs a workspace name or url_key.");
-	const byKey = sites.find((s) => s.workspace_url_key === wanted);
-	if (byKey) return byKey;
-	const lower = wanted.toLowerCase();
-	const byName = sites.filter((s) => s.workspace_name.toLowerCase() === lower);
-	if (byName.length === 1) return byName[0];
-	if (byName.length > 1) throw new Error(`"${wanted}" names more than one workspace. Pass its url_key instead:\n` + describeWorkspaces(byName));
-	if (sites.length === 0) throw new Error("Your account has no workspaces.");
-	throw new Error(`No workspace "${wanted}" in your account. Choose one of:\n` + describeWorkspaces(sites));
-}
-
-//#endregion
 //#region src/mcp/run.ts
 /**
 * Scope used when the caller passes no `--scope`.
@@ -2541,22 +2408,37 @@ function depsFor(entry) {
 	};
 }
 /**
-* The workspaces of the logged-in user. Reads the session only; it never
-* reads or changes the workspace the CLI has selected.
+* The login that makes `--workspace <x>` work. With the hint, the login
+* skips the workspace picker for that workspace and selects it (ENG-6694).
+* Double quotes: the one quoting POSIX shells and cmd.exe both take.
 */
-async function loadSites() {
+function loginCommandFor(workspace) {
+	if (workspace === void 0) return "levr auth login";
+	return `levr auth login --workspace ${/^[A-Za-z0-9_.@:/-]+$/.test(workspace) ? workspace : `"${workspace.replace(/"/g, "\\\"")}"`}`;
+}
+/**
+* The workspaces of the logged-in user. Reads the session only; it never
+* reads or changes the workspace the CLI has selected. `workspace` is the
+* `--workspace` value, for the refusal to name the exact login to run.
+*/
+async function loadSites(workspace) {
 	let auth;
 	try {
 		auth = await resolveToken();
 	} catch (err) {
+		const cause = err instanceof Error ? err.message : "Not authenticated. Run 'levr auth login' first.";
+		if (workspace === void 0) return {
+			ok: false,
+			error: cause
+		};
 		return {
 			ok: false,
-			error: err instanceof Error ? err.message : "Not authenticated. Run 'levr auth login' first."
+			error: `${cause.replace(" or set LEVR_TOKEN environment variable", "")}\nTo pin this entry, log in naming the workspace: ${loginCommandFor(workspace)} (add --device-code on a headless machine), then re-run this command.`
 		};
 	}
 	if (auth.type === "pat") return {
 		ok: false,
-		error: "--workspace needs a login session, not a personal access token. Run 'levr auth login'."
+		error: `--workspace needs a login session, not a personal access token. Run '${loginCommandFor(workspace)}'.`
 	};
 	configureClient(auth);
 	try {
@@ -2621,7 +2503,7 @@ async function mcpAddHandler(flags) {
 			this.process.exitCode = 1;
 			return;
 		}
-		const loaded = await loadSites();
+		const loaded = await loadSites(flags.workspace);
 		if (!loaded.ok) {
 			this.logger.error(loaded.error);
 			this.process.exitCode = 1;

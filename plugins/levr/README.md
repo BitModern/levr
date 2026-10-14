@@ -47,7 +47,7 @@ Connect each workspace you work in by its own address. Every workspace has one, 
    claude mcp add --transport http --scope user levr-acme https://ai.levr.one/api/v1/mcp/w/acme
    ```
 
-   The command line installer does the same once you are signed in to it: `npx @levr-one/cli@latest auth login`, then `npx @levr-one/cli@latest mcp add --client claude-code --workspace acme --name levr-acme`.
+   The command line installer does the same once you are signed in to it: `npx @levr-one/cli@latest auth login --workspace acme` (a fresh sign-in then does not ask which workspace), then `npx @levr-one/cli@latest mcp add --client claude-code --workspace acme --name levr-acme`.
 
    Run `/mcp`, choose the new entry and sign in. If it is not listed, restart Claude Code. Repeat for each workspace you use.
 
