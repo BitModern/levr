@@ -23,7 +23,7 @@ Then sign in. Run `/mcp`, choose `levr`, and follow the browser prompt. Levr use
 
 The plugin also includes:
 
-- **The Levr MCP server connection**, so every Levr tool is available to Claude.
+- **The Levr MCP server connection**, so Levr's tools are available to Claude. With several workspaces it offers only `list_workspaces` until you connect one; see below.
 - **A `using-levr` skill** that Claude loads by itself when it is about to change an issue. It covers a few habits: send the `epoch` you read when you rewrite a description or title, prefer a comment to rewriting a long description, and when no workspace is selected, ask you which one to use instead of choosing for you.
 
 The plugin contains no agents, hooks or background processes. It does not change how you run your workflow.
@@ -37,7 +37,7 @@ The plugin contains no agents, hooks or background processes. It does not change
 
 If your account has one workspace, the plugin uses it and there is nothing to set up.
 
-If you belong to several, the plugin's connection does not know which one you mean. Its tools then reply that no workspace is selected, and nothing is read or written. Claude lists your workspaces and asks which one to use; it never picks one for you.
+If you belong to several, the plugin's connection does not know which one you mean. It then offers only `list_workspaces`, and nothing is read or written. Claude lists your workspaces and asks which one to use; it never picks one for you.
 
 Connect each workspace you work in by its own address. Every workspace has one, ending in `/v1/mcp/w/<url_key>`. Ask Claude to list your workspaces to see them, or copy it from **Settings › MCP Setup** in the Levr app.
 
@@ -51,7 +51,7 @@ Connect each workspace you work in by its own address. Every workspace has one, 
 
    Run `/mcp`, choose the new entry and sign in. If it is not listed, restart Claude Code. Repeat for each workspace you use.
 
-2. Hide the plugin's own connection, so each Levr tool is listed once per workspace instead of once more for a connection that cannot write. Add the `deniedMcpServers` key to `~/.claude/settings.json`, keeping the keys already in the file. If the key is already there, add the entry to its list:
+2. Optional: hide the plugin's own connection. Without a workspace it lists only `list_workspaces`, so this removes just that one tool; add the key if you want it hidden entirely. Add the `deniedMcpServers` key to `~/.claude/settings.json`, keeping the keys already in the file. If the key is already there, add the entry to its list:
 
    ```json
    {
@@ -61,7 +61,7 @@ Connect each workspace you work in by its own address. Every workspace has one, 
 
    This applies in every project. The `/levr:` commands keep working; they use the workspace connections. To hide it in one project only, use `/mcp` and disable `plugin:levr:levr` there instead.
 
-A workspace's address is a different address from the plugin's, so Claude Code keeps both connections until you hide one; that is why the second step is needed. With several workspaces connected, say which one you mean, and Claude asks when you have not.
+A workspace's address is a different address from the plugin's, so Claude Code keeps both connections until you hide one; without a workspace, the plugin's connection offers only `list_workspaces`. With several workspaces connected, say which one you mean, and Claude asks when you have not.
 
 ## Staging and local servers
 
