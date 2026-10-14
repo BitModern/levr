@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PRESETS } from './config.js';
+import { normalizeBackendUrl } from './token-store.js';
 import {
   backendUrlForLevrMcp,
   buildTokenRows,
@@ -180,6 +181,46 @@ describe('backendUrlForLevrMcp', () => {
     expect(backendUrlForLevrMcp('https://ai.levr.now/api/v1/mcp/')).toBe(
       'https://api.levr.now',
     );
+  });
+
+  // internal: a scoped (internal) or levr-browser (internal) URL is the same
+  // backend as its /v1/mcp.
+  it.each([
+    'https://ai.levr.now/api/v1/mcp',
+    'https://ai.levr.now/api/v1/mcp/w/bitmodern5',
+    'https://ai.levr.now/api/v1/mcp/w/bitmodern5/',
+    'https://ai.levr.now/api/v1/mcp/browser',
+    'https://ai.levr.now/api/v1/mcp/browser/w/bitmodern5',
+  ])('maps %s to the staging api host', (url) => {
+    expect(backendUrlForLevrMcp(url)).toBe(PRESETS.staging.apiUrl);
+  });
+
+  it('keys a scoped worktree local like its unscoped url', () => {
+    expect(backendUrlForLevrMcp('http://localhost:9780/v1/mcp/w/acme/')).toBe(
+      'http://localhost:9780',
+    );
+    expect(
+      backendUrlForLevrMcp(
+        'https://ai.levr.test:3020/api/v1/mcp/browser/w/acme',
+      ),
+    ).toBe('https://ai.levr.test:3020/api');
+  });
+
+  it('tq:status: a scoped URL on the configured host is NOT a different backend', () => {
+    // The exact predicate `tq:status` (cli.ts) warns on.
+    const active = normalizeBackendUrl(PRESETS.staging.apiUrl);
+    for (const url of [
+      'https://ai.levr.now/api/v1/mcp/w/bitmodern5',
+      'https://ai.levr.now/api/v1/mcp/w/bitmodern5/',
+    ]) {
+      expect(normalizeBackendUrl(backendUrlForLevrMcp(url))).toBe(active);
+    }
+    // Positive control: another host still disagrees.
+    expect(
+      normalizeBackendUrl(
+        backendUrlForLevrMcp('https://ai.levr.one/api/v1/mcp/w/bitmodern5'),
+      ),
+    ).not.toBe(active);
   });
 });
 

@@ -114,7 +114,12 @@ export function buildTokenRows(
  * `PRESETS` is what keeps this copy honest.
  */
 export function backendUrlForLevrMcp(levrUrl: string): string {
-  const base = levrUrl.replace(/\/+$/, '').replace(/\/v1\/mcp$/, '');
+  // internal: a scoped or levr-browser URL — `…/v1/mcp/w/<url_key>`,
+  // `…/v1/mcp/browser`, `…/v1/mcp/browser/w/<url_key>` — is the same backend
+  // as its `…/v1/mcp` (`unscopedLevrMcpUrl` is the scripts/ twin).
+  const base = levrUrl
+    .replace(/\/+$/, '')
+    .replace(/\/v1\/mcp(?:\/browser)?(?:\/w\/[^/]+)?$/, '');
   // ONLY the two hosted presets. `PRESETS.local` must never join this list:
   // under DEV_TLS it is `LOCAL_HTTPS`, whose clientUrl+`/api` is
   // `https://ai.levr.test:3020/api` — a real key in the token map that has to
