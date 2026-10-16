@@ -13,6 +13,7 @@ import {
   HARNESS_SCOPES,
   supportedScopes,
   supportsScope,
+  scopeDef,
   type DetectedHarness,
   type DetectedScope,
   type HarnessDef,
@@ -568,6 +569,12 @@ function outcomeLine(
   entryName?: string,
 ): string {
   const r = o.result;
+  // A scope may declare a one-line caveat on the catalog (data, never a
+  // client-id branch here). Keyed on the scope actually USED, so a fallback
+  // to `user` never shows a project-scope note (internal).
+  const harness = getHarness(o.id);
+  const scopeNote = harness ? scopeDef(harness, r.scope)?.note : undefined;
+  const caveat = scopeNote ? ` [${scopeNote}]` : '';
   // A fallback is always stated — never let a client land somewhere the user
   // did not ask for without saying so.
   const note =
@@ -602,20 +609,20 @@ function outcomeLine(
     return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
   }
   if (r.alreadyConfigured) {
-    return `${o.label}: already set up (${r.scope})${where}${note}`;
+    return `${o.label}: already set up (${r.scope})${where}${note}${caveat}`;
   }
   if (r.command) {
     if (r.executed) {
-      return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}`;
+      return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}${caveat}`;
     }
-    return `${o.label} (${r.scope}): run \`${r.command}\`${replaced}${note}`;
+    return `${o.label} (${r.scope}): run \`${r.command}\`${replaced}${note}${caveat}`;
   }
   if (dryRun) {
-    return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}`;
+    return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}${caveat}`;
   }
   if (r.wrote)
-    return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}`;
-  return `${o.label}: no change (${r.scope})${where}${note}`;
+    return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}${caveat}`;
+  return `${o.label}: no change (${r.scope})${where}${note}${caveat}`;
 }
 
 /** Render a report as a plain multi-line summary (used by the CLI + tests). */

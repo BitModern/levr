@@ -23,8 +23,8 @@ export const mcpAddCommand = buildCommand({
   docs: {
     brief: 'Add the Levr MCP server to installed AI clients',
     fullDescription: `Detect MCP-capable clients on this machine (Claude Desktop,
-Claude Code, Cursor, Windsurf, Zed, VS Code, Gemini CLI, Codex CLI,
-Grok Build, Antigravity) and write the Levr MCP server into each one's config. The entry is credential-free — the client opens a browser to
+Claude Code, Codex CLI, Grok Build, Antigravity, Gemini CLI, Cursor, Windsurf,
+Zed, VS Code) and write the Levr MCP server into each one's config. The entry is credential-free — the client opens a browser to
 authorize with Levr the first time it connects.
 
 --scope decides where the entry lands:
@@ -32,8 +32,8 @@ authorize with Levr the first time it connects.
   project  this repository, shared with everyone who checks it out
   local    this repository, only you (Claude Code only)
 
-Not every client supports every scope — Claude Desktop, Windsurf, Codex CLI
-and Antigravity are user-only. A client you name with --client fails if it cannot honor the
+Not every client supports every scope — Claude Desktop and Windsurf are user-only.
+A client you name with --client fails if it cannot honor the
 scope you asked for; one picked up by --all or interactively falls back to
 the scope it does support, and the report says so.
 
@@ -53,12 +53,21 @@ Interactive by default; non-interactive when --all/--client/--yes is passed
 or when not running in a terminal (CI). Config edits preserve existing
 servers and comments, and re-running is a no-op.
 
+Tool pre-approval (opt-in): for a client whose permission file has a
+documented per-tool allow key (Claude Code, Cursor, Zed), the installer can
+add entries that let your agent call Levr's non-destructive tools without
+asking each time. It prints the exact file and every entry first, and asks
+(default No). Non-interactively it writes them only with --preapprove-tools.
+With --dry-run it prints what it would add and writes nothing. If a write
+asked for with --preapprove-tools fails, the command exits 1.
+
 Examples:
   npx @levr-one/cli@latest mcp add     # detect clients and pick interactively
   levr mcp add --all                   # set up every detected client
   levr mcp add --client cursor --yes
   levr mcp add --scope project         # commit the config to this repo
   levr mcp add --dry-run               # preview without writing
+  levr mcp add --client claude-code --yes --preapprove-tools
   levr mcp add --workspace acme        # pin the entry to one workspace
   levr mcp add --workspace beta --replace          # switch it to another
   levr mcp add --workspace beta --name levr-beta   # add a second, side by side
@@ -121,6 +130,12 @@ Examples:
         kind: 'boolean',
         optional: true,
         brief: 'Switch an existing entry of this name to the new URL',
+      },
+      'preapprove-tools': {
+        kind: 'boolean',
+        optional: true,
+        brief:
+          "Non-interactive: also pre-approve Levr's non-destructive tools in the client's permission file",
       },
     },
     aliases: {

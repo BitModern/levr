@@ -1,8 +1,13 @@
 import {
   DEFAULT_SERVER_NAME,
   detectSync,
+  getHarness,
   installHarnessSync,
+  LEVR_PREAPPROVED_TOOL_DESCRIPTIONS,
+  preapproveTools,
+  type HarnessDef,
   type HarnessScope,
+  type PreapproveResult,
 } from '@levr/mcp-harnesses/node';
 import { resolveToken } from '../../auth/resolve-token.js';
 import type { LocalContext } from '../../context.js';
@@ -46,6 +51,8 @@ interface McpAddFlags {
   'dry-run': boolean;
   scope?: HarnessScope;
   url?: string;
+  /** Stricli fills its `false` default; optional for direct callers. */
+  'preapprove-tools'?: boolean;
   workspace?: string;
   name?: string;
   replace?: boolean;
@@ -271,10 +278,280 @@ export async function mcpAddHandler(
     if (report.unknownClients.length > 0 || hasFailure(report)) {
       this.process.exitCode = 1;
     }
+    await offerPreapproval(this, report.outcomes, {
+      mode: 'non-interactive',
+      dryRun: options.dryRun,
+      flag: flags['preapprove-tools'] ?? false,
+      serverName: entry.serverName,
+    });
     return;
   }
 
   await interactive(this, options.dryRun, url, source, flags, entry, urlKey);
+}
+
+// ---------------------------------------------------------------------------
+// Tool pre-approval with disclosure (internal, plan internal §D9)
+// ---------------------------------------------------------------------------
+
+/**
+ * The sentence every disclosure carries, verbatim. It must stay literally
+ * true of every tool in `LEVR_PREAPPROVED_TOOLS` (code review F-027).
+ * deploy_gates and transition_issue stay pre-approved (user decision
+ * 2026-10-15): deploy_gates can change or withdraw a gate and
+ * transition_issue can waive one, so the disclosure says that instead of
+ * promising otherwise.
+ */
+const PREAPPROVE_EXPLANATION =
+  'These let your agent call these Levr tools without asking each time. ' +
+  'None of them can delete anything. deploy_gates can change or withdraw ' +
+  "a task's gates, and transition_issue can waive a failing required gate " +
+  'to finish a task; every change and waiver is recorded on the gate.';
+
+/** The confirmation question. The default is No. */
+const PREAPPROVE_QUESTION = 'Add these permissions? (y/N)';
+
+interface PreapproveMode {
+  mode: 'interactive' | 'non-interactive';
+  dryRun: boolean;
+  /** `--preapprove-tools` was passed. */
+  flag: boolean;
+  /**
+   * The client entry's name (`--name`, default `levr`): Claude Code's
+   * permission rules are `mcp__<server>__<tool>`, so the entries must name
+   * the server this run actually wrote.
+   */
+  serverName: string;
+}
+
+interface PreapproveCandidate {
+  harness: HarnessDef;
+  scope: HarnessScope;
+}
+
+/** Clients this run installed into that can take a pre-approval in that scope. */
+function preapproveCandidates(
+  outcomes: RunReport['outcomes'],
+): PreapproveCandidate[] {
+  const out: PreapproveCandidate[] = [];
+  for (const o of outcomes) {
+    if (!o.result.ok) continue;
+    const harness = getHarness(o.id);
+    if (!harness?.autoApprove?.file[o.result.scope]) continue;
+    out.push({ harness, scope: o.result.scope });
+  }
+  return out;
+}
+
+/** "get_issue: reads one task" for an entry's tool. */
+function describeTool(tool: string): string {
+  const description = (
+    LEVR_PREAPPROVED_TOOL_DESCRIPTIONS as Readonly<Record<string, string>>
+  )[tool];
+  return description ? `${tool}: ${description}` : tool;
+}
+
+/**
+ * Who the permission file reaches (code review F-030): a `project` file sits
+ * in the repository and is usually committed, so it grants the tools to
+ * everyone on the repo; a `local` file is personal, and when it is about to
+ * be created somewhere git does not ignore, the user is told so (we never
+ * edit their .gitignore).
+ */
+function sharingNote(plan: PreapproveResult): string | null {
+  if (plan.scope === 'project') {
+    return (
+      'This file is in your repository and is usually committed: these ' +
+      'permissions are shared via git with everyone who uses this repo.'
+    );
+  }
+  if (plan.scope === 'local') {
+    const note = 'This file is personal to you in this repository.';
+    if (!plan.fileExists && plan.gitIgnored === false) {
+      return (
+        `${note} It does not exist yet and git does not ignore it, so it ` +
+        'would be committed by a "git add" of that folder: add it to ' +
+        '.gitignore if you do not want to share it.'
+      );
+    }
+    return note;
+  }
+  return null;
+}
+
+/**
+ * The full disclosure for one client: the exact file, who it is shared with,
+ * every entry that would be added (each with what its tool does), what is
+ * already there, what the entries mean, any caveat, and how to undo it.
+ * Printed BEFORE anything is written, in every mode.
+ */
+export function buildPreapproveDisclosure(
+  label: string,
+  plan: PreapproveResult,
+): string {
+  const lines: string[] = [];
+  lines.push(`${label}: pre-approve Levr tools`);
+  lines.push(`File: ${plan.file}`);
+  const sharing = sharingNote(plan);
+  if (sharing) lines.push(sharing);
+  const valueNote = plan.toolValue
+    ? ` (each set to ${JSON.stringify(plan.toolValue)})`
+    : '';
+  lines.push(`Entries to add under "${plan.keyPath}"${valueNote}:`);
+  for (const e of plan.addedEntries) {
+    lines.push(`  ${e.entry}  (${describeTool(e.tool)})`);
+  }
+  if (plan.alreadyPresent.length > 0) {
+    lines.push(
+      `Already present, left as is: ${plan.alreadyPresent.join(', ')}`,
+    );
+  }
+  if (plan.conflicting.length > 0) {
+    lines.push(
+      `Set differently by you, left as is: ${plan.conflicting.join(', ')}`,
+    );
+  }
+  lines.push(PREAPPROVE_EXPLANATION);
+  if (plan.caveat) lines.push(plan.caveat);
+  lines.push(
+    `To undo: remove these entries from "${plan.keyPath}" in ${plan.file}: ` +
+      plan.added.join(', '),
+  );
+  return lines.join('\n');
+}
+
+function preapproveFailureText(r: PreapproveResult): string {
+  // A deliberate no-write (code review F-029) says what to do, not a code.
+  if (r.reason === 'allowlist-key-absent' && r.detail) {
+    return `permissions not added (${r.detail})`;
+  }
+  const why = r.detail ? `${r.reason}: ${r.detail}` : (r.reason ?? 'unknown');
+  return `permissions not added (${why})`;
+}
+
+/**
+ * Whether a not-`ok` result counts against an explicit `--preapprove-tools`
+ * (code review F-031). `allowlist-key-absent` is the writer declining on
+ * purpose to protect the user's own allowlist — the safe outcome, so it is
+ * reported but never fails the run.
+ */
+function isPreapproveFailure(r: PreapproveResult): boolean {
+  return !r.ok && r.reason !== 'allowlist-key-absent';
+}
+
+/**
+ * Nothing to add (code review F-052): "already pre-approved" only when every
+ * entry is already there. Entries the user set differently (a Zed deny) are
+ * named as theirs and left alone — never claimed as approved.
+ */
+function nothingToAddText(label: string, plan: PreapproveResult): string {
+  if (plan.conflicting.length === 0) {
+    return `${label}: Levr tools are already pre-approved in ${plan.file}.`;
+  }
+  const lines = [
+    `${label}: nothing added to ${plan.file}.`,
+    `Set differently by you, left as is: ${plan.conflicting.join(', ')}`,
+  ];
+  if (plan.alreadyPresent.length > 0) {
+    lines.push(`Already pre-approved: ${plan.alreadyPresent.join(', ')}`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * After a successful install, offer to pre-approve Levr's non-destructive
+ * tools in each client that has a documented per-tool allow key.
+ *
+ * - Interactive: print the disclosure, then ask with No as the default.
+ * - Non-interactive: never write unless `--preapprove-tools` was passed; with
+ *   it, print the same disclosure to stderr before writing.
+ * - `--dry-run`: print the disclosure and write nothing.
+ *
+ * Error direction: fail_fallback(continue). A failure is reported as
+ * "permissions not added" and the run carries on to the next client. When
+ * `--preapprove-tools` was passed, the user ASKED for the write, so a
+ * failure sets exit code 1 once every client has been tried (code review
+ * F-031). An interactive "No" and `--dry-run` are never failures.
+ *
+ * Cancelling a prompt (Ctrl+C) stops the whole offer: no further client is
+ * asked, and each is reported "permissions not added" (code review F-063).
+ */
+async function offerPreapproval(
+  ctx: LocalContext,
+  outcomes: RunReport['outcomes'],
+  opts: PreapproveMode,
+): Promise<void> {
+  const candidates = preapproveCandidates(outcomes);
+  if (candidates.length === 0) return;
+  const out = (s: string) => ctx.process.stdout.write(`${s}\n`);
+
+  if (opts.mode === 'non-interactive' && !opts.flag && !opts.dryRun) {
+    out(
+      '\nTip: re-run with --preapprove-tools to let your agent call ' +
+        "Levr's non-destructive tools without asking each time " +
+        '(add --dry-run to see exactly what it would write).',
+    );
+    return;
+  }
+
+  let failed = false;
+  for (const [index, { harness, scope }] of candidates.entries()) {
+    const plan = preapproveTools(harness, scope, opts.serverName, {
+      dryRun: true,
+    });
+    if (!plan.ok) {
+      out(`\n${harness.label}: ${preapproveFailureText(plan)}`);
+      if (!opts.dryRun && isPreapproveFailure(plan)) failed = true;
+      continue;
+    }
+    if (plan.added.length === 0) {
+      out(`\n${nothingToAddText(harness.label, plan)}`);
+      continue;
+    }
+    const disclosure = buildPreapproveDisclosure(harness.label, plan);
+
+    if (opts.dryRun) {
+      out(`\n${disclosure}\n(dry run: nothing written)`);
+      continue;
+    }
+
+    if (opts.mode === 'non-interactive') {
+      // --preapprove-tools: the disclosure goes to stderr BEFORE the write.
+      ctx.process.stderr.write(`\n${disclosure}\n`);
+    } else {
+      out(`\n${disclosure}`);
+      const p = await import('@clack/prompts');
+      const answer = await p.confirm({
+        message: PREAPPROVE_QUESTION,
+        initialValue: false,
+      });
+      if (p.isCancel(answer)) {
+        out(`${harness.label}: permissions not added.`);
+        for (const rest of candidates.slice(index + 1)) {
+          out(`${rest.harness.label}: permissions not added (cancelled).`);
+        }
+        break;
+      }
+      if (answer !== true) {
+        out(`${harness.label}: permissions not added.`);
+        continue;
+      }
+    }
+
+    const written = preapproveTools(harness, scope, opts.serverName, {
+      dryRun: false,
+    });
+    if (!written.ok) {
+      out(`${harness.label}: ${preapproveFailureText(written)}`);
+      if (isPreapproveFailure(written)) failed = true;
+      continue;
+    }
+    out(
+      `${harness.label}: added ${written.added.length} permission ` +
+        `${written.added.length === 1 ? 'entry' : 'entries'} to ${written.file}.`,
+    );
+  }
+  if (opts.flag && failed) ctx.process.exitCode = 1;
 }
 
 /**
@@ -518,6 +795,12 @@ async function interactive(
     left,
   };
   p.note(formatReport(report), 'Results');
+  await offerPreapproval(ctx, outcomes, {
+    mode: 'interactive',
+    dryRun,
+    flag: flags['preapprove-tools'] ?? false,
+    serverName: entry.serverName,
+  });
   p.outro(nextStepsText(report));
   if (hasFailure(report)) {
     ctx.process.exitCode = 1;

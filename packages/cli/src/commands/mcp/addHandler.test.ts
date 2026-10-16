@@ -56,6 +56,10 @@ const prompts = vi.hoisted(() => {
     CANCEL,
     select: vi.fn(),
     multiselect: vi.fn(),
+    // internal (plan internal D9): an interactive install into a client with a
+    // per-tool allow key ends with the pre-approval question. These tests are
+    // about the workspace and entry flow, so it answers the default, No.
+    confirm: vi.fn(() => Promise.resolve(false)),
     isCancel: (v: unknown) => v === CANCEL,
     intro: vi.fn(),
     note: vi.fn(),
@@ -183,6 +187,7 @@ describe('mcpAddHandler (non-interactive)', () => {
       all: false,
       yes: true,
       'dry-run': false,
+      'preapprove-tools': false,
       client: ['cursor'],
     });
 
@@ -198,6 +203,7 @@ describe('mcpAddHandler (non-interactive)', () => {
       all: false,
       yes: false,
       'dry-run': true,
+      'preapprove-tools': false,
       client: ['cursor, zed'],
     });
 
@@ -211,6 +217,7 @@ describe('mcpAddHandler (non-interactive)', () => {
       all: false,
       yes: true,
       'dry-run': false,
+      'preapprove-tools': false,
       client: ['bogus'],
     });
 
@@ -225,6 +232,7 @@ describe('mcpAddHandler (non-interactive)', () => {
       all: true,
       yes: false,
       'dry-run': false,
+      'preapprove-tools': false,
     });
 
     expect(ctx.process.exitCode).toBe(1);
@@ -242,6 +250,7 @@ describe('mcpAddHandler (non-interactive)', () => {
       all: false,
       yes: true,
       'dry-run': false,
+      'preapprove-tools': false,
     });
 
     expect(ctx.process.exitCode).toBe(0);
@@ -253,6 +262,7 @@ describe('mcpAddHandler (non-interactive)', () => {
       all: false,
       yes: true,
       'dry-run': false,
+      'preapprove-tools': false,
       client: ['cursor'],
       url: 'https://custom/v1/mcp',
     });

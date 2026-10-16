@@ -1216,3 +1216,105 @@ describe('internal · real detection and the real installer agree', () => {
     expect(Object.keys(entries()).sort()).toEqual(['levr', 'levr-beta']);
   });
 });
+
+describe('scope note rendering (internal)', () => {
+  // The Codex project scope declares a trust note on the real catalog; the
+  // CLI renders it from data, never from a client id.
+  const NOTE = 'trust_level = "trusted"';
+  type Outcome = RunReport['outcomes'][number];
+  function result(over: Partial<InstallResult> = {}): InstallResult {
+    return {
+      ok: true,
+      wrote: true,
+      path: '/repo/.codex/config.toml',
+      alreadyConfigured: false,
+      dryRun: false,
+      scope: 'project',
+      ...over,
+    };
+  }
+  const codex = (r: InstallResult, extra: Partial<Outcome> = {}): Outcome => ({
+    id: 'codex',
+    label: 'Codex CLI',
+    result: r,
+    ...extra,
+  });
+  const report = (outcome: Outcome, dryRun = false): RunReport => ({
+    url: URL,
+    urlSource: SOURCE,
+    scope: 'project',
+    outcomes: [outcome],
+    unknownClients: [],
+    dryRun,
+  });
+
+  it('appends the scope note on every non-failure outcome line', () => {
+    const installed = formatReport(report(codex(result())));
+    expect(installed).toContain(
+      'Codex CLI: installed (project) → /repo/.codex/config.toml',
+    );
+    expect(installed).toContain(`[Codex loads .codex/config.toml only once`);
+    expect(installed).toContain(NOTE);
+
+    const dry = formatReport(
+      report(codex(result({ wrote: false, dryRun: true })), true),
+    );
+    expect(dry).toContain('would update (project)');
+    expect(dry).toContain(NOTE);
+
+    const already = formatReport(
+      report(codex(result({ wrote: false, alreadyConfigured: true }))),
+    );
+    expect(already).toContain('already set up (project)');
+    expect(already).toContain(NOTE);
+
+    const noChange = formatReport(report(codex(result({ wrote: false }))));
+    expect(noChange).toContain('no change (project)');
+    expect(noChange).toContain(NOTE);
+  });
+
+  it('never appends the scope note to a failure line', () => {
+    const line = formatReport(
+      report(
+        codex(
+          result({
+            ok: false,
+            wrote: false,
+            reason: 'unsupported-config-shape',
+            detail: 'mcp_servers.levr exists but not as a standalone table',
+          }),
+        ),
+      ),
+    );
+    expect(line).toContain('Codex CLI: failed');
+    expect(line).not.toContain(NOTE);
+  });
+
+  it('omits the project scope note when the install fell back to user', () => {
+    // The note keys on the scope actually USED: a harness that declares a
+    // project note shows nothing when its install landed at user scope.
+    const line = formatReport(
+      report(
+        codex(result({ scope: 'user', path: '/home/.codex/config.toml' }), {
+          fallbackFrom: 'project',
+        }),
+      ),
+    );
+    expect(line).toContain('project scope unsupported — used user');
+    expect(line).not.toContain(NOTE);
+  });
+
+  it('shows no note for a project scope that declares none', () => {
+    const line = formatReport(
+      report({
+        id: 'antigravity',
+        label: 'Antigravity',
+        result: result({ path: '/repo/.agents/mcp_config.json' }),
+      }),
+    );
+    expect(line).toBe(
+      'MCP URL: https://ai.levr.one/api/v1/mcp (derived:https://api.levr.one)\n' +
+        'Antigravity: installed (project) → /repo/.agents/mcp_config.json',
+    );
+  });
+});

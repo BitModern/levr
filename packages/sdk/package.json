@@ -1,6 +1,6 @@
 {
   "name": "@levr-one/sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TypeScript SDK for the Levr API",
   "type": "module",
   "sideEffects": false,

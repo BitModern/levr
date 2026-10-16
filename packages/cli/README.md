@@ -4,8 +4,9 @@ The command-line interface for [Levr](https://www.levr.one). The binary is
 `levr`, and it does three jobs:
 
 - **Connect your AI tools** — `levr mcp add` wires the Levr MCP server into
-  the AI clients on your machine (Claude Desktop, Claude Code, Cursor,
-  Windsurf, Zed) with one command.
+  the AI clients on your machine (Claude Desktop, Claude Code, Codex CLI,
+  Grok Build, Antigravity, Gemini CLI, Cursor, Windsurf, Zed, VS Code) with
+  one command.
 - **Push test results** — `levr push` uploads results from any terminal or CI
   pipeline.
 - **Import test cases** — `levr import` brings existing cases in from CSV,
@@ -91,25 +92,25 @@ the server's address. No token or secret is stored; your client opens the
 browser to authorize with Levr on its first connection. After a run, restart
 the client(s) and authorize once.
 
-Clients that speak HTTP MCP themselves (Claude Code, VS Code, Gemini CLI,
-Codex CLI, Grok Build, Antigravity) connect to the URL directly. Claude
+Clients that speak HTTP MCP themselves (Claude Code, Codex CLI, Grok Build,
+Antigravity, Gemini CLI, VS Code) connect to the URL directly. Claude
 Desktop, Cursor, Windsurf and Zed get an entry that runs
 `npx -y mcp-remote <url>`, which connects on their behalf.
 
 **Supported clients:**
 
-| Client                  | How it's configured                                                                                                              |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Claude Desktop          | config file (`claude_desktop_config.json`)                                                                                       |
-| Claude Code             | runs `claude mcp add --transport http --scope user levr <url>` for you (prints it instead when `claude` is not on your `PATH`) |
-| Cursor                  | config file (`~/.cursor/mcp.json`)                                                                                               |
-| Windsurf                | config file (`~/.codeium/windsurf/mcp_config.json`)                                                                              |
-| Zed                     | config file (`settings.json`, `context_servers`)                                                                                 |
-| VS Code                 | config file (`Code/User/mcp.json` in your VS Code settings folder; `.vscode/mcp.json` with `--scope project`)                    |
-| Gemini CLI              | config file (`~/.gemini/settings.json`)                                                                                          |
-| Codex CLI               | config file (`~/.codex/config.toml`, TOML)                                                                                       |
-| Grok Build              | config file (`~/.grok/config.toml`, TOML)                                                                                        |
-| Antigravity (CLI + IDE) | config file (`~/.gemini/config/mcp_config.json`)                                                                                 |
+| Client                  | How it's configured                                                                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude Desktop          | config file (`claude_desktop_config.json`)                                                                                                                                   |
+| Claude Code             | runs `claude mcp add --transport http --scope user levr <url>` for you (prints it instead when `claude` is not on your `PATH`; `--scope project` writes `.mcp.json` instead) |
+| Codex CLI               | config file (`~/.codex/config.toml`, TOML; `.codex/config.toml` with `--scope project`, which Codex loads once it trusts the repo)                                           |
+| Grok Build              | config file (`~/.grok/config.toml`, TOML; `.grok/config.toml` with `--scope project`)                                                                                        |
+| Antigravity (CLI + IDE) | config file (`~/.gemini/config/mcp_config.json`; `.agents/mcp_config.json` with `--scope project`)                                                                           |
+| Gemini CLI              | config file (`~/.gemini/settings.json`; `.gemini/settings.json` with `--scope project`)                                                                                      |
+| Cursor                  | config file (`~/.cursor/mcp.json`; `.cursor/mcp.json` with `--scope project`)                                                                                                |
+| Windsurf                | config file (`~/.codeium/windsurf/mcp_config.json`)                                                                                                                          |
+| Zed                     | config file (`settings.json`, `context_servers`; `.zed/settings.json` with `--scope project`)                                                                                |
+| VS Code                 | config file (`Code/User/mcp.json` in your VS Code settings folder; `.vscode/mcp.json` with `--scope project`)                                                                |
 
 Config edits are **safe and repeatable**: existing MCP servers and comments
 in your config files are preserved, and re-running reports "already set up".

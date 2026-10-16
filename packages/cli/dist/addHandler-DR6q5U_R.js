@@ -10,7 +10,7 @@ import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";
 import { applyEdits, modify, parse, printParseErrorCode } from "jsonc-parser";
 import { TomlError, parse as parse$1 } from "smol-toml";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
 //#region ../mcp-harnesses/dist/format/toml-render.js
 /**
@@ -105,6 +105,12 @@ function renderTomlBodyLines(value, pathPrefix) {
 
 //#endregion
 //#region ../mcp-harnesses/dist/catalog.js
+/**
+* Sentinel for {@link AutoApproveDescriptor.file}: the permission key lives in
+* the same file this scope's MCP server entry is written to (Zed keeps both in
+* `settings.json`), so the path is resolved exactly as the install resolves it.
+*/
+const SAME_FILE_AS_MCP_CONFIG = "<mcp-config-file>";
 /** The `{ url, type: "http" }` shape Claude Code and Gemini CLI write. */
 const DEFAULT_NATIVE_HTTP_ENTRY = {
 	urlKey: "url",
@@ -163,7 +169,11 @@ const CLAUDE_CODE_LOCATIONS = [
 	}
 ];
 /**
-* The catalog. Order is presentation order (most common first).
+* The catalog. Order is presentation order: the agent CLIs first (Claude
+* Desktop, Claude Code, Codex CLI, Grok Build, Antigravity, Gemini CLI), then
+* the IDEs (Cursor, Windsurf, Zed, VS Code) — ENG-7100. Every surface that
+* lists clients iterates this array unsorted, so this is the one place order
+* is decided; `catalog.test.ts` pins it.
 *
 * Every entry is installable, and there is no deferral flag: the old
 * coming-soon flag was retired in ENG-5558 once its last member left. Codex
@@ -237,6 +247,20 @@ const HARNESSES = [
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
 		configDirEnv: "CLAUDE_CONFIG_DIR",
+		autoApprove: {
+			file: {
+				user: "~/.claude/settings.json",
+				project: ".claude/settings.json",
+				local: ".claude/settings.local.json"
+			},
+			format: "json",
+			keyPath: ["permissions", "allow"],
+			shape: "allow-list",
+			entry: (serverName, tool) => `mcp__${serverName}__${tool}`,
+			configDirReplaces: "~/.claude",
+			docsUrl: "https://code.claude.com/docs/en/permissions",
+			verifiedOn: "2026-10-09"
+		},
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -285,6 +309,213 @@ const HARNESSES = [
 		]
 	},
 	{
+		id: "codex",
+		label: "Codex CLI",
+		matchers: ["codex"],
+		serverPropertyName: "mcp_servers",
+		transport: "native-http",
+		nativeHttpEntry: { urlKey: "url" },
+		configFormat: "toml",
+		docsUrl: "https://github.com/openai/codex",
+		verifiedVersion: "0.162.1",
+		verifiedOn: "2026-10-16",
+		configDirEnv: "CODEX_HOME",
+		configDirReplaces: "~/.codex",
+		detectSignals: [
+			{
+				platform: "darwin",
+				signals: ["~/.codex", "which:codex"]
+			},
+			{
+				platform: "linux",
+				signals: ["~/.codex", "which:codex"]
+			},
+			{
+				platform: "win32",
+				signals: ["~/.codex", "which:codex"]
+			}
+		],
+		scopes: [{
+			scope: "user",
+			installKind: "config-file",
+			locations: [
+				{
+					platform: "darwin",
+					configPath: "~/.codex/config.toml"
+				},
+				{
+					platform: "linux",
+					configPath: "~/.codex/config.toml"
+				},
+				{
+					platform: "win32",
+					configPath: "~/.codex/config.toml"
+				}
+			]
+		}, {
+			scope: "project",
+			installKind: "config-file",
+			projectPath: ".codex/config.toml",
+			note: "Codex loads .codex/config.toml only once it trusts this repo: accept the trust prompt on first launch, or set trust_level = \"trusted\" under [projects.\"<repo path>\"] in your Codex config (~/.codex/config.toml, or $CODEX_HOME/config.toml when CODEX_HOME is set)"
+		}]
+	},
+	{
+		id: "grok",
+		label: "Grok Build",
+		matchers: ["grok build", "grok-build"],
+		serverPropertyName: "mcp_servers",
+		transport: "native-http",
+		nativeHttpEntry: {
+			urlKey: "url",
+			constants: { enabled: true }
+		},
+		configFormat: "toml",
+		docsUrl: "https://docs.x.ai/build/overview",
+		verifiedVersion: "1.0.34",
+		verifiedOn: "2026-09-17",
+		detectSignals: [
+			{
+				platform: "darwin",
+				signals: ["~/.grok/config.toml", "~/.grok/bin/grok"]
+			},
+			{
+				platform: "linux",
+				signals: ["~/.grok/config.toml", "~/.grok/bin/grok"]
+			},
+			{
+				platform: "win32",
+				signals: ["~/.grok/config.toml", "~/.grok/bin/grok.exe"]
+			}
+		],
+		scopes: [{
+			scope: "user",
+			installKind: "config-file",
+			locations: [
+				{
+					platform: "darwin",
+					configPath: "~/.grok/config.toml"
+				},
+				{
+					platform: "linux",
+					configPath: "~/.grok/config.toml"
+				},
+				{
+					platform: "win32",
+					configPath: "~/.grok/config.toml"
+				}
+			]
+		}, {
+			scope: "project",
+			installKind: "config-file",
+			projectPath: ".grok/config.toml"
+		}]
+	},
+	{
+		id: "antigravity",
+		label: "Antigravity",
+		matchers: ["antigravity"],
+		serverPropertyName: "mcpServers",
+		transport: "native-http",
+		nativeHttpEntry: {
+			urlKey: "serverUrl",
+			constants: { disabled: false }
+		},
+		docsUrl: "https://antigravity.google/docs/mcp",
+		verifiedVersion: "1.4.0",
+		verifiedOn: "2026-10-16",
+		detectSignals: [
+			{
+				platform: "darwin",
+				signals: [
+					"which:agy",
+					"~/.local/bin/agy",
+					"/Applications/Antigravity IDE.app",
+					"~/.gemini/config/mcp_config.json"
+				]
+			},
+			{
+				platform: "linux",
+				signals: [
+					"which:agy",
+					"~/.local/bin/agy",
+					"~/.gemini/config/mcp_config.json"
+				]
+			},
+			{
+				platform: "win32",
+				signals: ["which:agy", "~/.gemini/config/mcp_config.json"]
+			}
+		],
+		scopes: [{
+			scope: "user",
+			installKind: "config-file",
+			locations: [
+				{
+					platform: "darwin",
+					configPath: "~/.gemini/config/mcp_config.json"
+				},
+				{
+					platform: "linux",
+					configPath: "~/.gemini/config/mcp_config.json"
+				},
+				{
+					platform: "win32",
+					configPath: "~/.gemini/config/mcp_config.json"
+				}
+			]
+		}, {
+			scope: "project",
+			installKind: "config-file",
+			projectPath: ".agents/mcp_config.json"
+		}]
+	},
+	{
+		id: "gemini",
+		label: "Gemini CLI",
+		matchers: ["gemini cli", "gemini-cli"],
+		serverPropertyName: "mcpServers",
+		transport: "native-http",
+		docsUrl: "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md",
+		verifiedVersion: "0.35.1",
+		verifiedOn: "2026-09-17",
+		detectSignals: [
+			{
+				platform: "darwin",
+				signals: ["which:gemini", "~/.gemini/settings.json"]
+			},
+			{
+				platform: "linux",
+				signals: ["which:gemini", "~/.gemini/settings.json"]
+			},
+			{
+				platform: "win32",
+				signals: ["which:gemini", "~/.gemini/settings.json"]
+			}
+		],
+		scopes: [{
+			scope: "user",
+			installKind: "config-file",
+			locations: [
+				{
+					platform: "darwin",
+					configPath: "~/.gemini/settings.json"
+				},
+				{
+					platform: "linux",
+					configPath: "~/.gemini/settings.json"
+				},
+				{
+					platform: "win32",
+					configPath: "~/.gemini/settings.json"
+				}
+			]
+		}, {
+			scope: "project",
+			installKind: "config-file",
+			projectPath: ".gemini/settings.json"
+		}]
+	},
+	{
 		id: "cursor",
 		label: "Cursor",
 		matchers: ["cursor"],
@@ -293,6 +524,20 @@ const HARNESSES = [
 		docsUrl: "https://cursor.com/docs/mcp",
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
+		autoApprove: {
+			file: {
+				user: "~/.cursor/permissions.json",
+				project: ".cursor/permissions.json"
+			},
+			format: "json",
+			keyPath: ["mcpAllowlist"],
+			shape: "allow-list",
+			entry: (serverName, tool) => `${serverName}:${tool}`,
+			appendOnlyToExistingKey: true,
+			caveat: "Cursor: Levr only adds to an mcpAllowlist this file already has. It never creates one, because once mcpAllowlist exists here it replaces the MCP allowlist kept in Cursor Settings. The entries only take effect when Run Mode in Cursor Settings uses an allowlist.",
+			docsUrl: "https://cursor.com/docs/reference/permissions",
+			verifiedOn: "2026-10-09"
+		},
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -389,6 +634,21 @@ const HARNESSES = [
 		docsUrl: "https://zed.dev/docs/ai/mcp",
 		verifiedVersion: UNVERIFIED_LEGACY,
 		verifiedOn: UNVERIFIED_LEGACY,
+		autoApprove: {
+			file: { user: SAME_FILE_AS_MCP_CONFIG },
+			format: "json",
+			keyPath: [
+				"agent",
+				"tool_permissions",
+				"tools"
+			],
+			shape: "tool-map",
+			entry: (serverName, tool) => `mcp:${serverName}:${tool}`,
+			toolValue: { default: "allow" },
+			caveat: "Zed: per-tool permissions need Zed v0.224.0 or later.",
+			docsUrl: "https://zed.dev/docs/ai/tool-permissions",
+			verifiedOn: "2026-10-09"
+		},
 		detectSignals: [
 			{
 				platform: "darwin",
@@ -428,158 +688,6 @@ const HARNESSES = [
 			scope: "project",
 			installKind: "config-file",
 			projectPath: ".zed/settings.json"
-		}]
-	},
-	{
-		id: "gemini",
-		label: "Gemini CLI",
-		matchers: ["gemini cli", "gemini-cli"],
-		serverPropertyName: "mcpServers",
-		transport: "native-http",
-		docsUrl: "https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md",
-		verifiedVersion: "0.35.1",
-		verifiedOn: "2026-09-17",
-		detectSignals: [
-			{
-				platform: "darwin",
-				signals: ["which:gemini", "~/.gemini/settings.json"]
-			},
-			{
-				platform: "linux",
-				signals: ["which:gemini", "~/.gemini/settings.json"]
-			},
-			{
-				platform: "win32",
-				signals: ["which:gemini", "~/.gemini/settings.json"]
-			}
-		],
-		scopes: [{
-			scope: "user",
-			installKind: "config-file",
-			locations: [
-				{
-					platform: "darwin",
-					configPath: "~/.gemini/settings.json"
-				},
-				{
-					platform: "linux",
-					configPath: "~/.gemini/settings.json"
-				},
-				{
-					platform: "win32",
-					configPath: "~/.gemini/settings.json"
-				}
-			]
-		}, {
-			scope: "project",
-			installKind: "config-file",
-			projectPath: ".gemini/settings.json"
-		}]
-	},
-	{
-		id: "grok",
-		label: "Grok Build",
-		matchers: ["grok build", "grok-build"],
-		serverPropertyName: "mcp_servers",
-		transport: "native-http",
-		nativeHttpEntry: {
-			urlKey: "url",
-			constants: { enabled: true }
-		},
-		configFormat: "toml",
-		docsUrl: "https://docs.x.ai/build/overview",
-		verifiedVersion: "1.0.34",
-		verifiedOn: "2026-09-17",
-		detectSignals: [
-			{
-				platform: "darwin",
-				signals: ["~/.grok/config.toml", "~/.grok/bin/grok"]
-			},
-			{
-				platform: "linux",
-				signals: ["~/.grok/config.toml", "~/.grok/bin/grok"]
-			},
-			{
-				platform: "win32",
-				signals: ["~/.grok/config.toml", "~/.grok/bin/grok.exe"]
-			}
-		],
-		scopes: [{
-			scope: "user",
-			installKind: "config-file",
-			locations: [
-				{
-					platform: "darwin",
-					configPath: "~/.grok/config.toml"
-				},
-				{
-					platform: "linux",
-					configPath: "~/.grok/config.toml"
-				},
-				{
-					platform: "win32",
-					configPath: "~/.grok/config.toml"
-				}
-			]
-		}, {
-			scope: "project",
-			installKind: "config-file",
-			projectPath: ".grok/config.toml"
-		}]
-	},
-	{
-		id: "antigravity",
-		label: "Antigravity",
-		matchers: ["antigravity"],
-		serverPropertyName: "mcpServers",
-		transport: "native-http",
-		nativeHttpEntry: {
-			urlKey: "serverUrl",
-			constants: { disabled: false }
-		},
-		docsUrl: "https://antigravity.google/docs/mcp",
-		verifiedVersion: "1.2.5",
-		verifiedOn: "2026-09-17",
-		detectSignals: [
-			{
-				platform: "darwin",
-				signals: [
-					"which:agy",
-					"~/.local/bin/agy",
-					"/Applications/Antigravity IDE.app",
-					"~/.gemini/config/mcp_config.json"
-				]
-			},
-			{
-				platform: "linux",
-				signals: [
-					"which:agy",
-					"~/.local/bin/agy",
-					"~/.gemini/config/mcp_config.json"
-				]
-			},
-			{
-				platform: "win32",
-				signals: ["which:agy", "~/.gemini/config/mcp_config.json"]
-			}
-		],
-		scopes: [{
-			scope: "user",
-			installKind: "config-file",
-			locations: [
-				{
-					platform: "darwin",
-					configPath: "~/.gemini/config/mcp_config.json"
-				},
-				{
-					platform: "linux",
-					configPath: "~/.gemini/config/mcp_config.json"
-				},
-				{
-					platform: "win32",
-					configPath: "~/.gemini/config/mcp_config.json"
-				}
-			]
 		}]
 	},
 	{
@@ -630,52 +738,6 @@ const HARNESSES = [
 			scope: "project",
 			installKind: "config-file",
 			projectPath: ".vscode/mcp.json"
-		}]
-	},
-	{
-		id: "codex",
-		label: "Codex CLI",
-		matchers: ["codex"],
-		serverPropertyName: "mcp_servers",
-		transport: "native-http",
-		nativeHttpEntry: { urlKey: "url" },
-		configFormat: "toml",
-		docsUrl: "https://github.com/openai/codex",
-		verifiedVersion: "0.154.0",
-		verifiedOn: "2026-09-17",
-		configDirEnv: "CODEX_HOME",
-		configDirReplaces: "~/.codex",
-		detectSignals: [
-			{
-				platform: "darwin",
-				signals: ["~/.codex", "which:codex"]
-			},
-			{
-				platform: "linux",
-				signals: ["~/.codex", "which:codex"]
-			},
-			{
-				platform: "win32",
-				signals: ["~/.codex", "which:codex"]
-			}
-		],
-		scopes: [{
-			scope: "user",
-			installKind: "config-file",
-			locations: [
-				{
-					platform: "darwin",
-					configPath: "~/.codex/config.toml"
-				},
-				{
-					platform: "linux",
-					configPath: "~/.codex/config.toml"
-				},
-				{
-					platform: "win32",
-					configPath: "~/.codex/config.toml"
-				}
-			]
 		}]
 	}
 ];
@@ -809,6 +871,76 @@ function besideName(serverName, url) {
 	const name = `${serverName}-${key}`;
 	return name.length <= BESIDE_NAME_MAX && isValidEntryName(name) ? name : void 0;
 }
+
+//#endregion
+//#region ../mcp-harnesses/dist/levr-tool-allowlist.js
+/**
+* The Levr MCP tools `levr mcp add` may offer to pre-approve in a harness's
+* own permission file (ENG-6392, plan ENG-6341 §D9).
+*
+* SINGLE SOURCE. Every harness auto-approve descriptor in `catalog.ts`
+* renders its entries from this list, and the backender parity spec
+* (`apps/backender/src/mcp/levr-tool-allowlist.parity.spec.ts`) asserts that
+* every name here is a public tool and none is in
+* `McpToolAdapterService.DESTRUCTIVE_TOOL_NAMES`.
+*
+* Rules for this list:
+* - Only the non-destructive tools a first task actually calls. A tool that
+*   can delete, merge away or permanently unlink anything never belongs here.
+* - Nor does a tool whose PURPOSE is to waive a check (waive_gate): see
+*   {@link LEVR_NEVER_PREAPPROVED_TOOLS}.
+* - `deploy_gates` and `transition_issue` ARE listed (user decision
+*   2026-10-15: neither is destructive, and the first task must run without
+*   permission prompts). deploy_gates can also change or withdraw a gate,
+*   and transition_issue can waive a required gate through
+*   `verification_override`. The installer's disclosure says so rather than
+*   promising otherwise, and every such change is recorded on the gate (code
+*   review F-027). The disclosure must stay literally true for every entry.
+* - One entry per tool, by its exact registered name. Never a server-wide
+*   entry and never a glob: a server-wide grant would also pre-approve the
+*   destructive tools the server exposes.
+*
+* Isomorphic and import-free, like the catalog, so the client SPA and the
+* backender can both read it.
+*/
+/** The tools offered for pre-approval, in the order a first task uses them. */
+const LEVR_PREAPPROVED_TOOLS = [
+	"get_context",
+	"start_onboarding",
+	"get_onboarding_step",
+	"get_issue",
+	"get_issues",
+	"search_issues",
+	"get_issue_comments",
+	"add_issue_comment",
+	"deploy_gates",
+	"verify_deliverable_gates",
+	"report_gate_results",
+	"get_gate_status",
+	"transition_issue",
+	"get_practice_app"
+];
+/**
+* A plain description of what each tool does, printed next to its entry in
+* the installer's disclosure (plan R1-23) so the user can judge each line
+* rather than a list of opaque identifiers.
+*/
+const LEVR_PREAPPROVED_TOOL_DESCRIPTIONS = {
+	get_context: "reads your workspace, teams and projects",
+	start_onboarding: "starts a guided first task",
+	get_onboarding_step: "reads the current step of the guided first task",
+	get_issue: "reads one task",
+	get_issues: "lists tasks",
+	search_issues: "searches tasks",
+	get_issue_comments: "reads a task's comments",
+	add_issue_comment: "adds a comment to a task",
+	deploy_gates: "writes the task's gates; it can also change or withdraw a gate (recorded)",
+	transition_issue: "moves a task to another status; Done is refused while a required check fails, unless your agent waives that check (the waiver is recorded)",
+	verify_deliverable_gates: "runs the task's checklist",
+	report_gate_results: "records the checklist results your agent ran",
+	get_gate_status: "reads the task's checklist results",
+	get_practice_app: "reads the sample practice app"
+};
 
 //#endregion
 //#region ../mcp-harnesses/dist/node/paths.js
@@ -1212,6 +1344,27 @@ const jsoncAdapter = {
 	},
 	removeAt(text, path$1) {
 		return edit(text, path$1, void 0);
+	},
+	appendToArray(text, path$1, values) {
+		const doc = parseDocument$1(text);
+		if (!doc.ok) throw new UnsupportedConfigShapeError(doc.detail);
+		const current = getAtPath(doc.root, path$1);
+		if (!Array.isArray(current)) throw new UnsupportedConfigShapeError(`${path$1.join(".")} is not an array — refusing to restructure it`);
+		let next = text;
+		let index = current.length;
+		for (const value of values) {
+			try {
+				next = applyEdits(next, modify(next, [...path$1, index], value, {
+					formattingOptions: FORMAT,
+					isArrayInsertion: true
+				}));
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				throw new UnsupportedConfigShapeError(`cannot append to ${path$1.join(".")}: ${message}`);
+			}
+			index++;
+		}
+		return next;
 	}
 };
 /** Shared by set and remove: jsonc-parser removes a key when `value` is `undefined`. */
@@ -2104,6 +2257,207 @@ function writeConfigAtomic(path$1, text) {
 		throw err;
 	}
 }
+/** Resolve the descriptor's permission file for a scope, or why it cannot be. */
+function resolvePermissionFile(harness, desc, scope, env) {
+	const file = desc.file[scope];
+	if (!file || !scopeDef(harness, scope)) return { reason: "unsupported-scope" };
+	if (file === SAME_FILE_AS_MCP_CONFIG) {
+		const target = resolveTarget(harness, env, scope);
+		if ("reason" in target) return { reason: target.reason === "not-a-repo" || target.reason === "no-location" ? target.reason : "unsupported-scope" };
+		return target;
+	}
+	if (file.startsWith("~")) {
+		if (harness.configDirEnv && desc.configDirReplaces) return { path: expandConfigPath(file, {
+			...harness,
+			configDirReplaces: desc.configDirReplaces
+		}, env) };
+		return { path: expandTilde(file, env.homedir) };
+	}
+	const root = resolveProjectRoot(env);
+	if (!root.isRepo) return { reason: "not-a-repo" };
+	return {
+		path: join(root.root, ...file.split("/")),
+		repoRoot: root.root
+	};
+}
+/**
+* Whether git ignores `file` inside the work tree at `repoRoot`: `true` /
+* `false` from `git check-ignore`, `undefined` when git cannot say (not
+* installed, not a work tree). Never throws. Git runs in the injected machine
+* environment — `HOME` is `env.homedir`, so the user's global excludes file
+* counts and a test's temp home isolates it — and the `GIT_*` per-process
+* variables are dropped so a parent git (a hook) cannot redirect the check to
+* another repository.
+*/
+function isGitIgnored(env, repoRoot, file) {
+	const childEnv = {
+		...env.vars ?? {},
+		HOME: env.homedir,
+		PATH: env.pathVar || process.env.PATH
+	};
+	for (const key of [
+		"GIT_DIR",
+		"GIT_WORK_TREE",
+		"GIT_INDEX_FILE",
+		"GIT_COMMON_DIR"
+	]) delete childEnv[key];
+	try {
+		const r = spawnSync("git", [
+			"check-ignore",
+			"-q",
+			"--",
+			file
+		], {
+			cwd: repoRoot,
+			env: childEnv,
+			stdio: "ignore",
+			timeout: 5e3
+		});
+		if (r.status === 0) return true;
+		if (r.status === 1) return false;
+		return;
+	} catch {
+		return;
+	}
+}
+function permissionAdapter(desc) {
+	return desc.format === "toml" ? tomlAdapter : jsoncAdapter;
+}
+/**
+* Pre-approve the non-destructive Levr tools in a harness's own permission
+* file, so its agent can call them without asking each time.
+*
+* MERGE-ONLY and NON-DESTRUCTIVE: entries are appended to what the file
+* already holds; an existing entry is reported in `alreadyPresent` and never
+* duplicated; a `tool-map` key the user already set to something else is
+* reported in `conflicting` and left alone. Comments survive (the edit is an
+* in-place text patch, never a re-serialize), and the write is atomic
+* ({@link writeConfigAtomic}: a sibling temp file, then rename), so an
+* interrupted write leaves the original file intact.
+*
+* Error direction: fail_closed. An existing file that cannot be read or
+* parsed, or that holds the key in a shape we will not restructure (e.g.
+* `permissions.allow` is a string), aborts with
+* `unsupported-config-shape` and writes NOTHING — never a clobber. Every
+* failure is returned, not thrown, so the caller can report "permissions not
+* added" and carry on (the MCP install itself already succeeded).
+*/
+function preapproveTools(harness, scope, serverName = DEFAULT_SERVER_NAME, opts = {}) {
+	const env = opts.env ?? defaultEnv();
+	const dryRun = opts.dryRun ?? false;
+	const desc = harness.autoApprove;
+	const base = {
+		ok: false,
+		file: "",
+		scope,
+		fileExists: false,
+		added: [],
+		alreadyPresent: [],
+		conflicting: [],
+		addedEntries: [],
+		wrote: false,
+		dryRun,
+		keyPath: desc ? desc.keyPath.join(".") : "",
+		...desc?.toolValue ? { toolValue: desc.toolValue } : {},
+		...desc?.caveat ? { caveat: desc.caveat } : {}
+	};
+	if (!desc) return {
+		...base,
+		reason: "no-descriptor"
+	};
+	const resolved = resolvePermissionFile(harness, desc, scope, env);
+	if ("reason" in resolved) return {
+		...base,
+		reason: resolved.reason
+	};
+	const file = resolved.path;
+	base.fileExists = existsSync(file);
+	if (resolved.repoRoot !== void 0) {
+		const ignored = isGitIgnored(env, resolved.repoRoot, file);
+		if (ignored !== void 0) base.gitIgnored = ignored;
+	}
+	const fail = (reason, detail) => ({
+		...base,
+		file,
+		reason,
+		...detail ? { detail } : {}
+	});
+	const adapter = permissionAdapter(desc);
+	if (desc.shape === "allow-list" && !adapter.appendToArray) return fail("unsupported-format", `${desc.format} permission files cannot be appended to in place`);
+	const existing = readTextOrNull(file);
+	if (existing === null && existsSync(file)) return fail("unsupported-config-shape", "file exists but cannot be read");
+	const baseText = existing && existing.trim() ? existing : adapter.empty;
+	const whole = adapter.readAt(baseText, []);
+	if (whole.kind === "unsupported") return fail("unsupported-config-shape", whole.detail);
+	const root = whole.kind === "value" ? whole.value : {};
+	const keyPath = [...desc.keyPath];
+	const currentAtKey = getAtPath(root, keyPath);
+	const wanted = (opts.tools ?? LEVR_PREAPPROVED_TOOLS).map((tool) => ({
+		tool,
+		entry: desc.entry(serverName, tool)
+	}));
+	const seen = /* @__PURE__ */ new Set();
+	const unique = wanted.filter((w) => seen.has(w.entry) ? false : (seen.add(w.entry), true));
+	const addedEntries = [];
+	const alreadyPresent = [];
+	const conflicting = [];
+	let nextText = baseText;
+	try {
+		if (desc.shape === "allow-list") {
+			if (currentAtKey !== void 0 && !Array.isArray(currentAtKey)) return fail("unsupported-config-shape", `${base.keyPath} exists but is not a list — refusing to restructure it`);
+			if (currentAtKey === void 0 && desc.appendOnlyToExistingKey) return fail("allowlist-key-absent", `${harness.label} uses the allowlist in its own Settings while ${base.keyPath} is absent from ${file}, and creating it would replace that allowlist. To pre-approve, add these in ${harness.label} Settings (or to an existing ${base.keyPath} in that file): ${unique.map((w) => w.entry).join(", ")}`);
+			const have = new Set((currentAtKey ?? []).filter((v) => typeof v === "string"));
+			for (const w of unique) if (have.has(w.entry)) alreadyPresent.push(w.entry);
+			else addedEntries.push(w);
+			const values = addedEntries.map((w) => w.entry);
+			if (values.length > 0) nextText = currentAtKey === void 0 ? adapter.setAt(baseText, keyPath, values) : adapter.appendToArray(baseText, keyPath, values);
+		} else {
+			if (currentAtKey !== void 0 && (currentAtKey === null || typeof currentAtKey !== "object" || Array.isArray(currentAtKey))) return fail("unsupported-config-shape", `${base.keyPath} exists but is not an object — refusing to restructure it`);
+			const map = currentAtKey ?? {};
+			const value = desc.toolValue ?? {};
+			for (const w of unique) {
+				const cur = map[w.entry];
+				if (cur === void 0) {
+					addedEntries.push(w);
+					continue;
+				}
+				const curObj = cur !== null && typeof cur === "object" && !Array.isArray(cur) ? cur : void 0;
+				if (curObj !== void 0 && Object.entries(value).every(([k, v]) => curObj[k] === v)) alreadyPresent.push(w.entry);
+				else conflicting.push(w.entry);
+			}
+			for (const w of addedEntries) nextText = adapter.setAt(nextText, [...keyPath, w.entry], { ...value });
+		}
+	} catch (err) {
+		if (err instanceof UnsupportedConfigShapeError) return fail("unsupported-config-shape", err.detail);
+		throw err;
+	}
+	const added = addedEntries.map((w) => w.entry);
+	const result = {
+		...base,
+		ok: true,
+		file,
+		added,
+		addedEntries,
+		alreadyPresent,
+		conflicting
+	};
+	if (dryRun || added.length === 0) return result;
+	const finalText = nextText.endsWith("\n") ? nextText : `${nextText}\n`;
+	try {
+		mkdirSync(dirname(file), { recursive: true });
+		writeConfigAtomic(file, finalText);
+	} catch (err) {
+		return {
+			...fail("write-failed", err instanceof Error ? err.message : String(err)),
+			added: [],
+			addedEntries: []
+		};
+	}
+	return {
+		...result,
+		wrote: true
+	};
+}
 
 //#endregion
 //#region src/mcp/run.ts
@@ -2347,6 +2701,9 @@ function restoreText(r) {
 /** One human-readable status line per outcome. */
 function outcomeLine(o, dryRun, switchCommand, entryName) {
 	const r = o.result;
+	const harness = getHarness(o.id);
+	const scopeNote = harness ? scopeDef(harness, r.scope)?.note : void 0;
+	const caveat = scopeNote ? ` [${scopeNote}]` : "";
 	const note = (o.entryName ? ` [as ${o.entryName}]` : "") + (o.fallbackFrom ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]` : "");
 	const where = r.path ? ` → ${r.path}` : "";
 	const backup = r.backupPath ? dryRun ? ` [original would be backed up to ${r.backupPath}]` : ` [original backed up to ${r.backupPath}]` : "";
@@ -2355,14 +2712,14 @@ function outcomeLine(o, dryRun, switchCommand, entryName) {
 		if (o.entryName) return `${o.label}: failed [as ${o.entryName}] — ${failureText(o, void 0, o.entryName)}`;
 		return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
 	}
-	if (r.alreadyConfigured) return `${o.label}: already set up (${r.scope})${where}${note}`;
+	if (r.alreadyConfigured) return `${o.label}: already set up (${r.scope})${where}${note}${caveat}`;
 	if (r.command) {
-		if (r.executed) return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}`;
-		return `${o.label} (${r.scope}): run \`${r.command}\`${replaced}${note}`;
+		if (r.executed) return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}${caveat}`;
+		return `${o.label} (${r.scope}): run \`${r.command}\`${replaced}${note}${caveat}`;
 	}
-	if (dryRun) return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}`;
-	if (r.wrote) return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}`;
-	return `${o.label}: no change (${r.scope})${where}${note}`;
+	if (dryRun) return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}${caveat}`;
+	if (r.wrote) return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}${caveat}`;
+	return `${o.label}: no change (${r.scope})${where}${note}${caveat}`;
 }
 /** Render a report as a plain multi-line summary (used by the CLI + tests). */
 function formatReport(report) {
@@ -2542,9 +2899,178 @@ async function mcpAddHandler(flags) {
 		}
 		this.process.stdout.write(`\n${nextStepsText(report)}\n`);
 		if (report.unknownClients.length > 0 || hasFailure(report)) this.process.exitCode = 1;
+		await offerPreapproval(this, report.outcomes, {
+			mode: "non-interactive",
+			dryRun: options.dryRun,
+			flag: flags["preapprove-tools"] ?? false,
+			serverName: entry.serverName
+		});
 		return;
 	}
 	await interactive(this, options.dryRun, url, source, flags, entry, urlKey);
+}
+/**
+* The sentence every disclosure carries, verbatim. It must stay literally
+* true of every tool in `LEVR_PREAPPROVED_TOOLS` (code review F-027).
+* deploy_gates and transition_issue stay pre-approved (user decision
+* 2026-10-15): deploy_gates can change or withdraw a gate and
+* transition_issue can waive one, so the disclosure says that instead of
+* promising otherwise.
+*/
+const PREAPPROVE_EXPLANATION = "These let your agent call these Levr tools without asking each time. None of them can delete anything. deploy_gates can change or withdraw a task's gates, and transition_issue can waive a failing required gate to finish a task; every change and waiver is recorded on the gate.";
+/** The confirmation question. The default is No. */
+const PREAPPROVE_QUESTION = "Add these permissions? (y/N)";
+/** Clients this run installed into that can take a pre-approval in that scope. */
+function preapproveCandidates(outcomes) {
+	const out = [];
+	for (const o of outcomes) {
+		if (!o.result.ok) continue;
+		const harness = getHarness(o.id);
+		if (!harness?.autoApprove?.file[o.result.scope]) continue;
+		out.push({
+			harness,
+			scope: o.result.scope
+		});
+	}
+	return out;
+}
+/** "get_issue: reads one task" for an entry's tool. */
+function describeTool(tool) {
+	const description = LEVR_PREAPPROVED_TOOL_DESCRIPTIONS[tool];
+	return description ? `${tool}: ${description}` : tool;
+}
+/**
+* Who the permission file reaches (code review F-030): a `project` file sits
+* in the repository and is usually committed, so it grants the tools to
+* everyone on the repo; a `local` file is personal, and when it is about to
+* be created somewhere git does not ignore, the user is told so (we never
+* edit their .gitignore).
+*/
+function sharingNote(plan) {
+	if (plan.scope === "project") return "This file is in your repository and is usually committed: these permissions are shared via git with everyone who uses this repo.";
+	if (plan.scope === "local") {
+		const note = "This file is personal to you in this repository.";
+		if (!plan.fileExists && plan.gitIgnored === false) return `${note} It does not exist yet and git does not ignore it, so it would be committed by a "git add" of that folder: add it to .gitignore if you do not want to share it.`;
+		return note;
+	}
+	return null;
+}
+/**
+* The full disclosure for one client: the exact file, who it is shared with,
+* every entry that would be added (each with what its tool does), what is
+* already there, what the entries mean, any caveat, and how to undo it.
+* Printed BEFORE anything is written, in every mode.
+*/
+function buildPreapproveDisclosure(label, plan) {
+	const lines = [];
+	lines.push(`${label}: pre-approve Levr tools`);
+	lines.push(`File: ${plan.file}`);
+	const sharing = sharingNote(plan);
+	if (sharing) lines.push(sharing);
+	const valueNote = plan.toolValue ? ` (each set to ${JSON.stringify(plan.toolValue)})` : "";
+	lines.push(`Entries to add under "${plan.keyPath}"${valueNote}:`);
+	for (const e of plan.addedEntries) lines.push(`  ${e.entry}  (${describeTool(e.tool)})`);
+	if (plan.alreadyPresent.length > 0) lines.push(`Already present, left as is: ${plan.alreadyPresent.join(", ")}`);
+	if (plan.conflicting.length > 0) lines.push(`Set differently by you, left as is: ${plan.conflicting.join(", ")}`);
+	lines.push(PREAPPROVE_EXPLANATION);
+	if (plan.caveat) lines.push(plan.caveat);
+	lines.push(`To undo: remove these entries from "${plan.keyPath}" in ${plan.file}: ` + plan.added.join(", "));
+	return lines.join("\n");
+}
+function preapproveFailureText(r) {
+	if (r.reason === "allowlist-key-absent" && r.detail) return `permissions not added (${r.detail})`;
+	return `permissions not added (${r.detail ? `${r.reason}: ${r.detail}` : r.reason ?? "unknown"})`;
+}
+/**
+* Whether a not-`ok` result counts against an explicit `--preapprove-tools`
+* (code review F-031). `allowlist-key-absent` is the writer declining on
+* purpose to protect the user's own allowlist — the safe outcome, so it is
+* reported but never fails the run.
+*/
+function isPreapproveFailure(r) {
+	return !r.ok && r.reason !== "allowlist-key-absent";
+}
+/**
+* Nothing to add (code review F-052): "already pre-approved" only when every
+* entry is already there. Entries the user set differently (a Zed deny) are
+* named as theirs and left alone — never claimed as approved.
+*/
+function nothingToAddText(label, plan) {
+	if (plan.conflicting.length === 0) return `${label}: Levr tools are already pre-approved in ${plan.file}.`;
+	const lines = [`${label}: nothing added to ${plan.file}.`, `Set differently by you, left as is: ${plan.conflicting.join(", ")}`];
+	if (plan.alreadyPresent.length > 0) lines.push(`Already pre-approved: ${plan.alreadyPresent.join(", ")}`);
+	return lines.join("\n");
+}
+/**
+* After a successful install, offer to pre-approve Levr's non-destructive
+* tools in each client that has a documented per-tool allow key.
+*
+* - Interactive: print the disclosure, then ask with No as the default.
+* - Non-interactive: never write unless `--preapprove-tools` was passed; with
+*   it, print the same disclosure to stderr before writing.
+* - `--dry-run`: print the disclosure and write nothing.
+*
+* Error direction: fail_fallback(continue). A failure is reported as
+* "permissions not added" and the run carries on to the next client. When
+* `--preapprove-tools` was passed, the user ASKED for the write, so a
+* failure sets exit code 1 once every client has been tried (code review
+* F-031). An interactive "No" and `--dry-run` are never failures.
+*
+* Cancelling a prompt (Ctrl+C) stops the whole offer: no further client is
+* asked, and each is reported "permissions not added" (code review F-063).
+*/
+async function offerPreapproval(ctx, outcomes, opts) {
+	const candidates = preapproveCandidates(outcomes);
+	if (candidates.length === 0) return;
+	const out = (s) => ctx.process.stdout.write(`${s}\n`);
+	if (opts.mode === "non-interactive" && !opts.flag && !opts.dryRun) {
+		out("\nTip: re-run with --preapprove-tools to let your agent call Levr's non-destructive tools without asking each time (add --dry-run to see exactly what it would write).");
+		return;
+	}
+	let failed = false;
+	for (const [index, { harness, scope }] of candidates.entries()) {
+		const plan = preapproveTools(harness, scope, opts.serverName, { dryRun: true });
+		if (!plan.ok) {
+			out(`\n${harness.label}: ${preapproveFailureText(plan)}`);
+			if (!opts.dryRun && isPreapproveFailure(plan)) failed = true;
+			continue;
+		}
+		if (plan.added.length === 0) {
+			out(`\n${nothingToAddText(harness.label, plan)}`);
+			continue;
+		}
+		const disclosure = buildPreapproveDisclosure(harness.label, plan);
+		if (opts.dryRun) {
+			out(`\n${disclosure}\n(dry run: nothing written)`);
+			continue;
+		}
+		if (opts.mode === "non-interactive") ctx.process.stderr.write(`\n${disclosure}\n`);
+		else {
+			out(`\n${disclosure}`);
+			const p = await import("@clack/prompts");
+			const answer = await p.confirm({
+				message: PREAPPROVE_QUESTION,
+				initialValue: false
+			});
+			if (p.isCancel(answer)) {
+				out(`${harness.label}: permissions not added.`);
+				for (const rest of candidates.slice(index + 1)) out(`${rest.harness.label}: permissions not added (cancelled).`);
+				break;
+			}
+			if (answer !== true) {
+				out(`${harness.label}: permissions not added.`);
+				continue;
+			}
+		}
+		const written = preapproveTools(harness, scope, opts.serverName, { dryRun: false });
+		if (!written.ok) {
+			out(`${harness.label}: ${preapproveFailureText(written)}`);
+			if (isPreapproveFailure(written)) failed = true;
+			continue;
+		}
+		out(`${harness.label}: added ${written.added.length} permission ${written.added.length === 1 ? "entry" : "entries"} to ${written.file}.`);
+	}
+	if (opts.flag && failed) ctx.process.exitCode = 1;
 }
 /**
 * For an unpinned entry: the `--workspace` choices. Without a session there is
@@ -2722,6 +3248,12 @@ async function interactive(ctx, dryRun, baseUrl, baseSource, flags, entry, resol
 		left
 	};
 	p.note(formatReport(report), "Results");
+	await offerPreapproval(ctx, outcomes, {
+		mode: "interactive",
+		dryRun,
+		flag: flags["preapprove-tools"] ?? false,
+		serverName: entry.serverName
+	});
 	p.outro(nextStepsText(report));
 	if (hasFailure(report)) ctx.process.exitCode = 1;
 }

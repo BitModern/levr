@@ -14,6 +14,8 @@ export type ResponseCommentIssueDto = {
   key?: number;
   source?: unknown | null;
   spoke_key?: string | null | null;
+  origin_harness?: string | null | null;
+  origin_harness_version?: string | null | null;
   issue_id: string;
   created_at: unknown;
   updated_at: unknown;

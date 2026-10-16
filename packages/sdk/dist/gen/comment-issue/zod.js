@@ -17,6 +17,8 @@ export const zResponseCommentIssueDto = /* @__PURE__ */ z.object({
   key: z.number().optional(),
   source: z.unknown().optional(),
   spoke_key: z.string().nullable().optional(),
+  origin_harness: z.string().nullable().optional(),
+  origin_harness_version: z.string().nullable().optional(),
   issue_id: z.string(),
   created_at: z.unknown(),
   updated_at: z.unknown(),

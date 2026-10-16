@@ -31,6 +31,7 @@ See [arch.md](arch.md) for architecture, component diagrams, auth flows, and dat
 | `--dry-run`       | show the changes without writing                               |
 | `--scope <s>`     | `user` (default) · `project` · `local` (internal)              |
 | `--url <url>`     | explicit MCP URL (overrides `LEVR_MCP_URL` / derivation)       |
+| `--preapprove-tools` | non-interactive opt-in: also add per-tool allow entries for Levr's non-destructive tools (`LEVR_PREAPPROVED_TOOLS`) to the client's permission file — Claude Code, Cursor, Zed only; disclosure (file, who it is shared with for `project`/`local`, entries, undo) printed to stderr first (internal). Interactive runs ask instead, default No; Ctrl+C stops the offer for every remaining client. A failed write exits 1 when this flag was passed (an interactive No and `--dry-run` never do). Cursor: only appends to an existing `mcpAllowlist` — never creates it (it would replace the Settings allowlist); reported as "permissions not added", exit 0. Claude Code's user file follows `CLAUDE_CONFIG_DIR` (`$CLAUDE_CONFIG_DIR/settings.json`) |
 
 **`add.ts` must keep taking `HarnessScope` via the `import type` FORM.** Under
 `verbatimModuleSyntax` an inline `import { type X }` still emits the import, so
