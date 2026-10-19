@@ -575,6 +575,14 @@ function outcomeLine(
   const harness = getHarness(o.id);
   const scopeNote = harness ? scopeDef(harness, r.scope)?.note : undefined;
   const caveat = scopeNote ? ` [${scopeNote}]` : '';
+  // A project file is promised to be shared via git; one the repository
+  // ignores stays local, and the line must say so rather than read as a
+  // normal project install (internal). Never on a failure: nothing was
+  // written. The installer never edits .gitignore for the user.
+  const unshared =
+    r.gitIgnored === true && r.scope === 'project'
+      ? ' [path is git-ignored — not shared via git]'
+      : '';
   // A fallback is always stated — never let a client land somewhere the user
   // did not ask for without saying so.
   const note =
@@ -609,7 +617,7 @@ function outcomeLine(
     return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
   }
   if (r.alreadyConfigured) {
-    return `${o.label}: already set up (${r.scope})${where}${note}${caveat}`;
+    return `${o.label}: already set up (${r.scope})${where}${note}${unshared}${caveat}`;
   }
   if (r.command) {
     if (r.executed) {
@@ -618,11 +626,11 @@ function outcomeLine(
     return `${o.label} (${r.scope}): run \`${r.command}\`${replaced}${note}${caveat}`;
   }
   if (dryRun) {
-    return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}${caveat}`;
+    return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}${unshared}${caveat}`;
   }
   if (r.wrote)
-    return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}${caveat}`;
-  return `${o.label}: no change (${r.scope})${where}${note}${caveat}`;
+    return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}${unshared}${caveat}`;
+  return `${o.label}: no change (${r.scope})${where}${note}${unshared}${caveat}`;
 }
 
 /** Render a report as a plain multi-line summary (used by the CLI + tests). */
@@ -692,14 +700,24 @@ export function nextStepsText(report: RunReport): string {
     'Levr once in the browser. Then ask it: "What issues are assigned to me?"',
   ];
   // Project-scoped files are meant to be committed; say so rather than
-  // touching the user's index for them.
-  if (
-    report.outcomes.some((o) => o.result.scope === 'project' && o.result.wrote)
-  ) {
+  // touching the user's index for them. A file git ignores cannot be shared
+  // that way, so it gets the opposite advice instead of a contradiction
+  // (internal); a mixed run gets both lines, each about its own files.
+  const projectWrites = report.outcomes.filter(
+    (o) => o.result.scope === 'project' && o.result.wrote,
+  );
+  if (projectWrites.some((o) => o.result.gitIgnored !== true)) {
     lines.push(
       '',
       'Project-scoped config was written into this repository — commit it to',
       'share the Levr MCP with everyone who checks it out.',
+    );
+  }
+  if (projectWrites.some((o) => o.result.gitIgnored === true)) {
+    lines.push(
+      '',
+      'A project-scoped file above is git-ignored, so it stays on this machine.',
+      'To share it, un-ignore that path (a `!` rule in .gitignore) or use --scope user.',
     );
   }
   return lines.join('\n');

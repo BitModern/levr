@@ -1318,3 +1318,86 @@ describe('scope note rendering (internal)', () => {
     );
   });
 });
+
+describe('git-ignored project path (internal)', () => {
+  // A project file is promised to be shared via git; when the repository
+  // ignores its path the installer still writes it and the line says so.
+  const NOTE = '[path is git-ignored — not shared via git]';
+  const result = (over: Partial<InstallResult> = {}): InstallResult => ({
+    ok: true,
+    wrote: true,
+    path: '/repo/.agents/mcp_config.json',
+    alreadyConfigured: false,
+    dryRun: false,
+    scope: 'project',
+    ...over,
+  });
+  const reportOf = (results: InstallResult[], dryRun = false): RunReport => ({
+    url: URL,
+    urlSource: SOURCE,
+    scope: 'project',
+    outcomes: results.map((result, i) => ({
+      id: i === 0 ? 'antigravity' : 'cursor',
+      label: i === 0 ? 'Antigravity' : 'Cursor',
+      result,
+    })),
+    unknownClients: [],
+    dryRun,
+  });
+  const line = (r: InstallResult, dryRun = false): string =>
+    formatReport(reportOf([r], dryRun));
+
+  it('says so on the installed, dry-run, already-set-up and no-change lines', () => {
+    expect(line(result({ gitIgnored: true }))).toContain(
+      `Antigravity: installed (project) → /repo/.agents/mcp_config.json ${NOTE}`,
+    );
+    expect(
+      line(result({ gitIgnored: true, wrote: false, dryRun: true }), true),
+    ).toContain(`(dry run — no changes) ${NOTE}`);
+    expect(
+      line(result({ gitIgnored: true, wrote: false, alreadyConfigured: true })),
+    ).toContain(
+      `already set up (project) → /repo/.agents/mcp_config.json ${NOTE}`,
+    );
+    expect(line(result({ gitIgnored: true, wrote: false }))).toContain(
+      `no change (project) → /repo/.agents/mcp_config.json ${NOTE}`,
+    );
+  });
+
+  it('stays quiet when git does not ignore the path, when git could not answer, and on a failure', () => {
+    expect(line(result({ gitIgnored: false }))).not.toContain('git-ignored');
+    expect(line(result())).not.toContain('git-ignored');
+    expect(
+      line(
+        result({
+          ok: false,
+          wrote: false,
+          gitIgnored: true,
+          reason: 'write-failed',
+          detail: 'EACCES',
+        }),
+      ),
+    ).not.toContain('git-ignored');
+  });
+
+  it('never tells the user to commit a file git ignores, and says what to do instead', () => {
+    const ignoredOnly = nextStepsText(reportOf([result({ gitIgnored: true })]));
+    expect(ignoredOnly).not.toContain('commit it');
+    expect(ignoredOnly).toContain('git-ignored, so it stays on this machine');
+    expect(ignoredOnly).toContain('--scope user');
+
+    const shared = nextStepsText(reportOf([result({ gitIgnored: false })]));
+    expect(shared).toContain('commit it');
+    expect(shared).not.toContain('stays on this machine');
+
+    // A mixed run says both, each about its own files.
+    const mixed = nextStepsText(
+      reportOf([
+        result({ gitIgnored: true }),
+        result({ gitIgnored: false, path: '/repo/.cursor/mcp.json' }),
+      ]),
+    );
+    expect(mixed).toContain('commit it');
+    expect(mixed).toContain('stays on this machine');
+  });
+});

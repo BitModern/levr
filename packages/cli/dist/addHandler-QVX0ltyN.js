@@ -2076,6 +2076,12 @@ function* installSteps(harness, mcpUrl, opts) {
 		if (err instanceof UnsupportedConfigShapeError) return unsupportedShape(path$1, dryRun, scope, err.detail);
 		throw err;
 	}
+	const shared = {};
+	if (def.projectPath) {
+		const root = resolveProjectRoot(env);
+		const ignored = root.isRepo ? isGitIgnored(env, root.root, path$1) : void 0;
+		if (ignored !== void 0) shared.gitIgnored = ignored;
+	}
 	if (alreadyConfigured) return {
 		ok: true,
 		wrote: false,
@@ -2083,7 +2089,8 @@ function* installSteps(harness, mcpUrl, opts) {
 		alreadyConfigured: true,
 		dryRun,
 		scope,
-		preview: nextText
+		preview: nextText,
+		...shared
 	};
 	const backupPath = backupPathFor(path$1, adapter.backupSuffix);
 	if (dryRun) return {
@@ -2095,7 +2102,8 @@ function* installSteps(harness, mcpUrl, opts) {
 		scope,
 		preview: nextText,
 		...replaced,
-		...backupPath ? { backupPath } : {}
+		...backupPath ? { backupPath } : {},
+		...shared
 	};
 	const finalText = nextText.endsWith("\n") ? nextText : `${nextText}\n`;
 	try {
@@ -2114,7 +2122,8 @@ function* installSteps(harness, mcpUrl, opts) {
 		scope,
 		preview: finalText,
 		...replaced,
-		...backupPath ? { backupPath } : {}
+		...backupPath ? { backupPath } : {},
+		...shared
 	};
 }
 /**
@@ -2704,6 +2713,7 @@ function outcomeLine(o, dryRun, switchCommand, entryName) {
 	const harness = getHarness(o.id);
 	const scopeNote = harness ? scopeDef(harness, r.scope)?.note : void 0;
 	const caveat = scopeNote ? ` [${scopeNote}]` : "";
+	const unshared = r.gitIgnored === true && r.scope === "project" ? " [path is git-ignored — not shared via git]" : "";
 	const note = (o.entryName ? ` [as ${o.entryName}]` : "") + (o.fallbackFrom ? ` [${o.fallbackFrom} scope unsupported — used ${r.scope}]` : "");
 	const where = r.path ? ` → ${r.path}` : "";
 	const backup = r.backupPath ? dryRun ? ` [original would be backed up to ${r.backupPath}]` : ` [original backed up to ${r.backupPath}]` : "";
@@ -2712,14 +2722,14 @@ function outcomeLine(o, dryRun, switchCommand, entryName) {
 		if (o.entryName) return `${o.label}: failed [as ${o.entryName}] — ${failureText(o, void 0, o.entryName)}`;
 		return `${o.label}: failed — ${failureText(o, switchCommand, entryName)}`;
 	}
-	if (r.alreadyConfigured) return `${o.label}: already set up (${r.scope})${where}${note}${caveat}`;
+	if (r.alreadyConfigured) return `${o.label}: already set up (${r.scope})${where}${note}${unshared}${caveat}`;
 	if (r.command) {
 		if (r.executed) return `${o.label}: installed (${r.scope}) via \`${r.command}\`${replaced}${note}${caveat}`;
 		return `${o.label} (${r.scope}): run \`${r.command}\`${replaced}${note}${caveat}`;
 	}
-	if (dryRun) return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}${caveat}`;
-	if (r.wrote) return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}${caveat}`;
-	return `${o.label}: no change (${r.scope})${where}${note}${caveat}`;
+	if (dryRun) return `${o.label}: would update (${r.scope})${where} (dry run — no changes)${backup}${replaced}${note}${unshared}${caveat}`;
+	if (r.wrote) return `${o.label}: installed (${r.scope})${where}${backup}${replaced}${note}${unshared}${caveat}`;
+	return `${o.label}: no change (${r.scope})${where}${note}${unshared}${caveat}`;
 }
 /** Render a report as a plain multi-line summary (used by the CLI + tests). */
 function formatReport(report) {
@@ -2743,7 +2753,9 @@ function nextStepsText(report) {
 	if (report.dryRun) return "Dry run — re-run without --dry-run to apply these changes.";
 	if (!report.outcomes.some((o) => o.result.ok && !o.result.alreadyConfigured && (o.result.wrote || o.result.executed || o.result.command))) return report.outcomes.some((o) => !o.result.ok) ? "Nothing was installed." : "Nothing to do.";
 	const lines = ["Next: restart the client(s) above — each will prompt you to authorize", "Levr once in the browser. Then ask it: \"What issues are assigned to me?\""];
-	if (report.outcomes.some((o) => o.result.scope === "project" && o.result.wrote)) lines.push("", "Project-scoped config was written into this repository — commit it to", "share the Levr MCP with everyone who checks it out.");
+	const projectWrites = report.outcomes.filter((o) => o.result.scope === "project" && o.result.wrote);
+	if (projectWrites.some((o) => o.result.gitIgnored !== true)) lines.push("", "Project-scoped config was written into this repository — commit it to", "share the Levr MCP with everyone who checks it out.");
+	if (projectWrites.some((o) => o.result.gitIgnored === true)) lines.push("", "A project-scoped file above is git-ignored, so it stays on this machine.", "To share it, un-ignore that path (a `!` rule in .gitignore) or use --scope user.");
 	return lines.join("\n");
 }
 
