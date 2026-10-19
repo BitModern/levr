@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { COMPLETION_SHELLS } from "./completionHandler-O2G_WZLf.js";
-import { gatesInspectCommand } from "./inspect-B8tG9g0q.js";
+import { gatesInspectCommand } from "./inspect-DI7vOwHq.js";
 import { buildApplication, buildCommand, buildRouteMap, proposeCompletions, run, text_en } from "@stricli/core";
 import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
@@ -718,7 +718,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-itaAVn4U.js");
+		const { gatesRunHandler } = await import("./runHandler-Dr_i9flr.js");
 		return gatesRunHandler;
 	}
 });
@@ -914,7 +914,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.12.2";
+var version = "0.12.3";
 
 //#endregion
 //#region src/app.ts

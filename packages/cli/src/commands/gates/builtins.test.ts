@@ -374,6 +374,52 @@ describe('internal review M10 — symlinks', () => {
   });
 });
 
+describe('internal — the seeded no_stubs pattern runs', () => {
+  // Kept in step with OP_TEMPLATES.no_stubs in
+  // packages/db-core/src/seeds/gate-definition.util.ts; the db-core spec
+  // asserts that seed is accepted by translatePosixEre.
+  const NO_STUBS = '^[[:space:]]*(//|#|[*]|/[*]) *(TODO|FIXME|stub)';
+
+  it('counts comment markers and ignores identifiers', () => {
+    const dir = setup();
+    writeFileSync(
+      join(dir, 'probe.ts'),
+      [
+        '// TODO wire this',
+        ' * FIXME later',
+        '/* stub */',
+        'const ISSUE_TODO_ID = 1;',
+        'const x = 1; // not at line start',
+      ].join('\n') + '\n',
+    );
+    const result = runBuiltin(
+      {
+        check: 'not_contains',
+        params: { path: 'probe.ts', pattern: NO_STUBS },
+      },
+      dir,
+    );
+    expect(result.stdout.trim()).toBe('3');
+    expect(result.exitCode).toBe(1);
+  });
+
+  it('the pre-internal pattern is refused, which is the bug', () => {
+    const dir = setup();
+    writeFileSync(join(dir, 'probe.ts'), '// TODO\n');
+    const result = runBuiltin(
+      {
+        check: 'not_contains',
+        params: {
+          path: 'probe.ts',
+          pattern: '^\\s*(//|#|\\*|/[\\*]) *(TODO|FIXME|stub)',
+        },
+      },
+      dir,
+    );
+    expect(result.exitCode).toBe(2);
+  });
+});
+
 describe('internal review — parity with the shell templates it replaced', () => {
   const write = (dir: string, rel: string, body: string) => {
     mkdirSync(join(dir, rel, '..'), { recursive: true });

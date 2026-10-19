@@ -3,6 +3,103 @@ import { z } from "zod";
 import * as fs from "node:fs";
 import path from "node:path";
 
+//#region ../shared/dist/runs/gate-pattern.js
+/**
+* POSIX ERE → JS `RegExp` translation for gate patterns (ENG-7246).
+*
+* Moved from the CLI's `gates inspect` builtins so the server and the seed
+* specs read a pattern with the same parser the CLI runs: a pattern the CLI
+* refuses is caught before it ships, not when a gate is verified.
+*/
+const POSIX_CLASSES = {
+	alpha: "A-Za-z",
+	digit: "0-9",
+	alnum: "A-Za-z0-9",
+	upper: "A-Z",
+	lower: "a-z",
+	space: " \\t\\n\\r\\f\\v",
+	blank: " \\t",
+	punct: "!-\\/:-@\\[-`{-~",
+	xdigit: "0-9A-Fa-f",
+	cntrl: "\\x00-\\x1f\\x7f",
+	print: "\\x20-\\x7e",
+	graph: "\\x21-\\x7e",
+	word: "A-Za-z0-9_"
+};
+/**
+* Translate a POSIX ERE (what `grep -E` read) into a JS `RegExp` source.
+*
+* Bracket classes become their JS ranges. Syntax that `grep` and JS read
+* differently, and that has no faithful translation, is refused with a
+* reason: GNU word anchors `\<` `\>`, buffer anchors, collating and
+* equivalence classes, a backslash inside a bracket expression (literal to
+* grep, an escape to JS), and a back-reference to a group that does not
+* exist (an octal escape to JS). Refusing is the point: a `not_contains`
+* whose pattern silently stopped matching is a false pass.
+*/
+function translatePosixEre(pattern) {
+	let out = "";
+	let groups = 0;
+	for (let i = 0; i < pattern.length; i++) if (pattern[i] === "\\") i += 1;
+	else if (pattern[i] === "(" && pattern[i + 1] !== "?") groups += 1;
+	for (let i = 0; i < pattern.length; i++) {
+		const ch = pattern[i] ?? "";
+		if (ch === "\\") {
+			const next = pattern[i + 1];
+			if (next === void 0) return { error: "pattern ends with a backslash" };
+			if (next === "<" || next === ">") return { error: `\\${next} is a GNU word anchor with no JS equivalent; use \\b` };
+			if (next === "`" || next === "'") return { error: `\\${next} is a GNU buffer anchor; use ^ or $` };
+			if (/[1-9]/.test(next) && Number(next) > groups) return { error: `back-reference \\${next} names a group the pattern does not have` };
+			out += ch + next;
+			i += 1;
+			continue;
+		}
+		if (ch !== "[") {
+			out += ch;
+			continue;
+		}
+		let j = i + 1;
+		let body = "";
+		if (pattern[j] === "^") {
+			body += "^";
+			j += 1;
+		}
+		if (pattern[j] === "]") {
+			body += "\\]";
+			j += 1;
+		}
+		let closed = false;
+		while (j < pattern.length) {
+			const c = pattern[j] ?? "";
+			if (c === "]") {
+				closed = true;
+				break;
+			}
+			if (c === "[" && (pattern[j + 1] === ":" || pattern[j + 1] === "=" || pattern[j + 1] === ".")) {
+				const kind = pattern[j + 1];
+				const end = pattern.indexOf(`${kind}]`, j + 2);
+				if (end === -1) return { error: `unterminated [${kind} in a bracket expression` };
+				const name = pattern.slice(j + 2, end);
+				if (kind !== ":") return { error: `[${kind}${name}${kind}] has no JS equivalent` };
+				const range = POSIX_CLASSES[name];
+				if (range === void 0) return { error: `unknown class [:${name}:]` };
+				body += range;
+				j = end + 2;
+				continue;
+			}
+			if (c === "\\") return { error: "a backslash inside [...] is literal to grep and an escape to JS; use a POSIX class or move it outside the brackets" };
+			if (c === "[") body += "\\[";
+			else body += c;
+			j += 1;
+		}
+		if (!closed) return { error: "unterminated bracket expression" };
+		out += `[${body}]`;
+		i = j;
+	}
+	return out;
+}
+
+//#endregion
 //#region ../shared/dist/runs/gate-op.js
 const GATE_OP_CONTRACT_VERSION = 1;
 const REPO_RELATIVE = "path must be repo-relative and must not contain ..";
@@ -778,93 +875,6 @@ function readText(root, rel) {
 function escapeRegExp(value) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-const POSIX_CLASSES = {
-	alpha: "A-Za-z",
-	digit: "0-9",
-	alnum: "A-Za-z0-9",
-	upper: "A-Z",
-	lower: "a-z",
-	space: " \\t\\n\\r\\f\\v",
-	blank: " \\t",
-	punct: "!-\\/:-@\\[-`{-~",
-	xdigit: "0-9A-Fa-f",
-	cntrl: "\\x00-\\x1f\\x7f",
-	print: "\\x20-\\x7e",
-	graph: "\\x21-\\x7e",
-	word: "A-Za-z0-9_"
-};
-/**
-* Translate a POSIX ERE (what `grep -E` read) into a JS `RegExp` source.
-*
-* Bracket classes become their JS ranges. Syntax that `grep` and JS read
-* differently, and that has no faithful translation, is refused with a
-* reason: GNU word anchors `\<` `\>`, buffer anchors, collating and
-* equivalence classes, a backslash inside a bracket expression (literal to
-* grep, an escape to JS), and a back-reference to a group that does not
-* exist (an octal escape to JS). Refusing is the point: a `not_contains`
-* whose pattern silently stopped matching is a false pass.
-*/
-function translatePosixEre(pattern) {
-	let out = "";
-	let groups = 0;
-	for (let i = 0; i < pattern.length; i++) if (pattern[i] === "\\") i += 1;
-	else if (pattern[i] === "(" && pattern[i + 1] !== "?") groups += 1;
-	for (let i = 0; i < pattern.length; i++) {
-		const ch = pattern[i] ?? "";
-		if (ch === "\\") {
-			const next = pattern[i + 1];
-			if (next === void 0) return { error: "pattern ends with a backslash" };
-			if (next === "<" || next === ">") return { error: `\\${next} is a GNU word anchor with no JS equivalent; use \\b` };
-			if (next === "`" || next === "'") return { error: `\\${next} is a GNU buffer anchor; use ^ or $` };
-			if (/[1-9]/.test(next) && Number(next) > groups) return { error: `back-reference \\${next} names a group the pattern does not have` };
-			out += ch + next;
-			i += 1;
-			continue;
-		}
-		if (ch !== "[") {
-			out += ch;
-			continue;
-		}
-		let j = i + 1;
-		let body = "";
-		if (pattern[j] === "^") {
-			body += "^";
-			j += 1;
-		}
-		if (pattern[j] === "]") {
-			body += "\\]";
-			j += 1;
-		}
-		let closed = false;
-		while (j < pattern.length) {
-			const c = pattern[j] ?? "";
-			if (c === "]") {
-				closed = true;
-				break;
-			}
-			if (c === "[" && (pattern[j + 1] === ":" || pattern[j + 1] === "=" || pattern[j + 1] === ".")) {
-				const kind = pattern[j + 1];
-				const end = pattern.indexOf(`${kind}]`, j + 2);
-				if (end === -1) return { error: `unterminated [${kind} in a bracket expression` };
-				const name = pattern.slice(j + 2, end);
-				if (kind !== ":") return { error: `[${kind}${name}${kind}] has no JS equivalent` };
-				const range = POSIX_CLASSES[name];
-				if (range === void 0) return { error: `unknown class [:${name}:]` };
-				body += range;
-				j = end + 2;
-				continue;
-			}
-			if (c === "\\") return { error: "a backslash inside [...] is literal to grep and an escape to JS; use a POSIX class or move it outside the brackets" };
-			if (c === "[") body += "\\[";
-			else body += c;
-			j += 1;
-		}
-		if (!closed) return { error: "unterminated bracket expression" };
-		out += `[${body}]`;
-		i = j;
-	}
-	return out;
-}
 function compilePattern(source, flags) {
 	const translated = translatePosixEre(source);
 	if (typeof translated !== "string") return finish(2, `ERROR: unsupported pattern: ${translated.error}`);
@@ -1113,7 +1123,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { gatesInspectHandler: handler } = await import("./inspect-BzBqSBO3.js");
+		const { gatesInspectHandler: handler } = await import("./inspect-BJHoBVvi.js");
 		return handler;
 	}
 });
