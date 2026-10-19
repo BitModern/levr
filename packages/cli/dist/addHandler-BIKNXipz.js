@@ -1,10 +1,10 @@
-import { configureClient } from "./sdk-client-DYv-0CfA.js";
-import { getApiUrl } from "./env-CdwyPHGV.js";
-import "./token-refresh-DeusLK8H.js";
-import { resolveToken } from "./resolve-token-7xb7kG7h.js";
-import "./workspace-store-CnrxyYRB.js";
-import { fetchSites } from "./resolve-workspace-CStHisUb.js";
-import { describeWorkspaces, findWorkspaceByKeyOrName, isScopedMcpUrl, resolveMcpUrl, scopedMcpUrl, servedBySessionApi } from "./find-workspace-T4xuXwtS.js";
+import { configureClient } from "./sdk-client-B4FMd_Fa.js";
+import { getApiUrl } from "./env-CvjMSRd7.js";
+import "./token-refresh-CJB7Qlxy.js";
+import { resolveToken } from "./resolve-token-ByZq05Us.js";
+import "./workspace-store-Bmw104Qa.js";
+import { fetchSites } from "./resolve-workspace-BbK3uYQc.js";
+import { describeWorkspaces, findWorkspaceByKeyOrName, isScopedMcpUrl, resolveMcpUrl, scopedMcpUrl, servedBySessionApi } from "./find-workspace-Bl4rfr73.js";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { homedir } from "node:os";

@@ -1,9 +1,7 @@
-import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -20,11 +18,11 @@ import {
 } from './gate-runner.js';
 
 /**
- * internal review R2-01 — `levr gates run` and the documented helper report
- * a compound command (`cd <workspace> && yarn test:unit …`, exactly as the
- * resolver hands it out) as ONE step. The SERVER judges it per top-level
- * command, so a run that ran nothing fails through this path exactly as it
- * does through the MCP executor, which splits it.
+ * internal review R2-01 — `levr gates run` reports a compound command
+ * (`cd <workspace> && yarn test:unit …`, exactly as the resolver hands it
+ * out) as ONE step. The SERVER judges it per top-level command, so a run
+ * that ran nothing fails. The copy-paste helper that used to share this
+ * contract was retired (internal).
  *
  * The verdict comes from the real `deriveGateVerdict` (`@levr/shared`),
  * loaded by path: the CLI must not import `@levr/*` (it would join the
@@ -35,10 +33,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SHARED_VERDICT = resolve(
   here,
   '../../../../shared/src/runs/gate-verdict.ts',
-);
-const DOC = resolve(
-  here,
-  '../../../../help-content/docs/gates/running-gates.mdx',
 );
 
 type DeriveGateVerdict = (
@@ -97,7 +91,7 @@ describe('R2-01 — a compound command reported by the CLI is judged per command
     expect(deriveGateVerdict(result.steps, 'exit 0').status).toBe('fail');
   });
 
-  describe('real run: the CLI and the documented helper, same command, same verdict', () => {
+  describe('real run: the CLI reports the compound command as one step', () => {
     let dir = '';
     let binDir = '';
     beforeAll(() => {
@@ -112,30 +106,13 @@ describe('R2-01 — a compound command reported by the CLI is judged per command
         `#!/bin/sh\nprintf '%s' '${NO_FILES.trim()}'\necho\nexit 0\n`,
       );
       chmodSync(yarn, 0o755);
-      const mdx = readFileSync(DOC, 'utf8');
-      const section = mdx.split(/^## Running gates without the CLI.*$/m)[1]!;
-      writeFileSync(
-        join(dir, 'levr-gates-run.mjs'),
-        /```js\n([\s\S]*?)```/.exec(section)![1]!,
-      );
-      writeFileSync(join(dir, 'cmds.json'), JSON.stringify([COMPOUND]));
     });
     afterAll(() => {
       if (dir) rmSync(dir, { recursive: true, force: true });
     });
 
-    it('both report the raw step, and the server verdict FAILS it', () => {
+    it('reports the raw step, and the server verdict FAILS it', () => {
       const PATH = `${binDir}${delimiter}${process.env['PATH'] ?? ''}`;
-      const helper = spawnSync(
-        process.execPath,
-        ['levr-gates-run.mjs', 'cmds.json'],
-        { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH } },
-      );
-      expect(helper.status, helper.stderr).toBe(0);
-      const fromDoc = JSON.parse(helper.stdout) as {
-        results: Array<{ steps: RawGateStep[] }>;
-      };
-
       const cwd = process.cwd();
       const savedPath = process.env['PATH'];
       process.chdir(dir);
@@ -147,7 +124,8 @@ describe('R2-01 — a compound command reported by the CLI is judged per command
         process.chdir(cwd);
         process.env['PATH'] = savedPath;
       }
-      expect(fromDoc).toEqual({ results: fromCli });
+      expect(fromCli[0]!.steps).toHaveLength(1);
+      expect(fromCli[0]!.steps[0]!.command).toBe(COMPOUND.command);
       expect(fromCli[0]!.steps[0]!.exit_code).toBe(0);
       expect(fromCli[0]!.steps[0]!.stdout_tail).toContain(
         'No test files found',
@@ -155,9 +133,6 @@ describe('R2-01 — a compound command reported by the CLI is judged per command
       expect(deriveGateVerdict(fromCli[0]!.steps, 'exit 0').status).toBe(
         'fail',
       );
-      expect(
-        deriveGateVerdict(fromDoc.results[0]!.steps, 'exit 0').status,
-      ).toBe('fail');
     });
   });
 });

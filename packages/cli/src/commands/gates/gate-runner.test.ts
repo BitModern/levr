@@ -1,3 +1,4 @@
+import { deriveDisplayCommand } from '@levr/shared/runs/gate-op';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +7,8 @@ import {
   GATE_COMMAND_TIMEOUT_MS,
   GATE_SEMANTIC_TIMEOUT_MS,
   GATE_STEP_TAIL_LIMIT,
+  inspectOpOf,
+  needsShell,
   runInShell,
   runLocalCommands,
   tail,
@@ -183,5 +186,67 @@ describe('internal — the runner, not the template, bounds an L4 judge', () => 
     const r = runInShell('sleep 5', 200);
     expect(r.exitCode).toBeGreaterThan(128);
     expect(r.stderr).toMatch(/\[runner\]/);
+  });
+});
+
+describe('internal review C1 — inspect ops are recognised and run in process', () => {
+  const op = {
+    op: 'inspect' as const,
+    check: 'contains' as const,
+    params: { path: "a'b.txt", pattern: "it's" },
+  };
+  const display = deriveDisplayCommand(op, 'posix', { cliSpec: '0.10.0' });
+
+  it('reads the op from the envelope, and from the display string alone', () => {
+    expect(inspectOpOf(cmd({ command: display, op: { op } }))).toBe(
+      JSON.stringify(op),
+    );
+    // The display string round-trips, `'\''` quoting included.
+    expect(JSON.parse(inspectOpOf(cmd({ command: display }))!)).toEqual(op);
+    expect(
+      inspectOpOf(cmd({ command: display.replace('npx ', 'npx --yes ') })),
+    ).not.toBeNull();
+  });
+
+  it('never treats an argv op, a judge, or a look-alike as inspect', () => {
+    expect(
+      inspectOpOf(
+        cmd({
+          command: display,
+          op: { op: { op: 'argv', cwd: '.', argv: ['yarn'] } },
+        }),
+      ),
+    ).toBeNull();
+    expect(inspectOpOf(cmd({ command: 'yarn test:unit' }))).toBeNull();
+    expect(inspectOpOf(cmd({ command: `${display} && rm -rf x` }))).toBeNull();
+    expect(
+      inspectOpOf(cmd({ command: `npx 'evil@1' gates inspect '{}'` })),
+    ).toBeNull();
+  });
+
+  it('runLocalCommands routes inspect to the in-process runner, never the shell', () => {
+    const shellCalls: string[] = [];
+    const inspectCalls: string[] = [];
+    const results = runLocalCommands(
+      [cmd({ command: display }), cmd({ command: 'echo hi' })],
+      (c) => {
+        shellCalls.push(c);
+        return { exitCode: 0, stdout: 'hi\n', stderr: '' };
+      },
+      undefined,
+      undefined,
+      (json) => {
+        inspectCalls.push(json);
+        return { exitCode: 1, stdout: '0\n', stderr: '' };
+      },
+    );
+    expect(shellCalls).toEqual(['echo hi']);
+    expect(inspectCalls).toHaveLength(1);
+    expect(results[0]!.steps[0]).toMatchObject({
+      command: display,
+      exit_code: 1,
+    });
+    expect(needsShell([cmd({ command: display })])).toBe(false);
+    expect(needsShell([cmd({ command: display }), cmd({})])).toBe(true);
   });
 });

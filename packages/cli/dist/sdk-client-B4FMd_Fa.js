@@ -1,4 +1,4 @@
-import { getApiUrl } from "./env-CdwyPHGV.js";
+import { getApiUrl } from "./env-CvjMSRd7.js";
 
 //#region ../sdk-public/dist/runtime/client.js
 function createInterceptorManager() {

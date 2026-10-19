@@ -1,9 +1,10 @@
-import { client, configureClient } from "./sdk-client-DYv-0CfA.js";
-import "./env-CdwyPHGV.js";
-import "./token-refresh-DeusLK8H.js";
-import { resolveToken } from "./resolve-token-7xb7kG7h.js";
-import "./workspace-store-CnrxyYRB.js";
-import { resolveWorkspace } from "./resolve-workspace-CStHisUb.js";
+import { executeInspect } from "./inspect-B8tG9g0q.js";
+import { client, configureClient } from "./sdk-client-B4FMd_Fa.js";
+import "./env-CvjMSRd7.js";
+import "./token-refresh-CJB7Qlxy.js";
+import { resolveToken } from "./resolve-token-ByZq05Us.js";
+import "./workspace-store-Bmw104Qa.js";
+import { resolveWorkspace } from "./resolve-workspace-BbK3uYQc.js";
 import { existsSync } from "node:fs";
 import { constants as constants$1 } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -56,8 +57,7 @@ const issueGateVerificationReportGateResultsV1 = (options) => {
 * one the `report_gate_results` MCP tool takes):
 *
 *  - each `local_commands[]` entry is run EXACTLY as returned, through
-*    `/bin/bash -c` (the shell the qinetic-mcp executor uses — see
-*    `chooseShell`), from the current directory — no rewriting and no
+*    `/bin/bash -c` (`chooseShell`), from the current directory — no rewriting and no
 *    splitting. The server decided what to run; this reports what happened.
 *    `levr gates run` prints each command first; there is no local
 *    allowlist — the server validates every command it hands out
@@ -76,13 +76,18 @@ const issueGateVerificationReportGateResultsV1 = (options) => {
 *    FAIL (0)`) hides the signals the server reads. Spawning the commands
 *    from this process means no proxy ever sees them.
 *
-* Why not the qinetic-mcp executor: it splits `&&` chains and rewrites paths
-* for the Levr monorepo — the opposite of "exactly as returned". The CLI
-* shares its wire contract, not its code, and imports
-* no `@levr/*` value module (so the published bundle's inlined set is
-* unchanged). The documented no-install helper
-* (`packages/help-content/docs/gates/running-gates.mdx`) implements this same
-* contract; `gate-runner.helper.test.ts` holds the two to identical output.
+* The qinetic-mcp executor used to split `&&` chains and rewrite paths for
+* the Levr monorepo — the opposite of "exactly as returned" — and was
+* retired (ENG-6175). The CLI reports each command whole.
+*
+* An INSPECT op (ENG-6179) is the one exception to "spawn it": its display
+* command is `npx '@levr-one/cli@<spec>' gates inspect '<op json>'`, and
+* spawning that would run whatever CLI version npm resolves for the pin,
+* which may not have `gates inspect` at all. This CLI has it, so an inspect
+* op runs IN PROCESS (`inspectOpOf` → `executeInspect`, through
+* `@levr/shared`'s `GateOpSchema`, which the bundle inlines). The step
+* still reports the command exactly as issued, with this run's exit code
+* and output, so the server judges it the same way.
 */
 /** The server's `GATE_STEP_TAIL_LIMIT` (`@levr/shared`), in chars. */
 const GATE_STEP_TAIL_LIMIT = 4e3;
@@ -196,16 +201,165 @@ function toReportResult(command, outcome) {
 	};
 }
 /**
+* The display form the server renders for an inspect op:
+* `npx '@levr-one/cli@<spec>' gates inspect '<json>'` (POSIX quoting, where a
+* `'` inside is written `'\''`). Also accepts a bare `levr gates inspect`.
+*/
+const INSPECT_DISPLAY_RE = /^\s*(?:npx(?:\s+--?[A-Za-z][\w-]*)*\s+(?:'@levr-one\/cli(?:@[^']*)?'|@levr-one\/cli(?:@\S*)?)|levr)\s+gates\s+inspect\s+'((?:[^']|'\\'')*)'\s*$/;
+/**
+* The inspect op JSON a local command carries, or `null` when it is not an
+* inspect op. The envelope's `op` is authoritative; the display string is
+* parsed only when the envelope is absent (an older server).
+*/
+function inspectOpOf(command) {
+	const op = command.op?.op;
+	if (op && typeof op === "object") return op.op === "inspect" ? JSON.stringify(op) : null;
+	const match = INSPECT_DISPLAY_RE.exec(command.command);
+	if (!match) return null;
+	return (match[1] ?? "").replace(/'\\''/g, "'");
+}
+/**
+* Where a command runs: inspect ops in this process, everything else in the
+* shell `chooseShell` picks. Shown by `--dry-run` so a reader knows which
+* printed `npx … gates inspect` lines never spawn anything.
+*/
+function runsWhere(command) {
+	return inspectOpOf(command) === null ? "shell" : "in-process";
+}
+/**
+* The server's approval for a command (`server_approved`, `confirm`,
+* `denied`) and why, from the op envelope; `undefined` from an older server.
+* Display only: nothing here asks for a confirmation yet (that is D10,
+* ENG-6183), so a `confirm` command still runs.
+*/
+function approvalOf(command) {
+	const approval = command.op?.["approval"];
+	if (typeof approval !== "string") return void 0;
+	const basis = command.op?.["approval_basis"];
+	return typeof basis === "string" ? {
+		approval,
+		approval_basis: basis
+	} : { approval };
+}
+/**
+* True when at least one command must be spawned in a shell (anything that
+* is not an inspect op), so a missing shell matters.
+*/
+function needsShell(commands) {
+	return commands.some((command) => inspectOpOf(command) === null);
+}
+/**
 * Run every command, in order, and build the `results[]` payload.
 * `onBefore` is called BEFORE each command runs (to print it), `onEach`
 * after, with its result.
 */
-function runLocalCommands(commands, run = runInShell, onEach, onBefore) {
+function runLocalCommands(commands, run = runInShell, onEach, onBefore, inspect = executeInspect) {
 	return commands.map((command, index) => {
 		onBefore?.(command, index);
-		const result = toReportResult(command, run(command.command, commandTimeoutMs(command)));
+		const opJson = inspectOpOf(command);
+		const result = toReportResult(command, opJson !== null ? inspect(opJson) : run(command.command, commandTimeoutMs(command)));
 		onEach?.(command, result);
 		return result;
+	});
+}
+
+//#endregion
+//#region src/commands/gates/ci-oidc.ts
+/**
+* GitHub Actions OIDC for `levr gates run --ci` (ENG-6177).
+*
+* The workflow needs `permissions: id-token: write` (documented with the
+* pin in D13). When the runner env vars are absent, the CLI still declares
+* CI and the server records `unverified` — it never invents a token.
+*
+* `fail_retry`: a report or verify that answers `OIDC_JWKS_UNAVAILABLE`
+* (503) is retried twice with backoff, then the command exits non-zero.
+* Nothing was recorded for those attempts.
+*
+* ENG-5987 review H7: the token is minted for ONE workspace
+* (`levr:<workspace_id>`, matching the server's `ciOidcAudience`), is
+* requested fresh right before each verify and report (an Actions token lives
+* minutes, and a long suite outlived the one fetched at start-up), and the
+* request is bounded by a timeout so a hung token endpoint cannot hang CI.
+* The run's commit (`GITHUB_SHA`) is sent as `commit_sha`, which the server
+* now requires before it will stamp `oidc_verified`.
+*/
+const CI_OIDC_HEADER = "X-Levr-CI-OIDC";
+const CI_DECLARED_HEADER = "X-Levr-CI-Declared";
+const OIDC_JWKS_UNAVAILABLE = "OIDC_JWKS_UNAVAILABLE";
+const RETRY_DELAYS_MS = [250, 750];
+const TOKEN_REQUEST_TIMEOUT_MS = 1e4;
+const COMMIT_SHA = /^[0-9a-f]{40}$/i;
+/** The audience the server expects — `levr:<workspace_id>`. */
+function ciOidcAudience(workspaceId) {
+	return `levr:${workspaceId}`;
+}
+/** The commit this Actions run checked out, when the runner says so. */
+function ciCommitSha(env = process.env) {
+	const sha = env["GITHUB_SHA"]?.trim();
+	return sha && COMMIT_SHA.test(sha) ? sha : void 0;
+}
+function actionsOidcEnvFrom(env = process.env) {
+	return {
+		ACTIONS_ID_TOKEN_REQUEST_URL: env["ACTIONS_ID_TOKEN_REQUEST_URL"],
+		ACTIONS_ID_TOKEN_REQUEST_TOKEN: env["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
+	};
+}
+/**
+* Request an Actions OIDC token for `audience`. Returns null when the runner
+* did not expose the env vars, the request failed, or it did not answer
+* within `timeoutMs` — the caller still sends the declaration header, and
+* the server records `unverified`.
+*/
+async function requestActionsOidcToken(audience, env = actionsOidcEnvFrom(), fetchImpl = globalThis.fetch, timeoutMs = TOKEN_REQUEST_TIMEOUT_MS) {
+	const url = env.ACTIONS_ID_TOKEN_REQUEST_URL;
+	const requestToken = env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+	if (!url || !requestToken) return null;
+	let endpoint;
+	try {
+		endpoint = new URL(url);
+	} catch {
+		return null;
+	}
+	endpoint.searchParams.set("audience", audience);
+	try {
+		const response = await fetchImpl(endpoint, {
+			headers: { Authorization: `bearer ${requestToken}` },
+			signal: AbortSignal.timeout(timeoutMs)
+		});
+		if (!response.ok) return null;
+		const body = await response.json();
+		return typeof body.value === "string" && body.value.length > 0 ? body.value : null;
+	} catch {
+		return null;
+	}
+}
+/** Headers for verify and report. Declaration is `1` whenever `--ci` is set. */
+function ciRequestHeaders(token) {
+	const headers = { [CI_DECLARED_HEADER]: "1" };
+	if (token) headers[CI_OIDC_HEADER] = token;
+	return headers;
+}
+function isOidcJwksUnavailable(result) {
+	if (result.response?.status !== 503) return false;
+	return JSON.stringify(result.error ?? "").includes(OIDC_JWKS_UNAVAILABLE);
+}
+/**
+* Run `fn` and, on `OIDC_JWKS_UNAVAILABLE`, retry twice. Any other result
+* is returned as-is. `fail_retry(2)`.
+*/
+async function withOidcJwksRetry(fn, sleep = delay) {
+	let result = await fn();
+	for (const wait of RETRY_DELAYS_MS) {
+		if (!isOidcJwksUnavailable(result)) return result;
+		await sleep(wait);
+		result = await fn();
+	}
+	return result;
+}
+function delay(ms) {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
 	});
 }
 
@@ -225,11 +379,13 @@ function exitCodeOf(summary) {
 }
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /**
-* Seams for tests: the shell runner (production: `chooseShell`'s bash), and
-* the shell resolution checked BEFORE anything runs (F-020).
+* Seams for tests: the shell runner (production: `chooseShell`'s bash), the
+* in-process inspect runner (ENG-6180 review C1), and the shell resolution
+* checked BEFORE anything runs (F-020).
 */
 const gatesRunDeps = {
 	run: runInShell,
+	inspect: (opJson) => executeInspect(opJson),
 	resolveShell: () => chooseShell()
 };
 /**
@@ -263,8 +419,21 @@ async function gatesRunHandler(flags, issue) {
 		return;
 	}
 	configureClient(auth);
+	const setCiHeaders = (oidc) => {
+		const current = client.getConfig();
+		client.setConfig({
+			...current,
+			headers: {
+				...current.headers,
+				...ciRequestHeaders(oidc)
+			}
+		});
+	};
+	if (flags.ci) setCiHeaders(null);
+	let workspaceId;
 	if (auth.type === "jwt") try {
 		const ws = await resolveWorkspace(flags["workspace-id"]);
+		workspaceId = ws.workspaceId;
 		client.setConfig({
 			...client.getConfig(),
 			workspaceId: ws.workspaceId
@@ -287,8 +456,23 @@ async function gatesRunHandler(flags, issue) {
 			return;
 		}
 		issueId = row.id;
+		workspaceId ??= row.workspace_id;
 	}
-	const verified = await issueGateVerificationVerifyGatesV1({ path: { id: issueId } });
+	const commitSha = flags.ci ? ciCommitSha() : void 0;
+	const refreshCiToken = async () => {
+		if (!flags.ci) return;
+		if (!workspaceId) workspaceId = (await issueFindAllV1({ query: {
+			"filter.id": [`$eq:${issueId}`],
+			limit: 1
+		} })).data?.data?.[0]?.workspace_id;
+		setCiHeaders(workspaceId ? await requestActionsOidcToken(ciOidcAudience(workspaceId)) : null);
+	};
+	const ciBody = commitSha ? { commit_sha: commitSha } : {};
+	await refreshCiToken();
+	const verified = await withOidcJwksRetry(() => issueGateVerificationVerifyGatesV1({
+		path: { id: issueId },
+		...commitSha ? { body: ciBody } : {}
+	}));
 	if (verified.error) {
 		this.logger.error(`verify-gates failed (${String(verified.response?.status ?? "unknown")}): ${JSON.stringify(verified.error)}`);
 		this.process.exitCode = 1;
@@ -316,6 +500,8 @@ async function gatesRunHandler(flags, issue) {
 				gate_type: c.gate_type,
 				link_id: c.link_id,
 				command: c.command,
+				runs: runsWhere(c),
+				...approvalOf(c),
 				...c.expected !== void 0 ? { expected: c.expected } : {},
 				...c.step_id ? { step_id: c.step_id } : {},
 				...c.rule_hash ? { rule_hash: c.rule_hash } : {}
@@ -338,7 +524,7 @@ async function gatesRunHandler(flags, issue) {
 		if (!flags.json) printManualTasks(out, tasks);
 		return;
 	}
-	try {
+	if (needsShell(commands)) try {
 		gatesRunDeps.resolveShell();
 	} catch (error) {
 		if (!(error instanceof NoPosixShellError)) throw error;
@@ -352,11 +538,15 @@ async function gatesRunHandler(flags, issue) {
 		out(`  [exit ${result.steps[0].exit_code}]`);
 	}, (command, index) => {
 		announce(`[${index + 1}/${commands.length}] ${command.test_name ?? command.gate_type}: ${command.command}`);
-	});
-	const reported = await issueGateVerificationReportGateResultsV1({
+	}, gatesRunDeps.inspect);
+	await refreshCiToken();
+	const reported = await withOidcJwksRetry(() => issueGateVerificationReportGateResultsV1({
 		path: { id: issueId },
-		body: { results }
-	});
+		body: {
+			results,
+			...ciBody
+		}
+	}));
 	if (reported.error) {
 		this.logger.error(`gate-results failed (${String(reported.response?.status ?? "unknown")}): ${JSON.stringify(reported.error)}`);
 		this.process.exitCode = 1;

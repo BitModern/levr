@@ -5,9 +5,6 @@ export type IssueGateVerificationReportGateResultsV1Body = {
   link_id: string;
   status: "pass" | "fail" | "error";
   output: string;
-  expected?: string;
-  step_id?: string;
-  rule_hash?: string;
   steps?: Array<{
   command: string;
   exit_code: number;
@@ -15,7 +12,17 @@ export type IssueGateVerificationReportGateResultsV1Body = {
   stderr_tail: string;
   step_id?: string;
 }>;
+  step_results?: Array<{
+  step_id?: string;
+  result: string;
 }>;
+  expected?: string;
+  step_id?: string;
+  rule_hash?: string;
+  claim_token?: string;
+}>;
+  commit_sha?: string;
+  claim_token?: string;
 };
 
 export type IssueGateVerificationVerifyGatesV1Data = {

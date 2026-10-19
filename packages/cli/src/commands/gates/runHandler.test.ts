@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface ReportCall {
   path: { id: string };
@@ -42,13 +42,13 @@ function context() {
   return { ctx, written, errWritten };
 }
 
-const flags = { 'dry-run': false, json: false, verbose: false };
+const flags = { 'dry-run': false, json: false, verbose: false, ci: false };
 
 describe('internal F — levr gates run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sdk.issueFindAllV1.mockResolvedValue({
-      data: { data: [{ id: ISSUE_ID }] },
+      data: { data: [{ id: ISSUE_ID, workspace_id: 'ws-1' }] },
     });
     sdk.issueGateVerificationVerifyGatesV1.mockResolvedValue({
       data: {
@@ -186,11 +186,121 @@ describe('internal F — levr gates run', () => {
         gate_type: 'file_exists',
         link_id: 'link-1',
         command: 'yarn playwright test',
+        runs: 'shell',
         expected: 'exit 0',
         step_id: 'step-3',
         rule_hash: 'e3.abc',
       },
     ]);
+  });
+
+  it('--ci declares CI and omits the OIDC header when Actions did not mint a token', async () => {
+    const prevUrl = process.env['ACTIONS_ID_TOKEN_REQUEST_URL'];
+    const prevToken = process.env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'];
+    delete process.env['ACTIONS_ID_TOKEN_REQUEST_URL'];
+    delete process.env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'];
+    try {
+      const { ctx } = context();
+      await gatesRunHandler.call(ctx, { ...flags, ci: true }, ISSUE_ID);
+      expect(sdk.client.setConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headers: { 'X-Levr-CI-Declared': '1' },
+        }),
+      );
+      const headers = sdk.client.setConfig.mock.calls[0]?.[0] as {
+        headers?: Record<string, string>;
+      };
+      expect(headers.headers?.['X-Levr-CI-OIDC']).toBeUndefined();
+    } finally {
+      if (prevUrl === undefined) {
+        delete process.env['ACTIONS_ID_TOKEN_REQUEST_URL'];
+      } else {
+        process.env['ACTIONS_ID_TOKEN_REQUEST_URL'] = prevUrl;
+      }
+      if (prevToken === undefined) {
+        delete process.env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'];
+      } else {
+        process.env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'] = prevToken;
+      }
+    }
+  });
+
+  it('--ci mints a fresh workspace-bound token before verify AND before report, and sends the commit (review H7)', async () => {
+    const saved = {
+      url: process.env['ACTIONS_ID_TOKEN_REQUEST_URL'],
+      token: process.env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'],
+      sha: process.env['GITHUB_SHA'],
+    };
+    process.env['ACTIONS_ID_TOKEN_REQUEST_URL'] = 'https://actions.test/token';
+    process.env['ACTIONS_ID_TOKEN_REQUEST_TOKEN'] = 'req';
+    process.env['GITHUB_SHA'] = 'c'.repeat(40);
+    let minted = 0;
+    const audiences: Array<string | null> = [];
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation((input) => {
+        const url = input instanceof URL ? input : new URL(input as string);
+        audiences.push(url.searchParams.get('audience'));
+        minted++;
+        return Promise.resolve(
+          new Response(JSON.stringify({ value: `tok-${minted}` })),
+        );
+      });
+    // The OIDC header in force when each SDK call is made.
+    const oidcAt: string[] = [];
+    let lastHeaders: Record<string, string> = {};
+    sdk.client.setConfig.mockImplementation(
+      (cfg: { headers?: Record<string, string> }) => {
+        if (cfg.headers) lastHeaders = cfg.headers;
+      },
+    );
+    sdk.issueGateVerificationVerifyGatesV1.mockImplementationOnce(
+      (opts: unknown) => {
+        oidcAt.push(lastHeaders['X-Levr-CI-OIDC'] ?? '');
+        verifyOpts = opts;
+        return Promise.resolve({
+          data: {
+            deliverable: 'internal',
+            local_commands: [
+              { gate_type: 'file_exists', command: 'true', link_id: 'link-1' },
+            ],
+          },
+        });
+      },
+    );
+    let verifyOpts: unknown;
+    sdk.issueGateVerificationReportGateResultsV1.mockImplementationOnce(
+      (opts: unknown) => {
+        oidcAt.push(lastHeaders['X-Levr-CI-OIDC'] ?? '');
+        reportOpts = opts as ReportCall;
+        return Promise.resolve({ data: { status: 'all_pass' } });
+      },
+    );
+    let reportOpts: ReportCall | undefined;
+    gatesRunDeps.run = vi.fn(() => ({ exitCode: 0, stdout: '', stderr: '' }));
+    try {
+      const { ctx } = context();
+      await gatesRunHandler.call(ctx, { ...flags, ci: true }, ISSUE_ID);
+      expect(audiences).toEqual(['levr:ws-1', 'levr:ws-1']);
+      expect(oidcAt).toEqual(['tok-1', 'tok-2']);
+      expect((verifyOpts as { body?: unknown }).body).toEqual({
+        commit_sha: 'c'.repeat(40),
+      });
+      expect(
+        (reportOpts?.body as unknown as { commit_sha?: string }).commit_sha,
+      ).toBe('c'.repeat(40));
+    } finally {
+      fetchSpy.mockRestore();
+      sdk.client.setConfig.mockReset();
+      for (const [key, value] of [
+        ['ACTIONS_ID_TOKEN_REQUEST_URL', saved.url],
+        ['ACTIONS_ID_TOKEN_REQUEST_TOKEN', saved.token],
+        ['GITHUB_SHA', saved.sha],
+      ] as const) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 
   it('prints each command BEFORE it runs (F-008)', async () => {
@@ -340,4 +450,130 @@ describe('internal F — levr gates run', () => {
     await gatesRunHandler.call(ctx, flags, ISSUE_ID);
     expect(ctx.process.exitCode).toBe(0);
   });
+});
+
+describe('internal review C1 — inspect ops run in process', () => {
+  const inspectOp = {
+    op: 'inspect',
+    check: 'contains',
+    params: { path: 'note.txt', pattern: 'alpha' },
+  };
+  const display = `npx '@levr-one/cli@0.10.0' gates inspect '${JSON.stringify(inspectOp)}'`;
+  let root = '';
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'gates-run-inspect-'));
+    fs.writeFileSync(path.join(root, 'note.txt'), 'alpha\n');
+    const { executeInspect } = await import('./inspect.js');
+    gatesRunDeps.inspect = vi.fn((json: string) => executeInspect(json, root));
+    gatesRunDeps.run = vi.fn(() => ({ exitCode: 251, stdout: '', stderr: '' }));
+    // No shell at all: an all-inspect run must not need one.
+    gatesRunDeps.resolveShell = () => {
+      throw new NoPosixShellError('win32');
+    };
+    sdk.issueGateVerificationReportGateResultsV1.mockResolvedValue({
+      data: { status: 'all_pass', gates: [], receipts: [] },
+    });
+  });
+
+  afterEach(async () => {
+    const fs = await import('node:fs');
+    if (root) fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('--dry-run shows where each command runs and its approval, and runs nothing', async () => {
+    sdk.issueGateVerificationVerifyGatesV1.mockResolvedValue({
+      data: {
+        status: 'pending_local',
+        local_commands: [
+          {
+            gate_type: 'file_contains',
+            link_id: 'link-9',
+            command: display,
+            op: {
+              contract_version: 1,
+              op: inspectOp,
+              approval: 'server_approved',
+              approval_basis: 'kind',
+            },
+          },
+          {
+            gate_type: 'typecheck',
+            link_id: 'link-10',
+            command: "cd 'apps/web' && 'test' '-f' 'tsconfig.json'",
+            op: {
+              contract_version: 1,
+              op: {
+                op: 'argv',
+                cwd: 'apps/web',
+                argv: ['test', '-f', 'tsconfig.json'],
+              },
+              approval: 'confirm',
+            },
+          },
+          // An older server: no envelope, so no approval is claimed.
+          { gate_type: 'shell', link_id: 'link-11', command: 'true' },
+        ],
+      },
+    });
+    const { ctx, written } = context();
+    await gatesRunHandler.call(ctx, { ...flags, 'dry-run': true }, ISSUE_ID);
+    expect(gatesRunDeps.run).not.toHaveBeenCalled();
+    expect(gatesRunDeps.inspect).not.toHaveBeenCalled();
+    expect(sdk.issueGateVerificationReportGateResultsV1).not.toHaveBeenCalled();
+    const listing = JSON.parse(written[0]!) as {
+      commands: Array<Record<string, unknown>>;
+    };
+    expect(
+      listing.commands.map((c) => [
+        c['link_id'],
+        c['runs'],
+        c['approval'],
+        c['approval_basis'],
+      ]),
+    ).toEqual([
+      ['link-9', 'in-process', 'server_approved', 'kind'],
+      ['link-10', 'shell', 'confirm', undefined],
+      ['link-11', 'shell', undefined, undefined],
+    ]);
+  });
+
+  it.each([
+    [
+      'the op envelope',
+      { op: { contract_version: 1, op: inspectOp }, command: display },
+    ],
+    ['the display string alone (older server)', { command: display }],
+  ])(
+    'from %s: never spawns npx, reports the issued command with the in-process result',
+    async (_label, shape) => {
+      sdk.issueGateVerificationVerifyGatesV1.mockResolvedValue({
+        data: {
+          status: 'pending_local',
+          local_commands: [
+            { gate_type: 'file_contains', link_id: 'link-9', ...shape },
+          ],
+        },
+      });
+      const { ctx } = context();
+      await gatesRunHandler.call(ctx, flags, ISSUE_ID);
+      expect(gatesRunDeps.run).not.toHaveBeenCalled();
+      expect(gatesRunDeps.inspect).toHaveBeenCalledWith(
+        JSON.stringify(inspectOp),
+      );
+      const call = sdk.issueGateVerificationReportGateResultsV1.mock
+        .calls[0]![0] as ReportCall;
+      const step = (
+        call.body.results[0]!['steps'] as Array<Record<string, unknown>>
+      )[0]!;
+      expect(step['command']).toBe(display);
+      expect(step['exit_code']).toBe(0);
+      expect(step['stdout_tail']).toBe('1\n');
+      expect(ctx.process.exitCode).toBe(0);
+    },
+  );
 });

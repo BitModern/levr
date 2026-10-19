@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { COMPLETION_SHELLS } from "./completionHandler-O2G_WZLf.js";
+import { gatesInspectCommand } from "./inspect-B8tG9g0q.js";
 import { buildApplication, buildCommand, buildRouteMap, proposeCompletions, run, text_en } from "@stricli/core";
 import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
@@ -223,7 +224,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-DR6q5U_R.js");
+		const { mcpAddHandler } = await import("./addHandler-BIKNXipz.js");
 		return mcpAddHandler;
 	}
 });
@@ -272,7 +273,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-DE0L1ehF.js");
+		const { loginHandler } = await import("./loginHandler-C9Oi92IY.js");
 		return loginHandler;
 	}
 });
@@ -291,7 +292,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-S4TFYFwz.js");
+		const { logoutHandler } = await import("./logoutHandler-Cf5aI1wq.js");
 		return logoutHandler;
 	}
 });
@@ -311,7 +312,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-BNiWlC7e.js");
+		const { statusHandler } = await import("./statusHandler-BQXn93-r.js");
 		return statusHandler;
 	}
 });
@@ -440,7 +441,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-DdNyVQ5t.js");
+		const { pushHandler } = await import("./pushHandler-CXFZt3SO.js");
 		return pushHandler;
 	}
 });
@@ -560,7 +561,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-zw5GKb-S.js");
+		const { importHandler } = await import("./importHandler-uFdalKtw.js");
 		return importHandler;
 	}
 });
@@ -581,7 +582,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-YA-0RkwS.js");
+		const { listHandler } = await import("./listHandler-BW92JLCl.js");
 		return listHandler;
 	}
 });
@@ -619,7 +620,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-Cejme5nY.js");
+		const { selectHandler } = await import("./selectHandler-D6cvq60S.js");
 		return selectHandler;
 	}
 });
@@ -636,7 +637,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-u89l068v.js");
+		const { currentHandler } = await import("./currentHandler-QhCywr3S.js");
 		return currentHandler;
 	}
 });
@@ -646,14 +647,21 @@ Examples:
 const gatesRunCommand = buildCommand({
 	docs: {
 		brief: "Run a deliverable's gate commands and report the raw results",
-		fullDescription: `Verify a deliverable's gates, run every local command EXACTLY as the
-server returned it (/bin/bash -c, from the current directory — run it from the
-repo root), and report the raw exit code and output tails so the server can
-derive each verdict.
+		fullDescription: `Verify a deliverable's gates, run every local command from the current
+directory (run it from the repo root), and report the raw exit code and output
+tails so the server can derive each verdict.
 
-Each command is printed before it runs; use --dry-run to read them first. The
-server validates every local command before handing it out: a command that
-fails its check comes back as a verification error, never as a command to run.
+File checks (inspect ops, printed as \`npx @levr-one/cli gates inspect '…'\`)
+run inside this CLI and spawn nothing. Every other command runs EXACTLY as the
+server returned it, in /bin/bash -c (or sh).
+
+Each command is printed before it runs; use --dry-run to read them first. A
+dry run runs nothing locally and shows, per command, where it would run
+(\`runs\`) and the server's approval (\`approval\`). It still calls the
+server's verify, which records state there. A \`confirm\` approval is not
+prompted for yet: the command runs. The server validates every local command
+before handing it out: a command that fails its check comes back as a
+verification error, never as a command to run.
 
 Guided gates are listed, not run: perform them and report what you observed
 with report_gate_results step_results[].
@@ -697,6 +705,11 @@ Examples:
 				kind: "boolean",
 				default: false,
 				brief: "Show detailed output"
+			},
+			ci: {
+				kind: "boolean",
+				default: false,
+				brief: "Declare this run is CI. On GitHub Actions, attach an OIDC token (audience levr:<workspace_id>); without one the server records the run as unverified"
 			}
 		},
 		aliases: {
@@ -705,7 +718,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-BFDjtxbt.js");
+		const { gatesRunHandler } = await import("./runHandler-itaAVn4U.js");
 		return gatesRunHandler;
 	}
 });
@@ -818,7 +831,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { attachHandler } = await import("./attachHandler-DQpK_pVa.js");
+		const { attachHandler } = await import("./attachHandler-DXZi2ILT.js");
 		return attachHandler;
 	}
 });
@@ -894,14 +907,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { resultAppendHandler } = await import("./appendHandler-KVsJMxpX.js");
+		const { resultAppendHandler } = await import("./appendHandler-DtxLpPu6.js");
 		return resultAppendHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.11.10";
+var version = "0.12.0";
 
 //#endregion
 //#region src/app.ts
@@ -922,7 +935,10 @@ const workspaceRoutes = buildRouteMap({
 	docs: { brief: "Manage workspace selection" }
 });
 const gatesRoutes = buildRouteMap({
-	routes: { run: gatesRunCommand },
+	routes: {
+		inspect: gatesInspectCommand,
+		run: gatesRunCommand
+	},
 	docs: { brief: "Run a deliverable's gates and report the raw results" }
 });
 const resultRoutes = buildRouteMap({

@@ -2,6 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { constants as osConstants } from 'node:os';
 
+import { executeInspect } from './inspect.js';
+
 /**
  * internal F — run a deliverable's gate `local_commands` and build the
  * `report_gate_results` payload from RAW facts.
@@ -10,8 +12,7 @@ import { constants as osConstants } from 'node:os';
  * one the `report_gate_results` MCP tool takes):
  *
  *  - each `local_commands[]` entry is run EXACTLY as returned, through
- *    `/bin/bash -c` (the shell the qinetic-mcp executor uses — see
- *    `chooseShell`), from the current directory — no rewriting and no
+ *    `/bin/bash -c` (`chooseShell`), from the current directory — no rewriting and no
  *    splitting. The server decided what to run; this reports what happened.
  *    `levr gates run` prints each command first; there is no local
  *    allowlist — the server validates every command it hands out
@@ -30,13 +31,18 @@ import { constants as osConstants } from 'node:os';
  *    FAIL (0)`) hides the signals the server reads. Spawning the commands
  *    from this process means no proxy ever sees them.
  *
- * Why not the qinetic-mcp executor: it splits `&&` chains and rewrites paths
- * for the Levr monorepo — the opposite of "exactly as returned". The CLI
- * shares its wire contract, not its code, and imports
- * no `@levr/*` value module (so the published bundle's inlined set is
- * unchanged). The documented no-install helper
- * (`packages/help-content/docs/gates/running-gates.mdx`) implements this same
- * contract; `gate-runner.helper.test.ts` holds the two to identical output.
+ * The qinetic-mcp executor used to split `&&` chains and rewrite paths for
+ * the Levr monorepo — the opposite of "exactly as returned" — and was
+ * retired (internal). The CLI reports each command whole.
+ *
+ * An INSPECT op (internal) is the one exception to "spawn it": its display
+ * command is `npx '@levr-one/cli@<spec>' gates inspect '<op json>'`, and
+ * spawning that would run whatever CLI version npm resolves for the pin,
+ * which may not have `gates inspect` at all. This CLI has it, so an inspect
+ * op runs IN PROCESS (`inspectOpOf` → `executeInspect`, through
+ * `@levr/shared`'s `GateOpSchema`, which the bundle inlines). The step
+ * still reports the command exactly as issued, with this run's exit code
+ * and output, so the server judges it the same way.
  */
 
 /** The server's `GATE_STEP_TAIL_LIMIT` (`@levr/shared`), in chars. */
@@ -74,6 +80,12 @@ export interface GateLocalCommand {
   technique?: string;
   step_id?: string;
   rule_hash?: string;
+  /**
+   * internal — the op envelope, when the server rendered one. Its `op` is
+   * the structured command (`argv`, `inspect`, `judge`); `command` is only
+   * its display form. Older servers omit it.
+   */
+  op?: { op?: unknown } & Record<string, unknown>;
 }
 
 /** One `manual_tasks[]` entry — a guided gate a person or agent performs. */
@@ -247,6 +259,68 @@ export function toReportResult(
   };
 }
 
+/** Runs one inspect op given as JSON. Production: `executeInspect`. */
+export type InspectRunner = (opJson: string) => ShellOutcome;
+
+/**
+ * The display form the server renders for an inspect op:
+ * `npx '@levr-one/cli@<spec>' gates inspect '<json>'` (POSIX quoting, where a
+ * `'` inside is written `'\''`). Also accepts a bare `levr gates inspect`.
+ */
+const INSPECT_DISPLAY_RE =
+  /^\s*(?:npx(?:\s+--?[A-Za-z][\w-]*)*\s+(?:'@levr-one\/cli(?:@[^']*)?'|@levr-one\/cli(?:@\S*)?)|levr)\s+gates\s+inspect\s+'((?:[^']|'\\'')*)'\s*$/;
+
+/**
+ * The inspect op JSON a local command carries, or `null` when it is not an
+ * inspect op. The envelope's `op` is authoritative; the display string is
+ * parsed only when the envelope is absent (an older server).
+ */
+export function inspectOpOf(command: GateLocalCommand): string | null {
+  const op = command.op?.op;
+  if (op && typeof op === 'object') {
+    return (op as { op?: unknown }).op === 'inspect'
+      ? JSON.stringify(op)
+      : null;
+  }
+  const match = INSPECT_DISPLAY_RE.exec(command.command);
+  if (!match) return null;
+  return (match[1] ?? '').replace(/'\\''/g, "'");
+}
+
+/**
+ * Where a command runs: inspect ops in this process, everything else in the
+ * shell `chooseShell` picks. Shown by `--dry-run` so a reader knows which
+ * printed `npx … gates inspect` lines never spawn anything.
+ */
+export function runsWhere(command: GateLocalCommand): 'in-process' | 'shell' {
+  return inspectOpOf(command) === null ? 'shell' : 'in-process';
+}
+
+/**
+ * The server's approval for a command (`server_approved`, `confirm`,
+ * `denied`) and why, from the op envelope; `undefined` from an older server.
+ * Display only: nothing here asks for a confirmation yet (that is D10,
+ * internal), so a `confirm` command still runs.
+ */
+export function approvalOf(
+  command: GateLocalCommand,
+): { approval: string; approval_basis?: string } | undefined {
+  const approval = command.op?.['approval'];
+  if (typeof approval !== 'string') return undefined;
+  const basis = command.op?.['approval_basis'];
+  return typeof basis === 'string'
+    ? { approval, approval_basis: basis }
+    : { approval };
+}
+
+/**
+ * True when at least one command must be spawned in a shell (anything that
+ * is not an inspect op), so a missing shell matters.
+ */
+export function needsShell(commands: readonly GateLocalCommand[]): boolean {
+  return commands.some((command) => inspectOpOf(command) === null);
+}
+
 /**
  * Run every command, in order, and build the `results[]` payload.
  * `onBefore` is called BEFORE each command runs (to print it), `onEach`
@@ -257,13 +331,16 @@ export function runLocalCommands(
   run: ShellRunner = runInShell,
   onEach?: (command: GateLocalCommand, result: GateReportResult) => void,
   onBefore?: (command: GateLocalCommand, index: number) => void,
+  inspect: InspectRunner = executeInspect,
 ): GateReportResult[] {
   return commands.map((command, index) => {
     onBefore?.(command, index);
-    const result = toReportResult(
-      command,
-      run(command.command, commandTimeoutMs(command)),
-    );
+    const opJson = inspectOpOf(command);
+    const outcome =
+      opJson !== null
+        ? inspect(opJson)
+        : run(command.command, commandTimeoutMs(command));
+    const result = toReportResult(command, outcome);
     onEach?.(command, result);
     return result;
   });

@@ -1,9 +1,9 @@
-import { configureClient } from "./sdk-client-DYv-0CfA.js";
-import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-CdwyPHGV.js";
-import { saveWorkspace } from "./workspace-store-CnrxyYRB.js";
-import { autoSelectWorkspace, fetchSites } from "./resolve-workspace-CStHisUb.js";
-import { sleep } from "./sleep-BpJ39Ypm.js";
-import { findWorkspaceByKeyOrName, looksLikeUrlKey, resolveMcpUrl, scopedMcpUrl } from "./find-workspace-T4xuXwtS.js";
+import { configureClient } from "./sdk-client-B4FMd_Fa.js";
+import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-CvjMSRd7.js";
+import { saveWorkspace } from "./workspace-store-Bmw104Qa.js";
+import { autoSelectWorkspace, fetchSites } from "./resolve-workspace-BbK3uYQc.js";
+import { sleep } from "./sleep-CGBHjsj5.js";
+import { findWorkspaceByKeyOrName, looksLikeUrlKey, resolveMcpUrl, scopedMcpUrl } from "./find-workspace-Bl4rfr73.js";
 import chalk from "chalk";
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
@@ -103,6 +103,10 @@ function startCallbackServer(options = {}) {
 		resolveCode = resolve;
 		rejectCode = reject;
 	});
+	const shutdown = () => {
+		server.close();
+		server.closeAllConnections();
+	};
 	const server = createServer((req, res) => {
 		const url = new URL$1(req.url ?? "/", `http://127.0.0.1`);
 		if (url.pathname === "/callback") {
@@ -113,7 +117,7 @@ function startCallbackServer(options = {}) {
 				res.end(renderPage("error", "Authentication failed", "You can close this window.", error));
 				clearTimeout(timer);
 				rejectCode(/* @__PURE__ */ new Error(`OAuth error: ${error}`));
-				server.close();
+				shutdown();
 				return;
 			}
 			if (code) {
@@ -123,14 +127,14 @@ function startCallbackServer(options = {}) {
 					res.end(renderPage("error", "Authentication failed", "You can close this window.", "Invalid state parameter."));
 					clearTimeout(timer);
 					rejectCode(/* @__PURE__ */ new Error("OAuth state mismatch (possible CSRF)"));
-					server.close();
+					shutdown();
 					return;
 				}
 				res.writeHead(200, { "Content-Type": "text/html" });
 				res.end(renderPage("success", "Authentication successful!", "You can close this window and return to the terminal."));
 				clearTimeout(timer);
 				resolveCode({ code });
-				server.close();
+				shutdown();
 				return;
 			}
 		}
@@ -139,7 +143,7 @@ function startCallbackServer(options = {}) {
 	});
 	const timer = setTimeout(() => {
 		rejectCode(/* @__PURE__ */ new Error("Authentication timed out. No callback received."));
-		server.close();
+		shutdown();
 	}, timeout);
 	server.listen(0, "127.0.0.1", () => {
 		const addr = server.address();
@@ -150,7 +154,7 @@ function startCallbackServer(options = {}) {
 		code: codePromise,
 		close: () => {
 			clearTimeout(timer);
-			server.close();
+			shutdown();
 		}
 	};
 }

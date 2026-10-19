@@ -1,3 +1,4 @@
+import net from 'node:net';
 import { describe, it, expect, afterEach } from 'vitest';
 import { startCallbackServer } from './localhost-server.js';
 
@@ -22,6 +23,31 @@ describe('startCallbackServer', () => {
 
     const result = await server.code;
     expect(result.code).toBe('test-auth-code');
+  });
+
+  // A browser's speculative connection (opened, never used) kept the process
+  // alive after `server.close()`, so `levr auth login` printed success and
+  // never exited. Shutdown must drop it.
+  it('drops an idle, never-used connection when the callback completes', async () => {
+    const server = startCallbackServer({ timeout: 5_000 });
+    close = server.close;
+    const port = await server.port;
+
+    const idle = net.connect(port, '127.0.0.1');
+    await new Promise<void>((resolve) => idle.once('connect', () => resolve()));
+    const dropped = new Promise<boolean>((resolve) => {
+      idle.once('close', () => resolve(true));
+      setTimeout(() => resolve(false), 2_000).unref();
+    });
+
+    const res = await fetch(
+      `http://127.0.0.1:${port}/callback?code=test-auth-code&state=abc`,
+    );
+    expect(res.status).toBe(200);
+    expect((await server.code).code).toBe('test-auth-code');
+
+    expect(await dropped).toBe(true);
+    idle.destroy();
   });
 
   it('should reject on OAuth error in callback', async () => {

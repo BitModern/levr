@@ -9,20 +9,33 @@ import { resolveToken } from '../../auth/resolve-token.js';
 import { resolveWorkspace } from '../../workspace/resolve-workspace.js';
 import { configureClient } from '../../utils/sdk-client.js';
 import {
+  approvalOf,
   chooseShell,
+  needsShell,
   NoPosixShellError,
   runInShell,
   runLocalCommands,
+  runsWhere,
   type GateLocalCommand,
   type GateManualTask,
+  type InspectRunner,
   type ShellRunner,
 } from './gate-runner.js';
+import { executeInspect } from './inspect.js';
+import {
+  ciCommitSha,
+  ciOidcAudience,
+  ciRequestHeaders,
+  requestActionsOidcToken,
+  withOidcJwksRetry,
+} from './ci-oidc.js';
 
 export interface GatesRunFlags {
   'workspace-id'?: string;
   'dry-run': boolean;
   json: boolean;
   verbose: boolean;
+  ci: boolean;
 }
 
 /** The subset of the verify / report response this command reads. */
@@ -88,13 +101,19 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Seams for tests: the shell runner (production: `chooseShell`'s bash), and
- * the shell resolution checked BEFORE anything runs (F-020).
+ * Seams for tests: the shell runner (production: `chooseShell`'s bash), the
+ * in-process inspect runner (internal review C1), and the shell resolution
+ * checked BEFORE anything runs (F-020).
  */
 export const gatesRunDeps: {
   run: ShellRunner;
+  inspect: InspectRunner;
   resolveShell: () => unknown;
-} = { run: runInShell, resolveShell: () => chooseShell() };
+} = {
+  run: runInShell,
+  inspect: (opJson) => executeInspect(opJson),
+  resolveShell: () => chooseShell(),
+};
 
 /**
  * `levr gates run <issue>` — internal F. Verify the deliverable's gates, run
@@ -134,9 +153,22 @@ export async function gatesRunHandler(
     return;
   }
   configureClient(auth);
+  // `--ci` declares CI on every request; the OIDC token itself is fetched
+  // later, per request (review H7). After configureClient: that call
+  // replaces the SDK config outright.
+  const setCiHeaders = (oidc: string | null) => {
+    const current = client.getConfig();
+    client.setConfig({
+      ...current,
+      headers: { ...current.headers, ...ciRequestHeaders(oidc) },
+    });
+  };
+  if (flags.ci) setCiHeaders(null);
+  let workspaceId: string | undefined;
   if (auth.type === 'jwt') {
     try {
       const ws = await resolveWorkspace(flags['workspace-id']);
+      workspaceId = ws.workspaceId;
       client.setConfig({ ...client.getConfig(), workspaceId: ws.workspaceId });
     } catch (err) {
       this.logger.error(
@@ -153,19 +185,49 @@ export async function gatesRunHandler(
     const found = await issueFindAllV1({
       query: { 'filter.identifier': [`$eq:${issue}`], limit: 1 },
     });
-    const row = (found.data as { data?: Array<{ id: string }> } | undefined)
-      ?.data?.[0];
+    const row = (
+      found.data as
+        | { data?: Array<{ id: string; workspace_id?: string }> }
+        | undefined
+    )?.data?.[0];
     if (found.error || !row) {
       this.logger.error(`Issue ${issue} not found in this workspace.`);
       this.process.exitCode = 1;
       return;
     }
     issueId = row.id;
+    workspaceId ??= row.workspace_id;
   }
 
-  const verified = await issueGateVerificationVerifyGatesV1({
-    path: { id: issueId },
-  });
+  // Review H7 — the token is minted for one workspace and lives minutes, so
+  // it is requested fresh right before each verify and report, never once at
+  // start-up. A PAT carries no workspace the CLI can see, so the issue says.
+  const commitSha = flags.ci ? ciCommitSha() : undefined;
+  const refreshCiToken = async (): Promise<void> => {
+    if (!flags.ci) return;
+    if (!workspaceId) {
+      const found = await issueFindAllV1({
+        query: { 'filter.id': [`$eq:${issueId}`], limit: 1 },
+      });
+      workspaceId = (
+        found.data as { data?: Array<{ workspace_id?: string }> } | undefined
+      )?.data?.[0]?.workspace_id;
+    }
+    setCiHeaders(
+      workspaceId
+        ? await requestActionsOidcToken(ciOidcAudience(workspaceId))
+        : null,
+    );
+  };
+  const ciBody = commitSha ? { commit_sha: commitSha } : {};
+
+  await refreshCiToken();
+  const verified = await withOidcJwksRetry(() =>
+    issueGateVerificationVerifyGatesV1({
+      path: { id: issueId },
+      ...(commitSha ? { body: ciBody as never } : {}),
+    }),
+  );
   if (verified.error) {
     this.logger.error(
       `verify-gates failed (${String(verified.response?.status ?? 'unknown')}): ${JSON.stringify(verified.error)}`,
@@ -206,6 +268,10 @@ export async function gatesRunHandler(
             gate_type: c.gate_type,
             link_id: c.link_id,
             command: c.command,
+            // Where it runs, and what the server approved it as. Display
+            // only: a `confirm` command is not prompted for yet (D10).
+            runs: runsWhere(c),
+            ...approvalOf(c),
             ...(c.expected !== undefined ? { expected: c.expected } : {}),
             ...(c.step_id ? { step_id: c.step_id } : {}),
             ...(c.rule_hash ? { rule_hash: c.rule_hash } : {}),
@@ -238,14 +304,17 @@ export async function gatesRunHandler(
   }
 
   // internal F-020 — no bash and no sh: refuse before running anything,
-  // naming what to install. Never fall back to cmd.exe.
-  try {
-    gatesRunDeps.resolveShell();
-  } catch (error) {
-    if (!(error instanceof NoPosixShellError)) throw error;
-    this.logger.error(error.message);
-    this.process.exitCode = 1;
-    return;
+  // naming what to install. Never fall back to cmd.exe. Inspect ops run in
+  // process, so a run made only of them needs no shell.
+  if (needsShell(commands)) {
+    try {
+      gatesRunDeps.resolveShell();
+    } catch (error) {
+      if (!(error instanceof NoPosixShellError)) throw error;
+      this.logger.error(error.message);
+      this.process.exitCode = 1;
+      return;
+    }
   }
 
   // Printed BEFORE each command runs; stderr under --json keeps stdout JSON.
@@ -263,12 +332,16 @@ export async function gatesRunHandler(
         `[${index + 1}/${commands.length}] ${command.test_name ?? command.gate_type}: ${command.command}`,
       );
     },
+    gatesRunDeps.inspect,
   );
 
-  const reported = await issueGateVerificationReportGateResultsV1({
-    path: { id: issueId },
-    body: { results } as never,
-  });
+  await refreshCiToken();
+  const reported = await withOidcJwksRetry(() =>
+    issueGateVerificationReportGateResultsV1({
+      path: { id: issueId },
+      body: { results, ...ciBody } as never,
+    }),
+  );
   if (reported.error) {
     this.logger.error(
       `gate-results failed (${String(reported.response?.status ?? 'unknown')}): ${JSON.stringify(reported.error)}`,

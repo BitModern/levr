@@ -162,6 +162,16 @@ export function startCallbackServer(options: LocalhostServerOptions = {}): {
     rejectCode = reject;
   });
 
+  // `server.close()` only stops NEW connections; Node keeps the process alive
+  // while any accepted socket stays open. Browsers open speculative
+  // connections that never send a request, so after the callback `levr auth
+  // login` printed success and then never exited. Drop every connection on
+  // shutdown (the response has already been written by then).
+  const shutdown = (): void => {
+    server.close();
+    server.closeAllConnections();
+  };
+
   const server: Server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', `http://127.0.0.1`);
 
@@ -181,7 +191,7 @@ export function startCallbackServer(options: LocalhostServerOptions = {}): {
         );
         clearTimeout(timer);
         rejectCode(new Error(`OAuth error: ${error}`));
-        server.close();
+        shutdown();
         return;
       }
 
@@ -200,7 +210,7 @@ export function startCallbackServer(options: LocalhostServerOptions = {}): {
           );
           clearTimeout(timer);
           rejectCode(new Error('OAuth state mismatch (possible CSRF)'));
-          server.close();
+          shutdown();
           return;
         }
 
@@ -214,7 +224,7 @@ export function startCallbackServer(options: LocalhostServerOptions = {}): {
         );
         clearTimeout(timer);
         resolveCode({ code });
-        server.close();
+        shutdown();
         return;
       }
     }
@@ -225,7 +235,7 @@ export function startCallbackServer(options: LocalhostServerOptions = {}): {
 
   const timer = setTimeout(() => {
     rejectCode(new Error('Authentication timed out. No callback received.'));
-    server.close();
+    shutdown();
   }, timeout);
 
   server.listen(0, '127.0.0.1', () => {
@@ -240,7 +250,7 @@ export function startCallbackServer(options: LocalhostServerOptions = {}): {
     code: codePromise,
     close: () => {
       clearTimeout(timer);
-      server.close();
+      shutdown();
     },
   };
 }

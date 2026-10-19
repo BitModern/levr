@@ -8,9 +8,6 @@ export const zIssueGateVerificationReportGateResultsV1Body = /* @__PURE__ */ z.o
   link_id: z.string(),
   status: z.enum(["pass", "fail", "error"]),
   output: z.string(),
-  expected: z.string().optional(),
-  step_id: z.string().optional(),
-  rule_hash: z.string().optional(),
   steps: z.array(z.object({
   command: z.string(),
   exit_code: z.number(),
@@ -18,7 +15,17 @@ export const zIssueGateVerificationReportGateResultsV1Body = /* @__PURE__ */ z.o
   stderr_tail: z.string(),
   step_id: z.string().optional(),
 })).optional(),
+  step_results: z.array(z.object({
+  step_id: z.string().optional(),
+  result: z.string(),
+})).optional(),
+  expected: z.string().optional(),
+  step_id: z.string().optional(),
+  rule_hash: z.string().optional(),
+  claim_token: z.string().optional(),
 })),
+  commit_sha: z.string().optional(),
+  claim_token: z.string().optional(),
 });
 
 export const zIssueGateVerificationVerifyGatesV1Data = /* @__PURE__ */ z.object({

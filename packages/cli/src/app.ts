@@ -9,6 +9,7 @@ import { importCommand } from './commands/import.js';
 import { listCommand } from './commands/workspace/list.js';
 import { selectCommand } from './commands/workspace/select.js';
 import { currentCommand } from './commands/workspace/current.js';
+import { gatesInspectCommand } from './commands/gates/inspect.js';
 import { gatesRunCommand } from './commands/gates/run.js';
 import { attachCommand } from './commands/attach.js';
 import { resultAppendCommand } from './commands/result/append.js';
@@ -39,6 +40,7 @@ const workspaceRoutes = buildRouteMap({
 // internal F — the supported runner for a deliverable's gate local_commands.
 const gatesRoutes = buildRouteMap({
   routes: {
+    inspect: gatesInspectCommand,
     run: gatesRunCommand,
   },
   docs: {
