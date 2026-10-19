@@ -2954,12 +2954,18 @@ function describeTool(tool) {
 /**
 * Who the permission file reaches (code review F-030): a `project` file sits
 * in the repository and is usually committed, so it grants the tools to
-* everyone on the repo; a `local` file is personal, and when it is about to
-* be created somewhere git does not ignore, the user is told so (we never
-* edit their .gitignore).
+* everyone on the repo — unless the repository ignores it, in which case the
+* sharing claim is false and the note says the file stays on this machine,
+* matching the install line's `[path is git-ignored — not shared via git]`
+* (ENG-7147, mirrors ENG-7134); a `local` file is personal, and when it is
+* about to be created somewhere git does not ignore, the user is told so (we
+* never edit their .gitignore).
 */
 function sharingNote(plan) {
-	if (plan.scope === "project") return "This file is in your repository and is usually committed: these permissions are shared via git with everyone who uses this repo.";
+	if (plan.scope === "project") {
+		if (plan.gitIgnored === true) return "This file is in your repository but git-ignored, so these permissions stay on this machine. To share them, un-ignore that path (a `!` rule in .gitignore) or use --scope user.";
+		return "This file is in your repository and is usually committed: these permissions are shared via git with everyone who uses this repo.";
+	}
 	if (plan.scope === "local") {
 		const note = "This file is personal to you in this repository.";
 		if (!plan.fileExists && plan.gitIgnored === false) return `${note} It does not exist yet and git does not ignore it, so it would be committed by a "git add" of that folder: add it to .gitignore if you do not want to share it.`;

@@ -479,6 +479,30 @@ describe('buildPreapproveDisclosure: who the file is shared with (F-030)', () =>
     expect(text).toContain('shared via git with everyone who uses this repo');
   });
 
+  it('says a git-ignored project file stays on this machine instead of claiming it is shared (internal)', () => {
+    const base = {
+      ...plan(true),
+      scope: 'project' as const,
+      file: '/repo/.cursor/permissions.json',
+    };
+    const ignored = buildPreapproveDisclosure('Cursor', {
+      ...base,
+      gitIgnored: true,
+    });
+    expect(ignored).toContain(
+      'git-ignored, so these permissions stay on this machine',
+    );
+    expect(ignored).toContain('un-ignore that path');
+    expect(ignored).not.toContain('shared via git');
+
+    // Not ignored, or git could not answer: the sharing promise stands.
+    for (const gitIgnored of [false, undefined]) {
+      const text = buildPreapproveDisclosure('Cursor', { ...base, gitIgnored });
+      expect(text).toContain('shared via git with everyone who uses this repo');
+      expect(text).not.toContain('stay on this machine');
+    }
+  });
+
   it('says a local file is personal, and warns when it would be created un-ignored', () => {
     const base = {
       ...plan(true),

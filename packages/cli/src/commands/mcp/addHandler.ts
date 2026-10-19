@@ -354,12 +354,22 @@ function describeTool(tool: string): string {
 /**
  * Who the permission file reaches (code review F-030): a `project` file sits
  * in the repository and is usually committed, so it grants the tools to
- * everyone on the repo; a `local` file is personal, and when it is about to
- * be created somewhere git does not ignore, the user is told so (we never
- * edit their .gitignore).
+ * everyone on the repo — unless the repository ignores it, in which case the
+ * sharing claim is false and the note says the file stays on this machine,
+ * matching the install line's `[path is git-ignored — not shared via git]`
+ * (internal, mirrors internal); a `local` file is personal, and when it is
+ * about to be created somewhere git does not ignore, the user is told so (we
+ * never edit their .gitignore).
  */
 function sharingNote(plan: PreapproveResult): string | null {
   if (plan.scope === 'project') {
+    if (plan.gitIgnored === true) {
+      return (
+        'This file is in your repository but git-ignored, so these ' +
+        'permissions stay on this machine. To share them, un-ignore that ' +
+        'path (a `!` rule in .gitignore) or use --scope user.'
+      );
+    }
     return (
       'This file is in your repository and is usually committed: these ' +
       'permissions are shared via git with everyone who uses this repo.'
