@@ -78,6 +78,6 @@ A Levr call can report that no workspace is selected: the account has more than 
    claude mcp add --transport http --scope user levr-<url_key> <workspace MCP URL>
    ```
 
-   They sign in with `/mcp` (restart Claude Code if the entry is not listed) and run this command again. Without a workspace, this plugin's own connection lists only `list_workspaces`; to hide it entirely, they can add `"deniedMcpServers": [{ "serverName": "plugin:levr:levr" }]` to `~/.claude/settings.json`, keeping the keys already in it.
+   They sign in with `/mcp` (restart Claude Code if the entry is not listed) and run this command again. Without a workspace, this plugin's own connection lists `list_workspaces` (and, on newer servers, `get_whats_new`) but no workspace tools such as `get_issues`; to hide it entirely, they can add `"deniedMcpServers": [{ "serverName": "plugin:levr:levr" }]` to `~/.claude/settings.json`, keeping the keys already in it.
 
 The workspace's URL works in every client. Do not send the user to edit a `Workspace-Id` header instead.

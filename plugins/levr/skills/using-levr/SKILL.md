@@ -57,7 +57,7 @@ An account in more than one Levr workspace needs a connection that names one. Wh
    claude mcp add --transport http --scope user levr-<url_key> <workspace MCP URL>
    ```
 
-   They sign in with `/mcp`; if the new entry is not listed there, they restart Claude Code. Without a workspace, this plugin's own connection lists only `list_workspaces`; to hide it entirely, they can add the key `"deniedMcpServers": [{ "serverName": "plugin:levr:levr" }]` to their `~/.claude/settings.json`, keeping the keys already in it.
+   They sign in with `/mcp`; if the new entry is not listed there, they restart Claude Code. Without a workspace, this plugin's own connection lists `list_workspaces` (and, on newer servers, `get_whats_new`) but no workspace tools such as `get_issues`; to hide it entirely, they can add the key `"deniedMcpServers": [{ "serverName": "plugin:levr:levr" }]` to their `~/.claude/settings.json`, keeping the keys already in it.
 
 If `list_workspaces` gives no URL for a workspace, say so and tell the user to open that workspace in the Levr app and copy the URL from **Settings › MCP Setup**. Never build a URL yourself.
 
@@ -69,7 +69,7 @@ With a connection for each workspace, every Levr tool is listed once for each of
 
 Make every call of that task on the same connection. An id read from one workspace means nothing in another.
 
-A connection that lists only `list_workspaces`, or whose tools report that no workspace is selected, names no workspace and cannot read or write anything; use the connection for the workspace the user named, or ask which one.
+A connection that lists `list_workspaces` but no workspace tools such as `get_issues` (newer servers also list `get_whats_new` there), or whose tools report that no workspace is selected, names no workspace and cannot read or write anything; use the connection for the workspace the user named, or ask which one.
 
 ## Tool names
 
