@@ -29,6 +29,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   fs.rmSync(state.tmpDir, { recursive: true, force: true });
 });
 
@@ -51,6 +52,9 @@ describe('ConfigWatcher', () => {
   });
 
   it('notifies when config changes via forceCheck', () => {
+    // Outside any checkout, so `local` keeps the written URLs instead of
+    // resolving to whichever checkout the suite runs in (internal).
+    vi.spyOn(process, 'cwd').mockReturnValue(state.tmpDir);
     withNonTestEnv(() => {
       writeConfig(PRESETS.staging);
       const watcher = new ConfigWatcher();

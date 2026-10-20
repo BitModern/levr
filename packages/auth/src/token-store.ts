@@ -15,6 +15,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { resolveLocalCheckout } from './local-env.js';
 import type { StoredTokens } from './types.js';
 
 export type EnvName = 'local' | 'staging' | 'production';
@@ -405,6 +406,11 @@ export function getTqDir(): string {
 /**
  * Read the current API URL from ~/.tq/config.json without importing
  * config.ts (avoids circular dependency since config.ts imports us).
+ *
+ * `local` resolves against THIS process's checkout, exactly as `loadConfig()`
+ * does, so the token and workspace pin are looked up under the URL the
+ * process actually talks to (internal). `local-env.ts` is a leaf module, so
+ * importing it does not reintroduce the cycle.
  */
 export function getCurrentApiUrl(): string | undefined {
   try {
@@ -416,7 +422,12 @@ export function getCurrentApiUrl(): string | undefined {
     if (fs.existsSync(configPath)) {
       const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
         apiUrl?: string;
+        environment?: string;
       };
+      if (raw.environment === 'local') {
+        const local = resolveLocalCheckout();
+        if (local) return normalizeBackendUrl(local.apiUrl);
+      }
       if (raw.apiUrl) return normalizeBackendUrl(raw.apiUrl);
     }
   } catch {

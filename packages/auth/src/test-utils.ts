@@ -12,9 +12,9 @@ export function withNonTestEnv<T>(fn: () => T): T {
     VITEST: process.env.VITEST,
     NODE_ENV: process.env.NODE_ENV,
     JEST_WORKER_ID: process.env.JEST_WORKER_ID,
-    // DEV_TLS gates isLocalTlsMode() in config.ts. Clearing it forces the
-    // cert-file probe path, which deterministically returns false in the
-    // tmpDir filesystem the test harness uses.
+    // DEV_TLS gates isLocalTlsMode() in local-env.ts. Clearing it forces the
+    // backender-env read, which finds no DEV_TLS in the tmpDir filesystem the
+    // test harness uses, so it deterministically returns false.
     DEV_TLS: process.env.DEV_TLS,
   };
   delete process.env.VITEST;
