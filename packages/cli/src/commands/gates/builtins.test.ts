@@ -374,6 +374,37 @@ describe('internal review M10 — symlinks', () => {
   });
 });
 
+describe('internal — line counts match grep -c', () => {
+  const count = (body: string, pattern: string) => {
+    const dir = setup();
+    writeFileSync(join(dir, 'f.txt'), body);
+    return runBuiltin(
+      { check: 'not_contains', params: { path: 'f.txt', pattern } },
+      dir,
+    ).stdout.trim();
+  };
+
+  it('a trailing newline ends the last line; it does not add an empty one', () => {
+    expect(count('a\nb\n', '^$')).toBe('0');
+    expect(count('a\nb\n', '.*')).toBe('2');
+  });
+
+  it('an unterminated last line still counts', () => {
+    expect(count('a\nb', '^b$')).toBe('1');
+    expect(count('a\nb', '.*')).toBe('2');
+  });
+
+  it('an empty file has no lines', () => {
+    expect(count('', '^$')).toBe('0');
+    expect(count('', '.*')).toBe('0');
+  });
+
+  it('consecutive empty lines are each counted, as grep does', () => {
+    expect(count('a\n\n\nb\n', '^$')).toBe('2');
+    expect(count('\n', '^$')).toBe('1');
+  });
+});
+
 describe('internal — the seeded no_stubs pattern runs', () => {
   // Kept in step with OP_TEMPLATES.no_stubs in
   // packages/db-core/src/seeds/gate-definition.util.ts; the db-core spec

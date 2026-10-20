@@ -283,9 +283,17 @@ function matcherFor(
   return finish(1, 'ERROR: pattern or keywords is required');
 }
 
+/**
+ * Lines as `grep -c` counts them (internal): a final newline ENDS the last
+ * line, it does not start an empty one. `split('\n')` yields that phantom
+ * empty element, which a `^$`-style pattern matched, so the CLI counted one
+ * more than grep on every newline-terminated file.
+ */
 function countLines(text: string, re: RegExp): number {
+  const lines = text.split('\n');
+  if (lines[lines.length - 1] === '') lines.pop();
   let count = 0;
-  for (const line of text.split('\n')) {
+  for (const line of lines) {
     if (re.test(line)) count += 1;
   }
   return count;

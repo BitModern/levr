@@ -894,9 +894,17 @@ function matcherFor(params, insensitive) {
 	}
 	return finish(1, "ERROR: pattern or keywords is required");
 }
+/**
+* Lines as `grep -c` counts them (ENG-7271): a final newline ENDS the last
+* line, it does not start an empty one. `split('\n')` yields that phantom
+* empty element, which a `^$`-style pattern matched, so the CLI counted one
+* more than grep on every newline-terminated file.
+*/
 function countLines(text, re) {
+	const lines = text.split("\n");
+	if (lines[lines.length - 1] === "") lines.pop();
 	let count = 0;
-	for (const line of text.split("\n")) if (re.test(line)) count += 1;
+	for (const line of lines) if (re.test(line)) count += 1;
 	return count;
 }
 const MAX_WALK_FILES = 1e5;
@@ -1123,7 +1131,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { gatesInspectHandler: handler } = await import("./inspect-BJHoBVvi.js");
+		const { gatesInspectHandler: handler } = await import("./inspect-EGW-cgVD.js");
 		return handler;
 	}
 });

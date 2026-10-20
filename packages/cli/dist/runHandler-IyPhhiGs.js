@@ -1,4 +1,4 @@
-import { executeInspect } from "./inspect-DI7vOwHq.js";
+import { executeInspect } from "./inspect-BbL7kDe-.js";
 import { client, configureClient } from "./sdk-client-B4FMd_Fa.js";
 import "./env-CvjMSRd7.js";
 import "./token-refresh-CJB7Qlxy.js";
