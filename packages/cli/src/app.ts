@@ -10,6 +10,7 @@ import { listCommand } from './commands/workspace/list.js';
 import { selectCommand } from './commands/workspace/select.js';
 import { currentCommand } from './commands/workspace/current.js';
 import { gatesInspectCommand } from './commands/gates/inspect.js';
+import { gatesRefsCommand } from './commands/gates/refs.js';
 import { gatesRunCommand } from './commands/gates/run.js';
 import { attachCommand } from './commands/attach.js';
 import { resultAppendCommand } from './commands/result/append.js';
@@ -41,6 +42,8 @@ const workspaceRoutes = buildRouteMap({
 const gatesRoutes = buildRouteMap({
   routes: {
     inspect: gatesInspectCommand,
+    // internal D5: the symbol_referenced gate's runner.
+    refs: gatesRefsCommand,
     run: gatesRunCommand,
   },
   docs: {

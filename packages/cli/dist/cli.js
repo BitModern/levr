@@ -224,7 +224,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-LO6SChns.js");
+		const { mcpAddHandler } = await import("./addHandler-CAmLxnsF.js");
 		return mcpAddHandler;
 	}
 });
@@ -441,7 +441,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-CXFZt3SO.js");
+		const { pushHandler } = await import("./pushHandler-NvZYBz-H.js");
 		return pushHandler;
 	}
 });
@@ -561,7 +561,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-uFdalKtw.js");
+		const { importHandler } = await import("./importHandler-BhOznIQW.js");
 		return importHandler;
 	}
 });
@@ -582,7 +582,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-BW92JLCl.js");
+		const { listHandler } = await import("./listHandler-DjWj1D3H.js");
 		return listHandler;
 	}
 });
@@ -620,7 +620,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-D6cvq60S.js");
+		const { selectHandler } = await import("./selectHandler-CrLuGY3d.js");
 		return selectHandler;
 	}
 });
@@ -637,8 +637,66 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-QhCywr3S.js");
+		const { currentHandler } = await import("./currentHandler-PaLZKLGF.js");
 		return currentHandler;
+	}
+});
+
+//#endregion
+//#region src/commands/gates/refs.ts
+const gatesRefsCommand = buildCommand({
+	docs: {
+		brief: "Check that a symbol is declared in a scope and referenced elsewhere",
+		fullDescription: `Find where a symbol is declared under --scope and count the references to it
+from other modules, through the language's own tooling. This is the command a
+symbol_referenced gate runs.
+
+Exit code 0 when the symbol is declared in the scope and referenced from
+outside its declaring file, 1 when it is not referenced or not found, and 2 for
+a usage, scope or toolchain error.
+
+--scope must be a directory (or file) inside the repository, narrower than the
+repository root. References from test code are not counted unless
+--include-tests is set.
+
+Languages:
+  ts    tsgo --lsp. Needs typescript and @typescript/native-preview installed
+        in the checkout.
+  rust  rust-analyzer. Needs \`rustup component add rust-analyzer\`; waits for
+        indexing to finish (CODE_INTEL_RA_TIMEOUT_MS, default 300000).
+
+Examples:
+  levr gates refs --lang ts --symbol GateDefinitionSeeder --scope packages/db-core/src
+  levr gates refs --lang rust --symbol used_helper --scope crates/core/src`
+	},
+	parameters: { flags: {
+		lang: {
+			kind: "parsed",
+			parse: String,
+			brief: "Language engine: ts or rust",
+			placeholder: "lang"
+		},
+		symbol: {
+			kind: "parsed",
+			parse: String,
+			brief: "Symbol name to resolve",
+			placeholder: "name"
+		},
+		scope: {
+			kind: "parsed",
+			parse: String,
+			brief: "Directory to search for the declaration, inside the repository",
+			placeholder: "dir"
+		},
+		"include-tests": {
+			kind: "boolean",
+			default: false,
+			brief: "Count references from test code"
+		}
+	} },
+	loader: async () => {
+		const { gatesRefsHandler } = await import("./refsHandler-DtcceTRP.js");
+		return gatesRefsHandler;
 	}
 });
 
@@ -718,7 +776,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-IyPhhiGs.js");
+		const { gatesRunHandler } = await import("./runHandler-CTfUyBNW.js");
 		return gatesRunHandler;
 	}
 });
@@ -907,14 +965,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { resultAppendHandler } = await import("./appendHandler-DtxLpPu6.js");
+		const { resultAppendHandler } = await import("./appendHandler-CUmlIX6q.js");
 		return resultAppendHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.12.4";
+var version = "0.12.5";
 
 //#endregion
 //#region src/app.ts
@@ -937,6 +995,7 @@ const workspaceRoutes = buildRouteMap({
 const gatesRoutes = buildRouteMap({
 	routes: {
 		inspect: gatesInspectCommand,
+		refs: gatesRefsCommand,
 		run: gatesRunCommand
 	},
 	docs: { brief: "Run a deliverable's gates and report the raw results" }
