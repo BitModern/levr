@@ -1,5 +1,5 @@
-import { getApiUrl, getPatToken, readCredentials } from "./env-CvjMSRd7.js";
-import { isTokenExpired, refreshToken } from "./token-refresh-CJB7Qlxy.js";
+import { classifyToken, isTokenExpired, refreshToken } from "./token-refresh-BpFuU4Ij.js";
+import { getApiUrl, getPatToken, readCredentials } from "./env-DjeRwmZ7.js";
 
 //#region src/auth/resolve-token.ts
 /**
@@ -16,7 +16,8 @@ var CredentialsMismatchError = class extends Error {
 };
 /**
 * Resolve auth token in priority order:
-* 1. LEVR_TOKEN env var (PAT) — long-lived, no refresh
+* 1. LEVR_TOKEN env var — a PAT or an OAuth access token, told apart by
+*    shape (ENG-6068); never refreshed
 * 2. Stored credentials (JWT) — auto-refresh if expired
 * 3. Error — not authenticated
 */
@@ -24,7 +25,8 @@ async function resolveToken() {
 	const pat = getPatToken();
 	if (pat) return {
 		token: pat,
-		type: "pat"
+		type: classifyToken(pat),
+		source: "env"
 	};
 	let creds = readCredentials();
 	if (creds) {
@@ -38,7 +40,8 @@ async function resolveToken() {
 		}
 		return {
 			token: creds.access_token,
-			type: "jwt"
+			type: "jwt",
+			source: "stored"
 		};
 	}
 	throw new Error("Not authenticated. Run 'levr auth login' or set LEVR_TOKEN environment variable.");

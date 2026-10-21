@@ -27,6 +27,15 @@ export async function selectHandler(
     this.process.exitCode = 1;
     return;
   }
+  // internal: the saved choice belongs to the login session, not to a token
+  // exported in the environment.
+  if (auth.source === 'env') {
+    this.logger.error(
+      'LEVR_TOKEN is set: a workspace selected here would be saved for your login session, not for that token. Pass --workspace-id or set LEVR_WORKSPACE_ID instead.',
+    );
+    this.process.exitCode = 1;
+    return;
+  }
 
   configureClient(auth);
 

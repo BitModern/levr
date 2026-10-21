@@ -1,11 +1,11 @@
-import { client, configureClient, uploadImport } from "./sdk-client-B4FMd_Fa.js";
-import { getApiUrl, getAutomationSourceIdOverride, getSourceOverride, getTeamId } from "./env-CvjMSRd7.js";
-import "./token-refresh-CJB7Qlxy.js";
-import { resolveToken } from "./resolve-token-ByZq05Us.js";
+import { client, configureClient, uploadImport } from "./sdk-client-BgzKzVIR.js";
+import "./token-refresh-BpFuU4Ij.js";
+import { getApiUrl, getAutomationSourceIdOverride, getSourceOverride, getTeamId } from "./env-DjeRwmZ7.js";
+import { resolveToken } from "./resolve-token-DKEXT7SA.js";
 import "./workspace-store-Bmw104Qa.js";
-import { resolveWorkspace } from "./resolve-workspace-BbK3uYQc.js";
+import { resolveWorkspaceFor } from "./resolve-workspace-D8y7twod.js";
 import "./sleep-CGBHjsj5.js";
-import { resolveArtifactPath, uploadArtifactFile } from "./artifact-upload-BvBSevIx.js";
+import { resolveArtifactPath, uploadArtifactFile } from "./artifact-upload-Ba801tb6.js";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { execSync } from "node:child_process";
@@ -474,13 +474,15 @@ async function pushHandler(flags, file) {
 		this.logger.debug(`Auth: ${auth.type.toUpperCase()}`);
 		this.logger.debug(`API:  ${getApiUrl()}`);
 	}
-	if (auth.type === "jwt") try {
-		const ws = await resolveWorkspace(flags["workspace-id"]);
-		client.setConfig({
-			...client.getConfig(),
-			workspaceId: ws.workspaceId
-		});
-		if (flags.verbose) this.logger.debug(`Workspace: ${ws.workspaceId} (${ws.source})`);
+	try {
+		const ws = await resolveWorkspaceFor(auth, flags["workspace-id"]);
+		if (ws) {
+			client.setConfig({
+				...client.getConfig(),
+				workspaceId: ws.workspaceId
+			});
+			if (flags.verbose) this.logger.debug(`Workspace: ${ws.workspaceId} (${ws.source})`);
+		} else if (flags.verbose) this.logger.debug("Workspace: the token's own");
 	} catch (err) {
 		this.logger.error(err instanceof Error ? err.message : "Workspace resolution failed.");
 		this.process.exitCode = 1;

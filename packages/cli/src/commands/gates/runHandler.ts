@@ -6,7 +6,7 @@ import {
 } from '@levr-one/sdk';
 import type { LocalContext } from '../../context.js';
 import { resolveToken } from '../../auth/resolve-token.js';
-import { resolveWorkspace } from '../../workspace/resolve-workspace.js';
+import { resolveWorkspaceFor } from '../../workspace/resolve-workspace.js';
 import { configureClient } from '../../utils/sdk-client.js';
 import {
   approvalOf,
@@ -29,6 +29,29 @@ import {
   requestActionsOidcToken,
   withOidcJwksRetry,
 } from './ci-oidc.js';
+
+/** The server's own words for a failed SDK call, for an error line. */
+function describeSdkError(error: unknown): string {
+  if (typeof error === 'string') {
+    return error.length > 200 ? `${error.slice(0, 200)}…` : error;
+  }
+  if (!error || typeof error !== 'object') return 'request failed';
+  const e = error as {
+    message?: unknown;
+    error?: unknown;
+    statusCode?: unknown;
+  };
+  const message = Array.isArray(e.message)
+    ? e.message.map(String).join('; ')
+    : typeof e.message === 'string'
+      ? e.message
+      : typeof e.error === 'string'
+        ? e.error
+        : '';
+  const status = typeof e.statusCode === 'number' ? `HTTP ${e.statusCode}` : '';
+  const text = [status, message].filter(Boolean).join(': ') || 'request failed';
+  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+}
 
 export interface GatesRunFlags {
   'workspace-id'?: string;
@@ -164,19 +187,22 @@ export async function gatesRunHandler(
     });
   };
   if (flags.ci) setCiHeaders(null);
+  // Looked up for a JWT; for a PAT an explicit --workspace-id or
+  // LEVR_WORKSPACE_ID is sent as given and the server refuses a mismatch;
+  // with neither the token's own workspace applies (internal).
   let workspaceId: string | undefined;
-  if (auth.type === 'jwt') {
-    try {
-      const ws = await resolveWorkspace(flags['workspace-id']);
+  try {
+    const ws = await resolveWorkspaceFor(auth, flags['workspace-id']);
+    if (ws) {
       workspaceId = ws.workspaceId;
       client.setConfig({ ...client.getConfig(), workspaceId: ws.workspaceId });
-    } catch (err) {
-      this.logger.error(
-        err instanceof Error ? err.message : 'Workspace resolution failed.',
-      );
-      this.process.exitCode = 1;
-      return;
     }
+  } catch (err) {
+    this.logger.error(
+      err instanceof Error ? err.message : 'Workspace resolution failed.',
+    );
+    this.process.exitCode = 1;
+    return;
   }
 
   // An identifier (internal) or a UUID.
@@ -191,7 +217,17 @@ export async function gatesRunHandler(
         | undefined
     )?.data?.[0];
     if (found.error || !row) {
-      this.logger.error(`Issue ${issue} not found in this workspace.`);
+      // Say WHERE it was looked for and what the server said: a 400 for a
+      // missing Workspace-Id, or a 403 for a PAT naming another workspace,
+      // used to read as a plain not-found (internal).
+      const where = workspaceId
+        ? `workspace ${workspaceId}`
+        : "the token's workspace";
+      this.logger.error(
+        found.error
+          ? `Could not look up issue ${issue} in ${where} (${describeSdkError(found.error)}).`
+          : `Issue ${issue} not found in ${where}.`,
+      );
       this.process.exitCode = 1;
       return;
     }

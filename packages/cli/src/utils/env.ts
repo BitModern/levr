@@ -51,8 +51,8 @@ export function getApiUrl(): string {
   if (env) {
     return normalizeUrl(env);
   }
-  // The stored api_url belongs to the stored JWT session — never route PAT
-  // (LEVR_TOKEN) auth by it: an unrelated earlier `levr auth login` against
+  // The stored api_url belongs to the stored JWT session — never route
+  // LEVR_TOKEN auth (a PAT or an OAuth access token, internal) by it: an unrelated earlier `levr auth login` against
   // another environment must not hijack where a PAT request is sent.
   if (!getPatToken()) {
     const stored = readCredentials()?.api_url;

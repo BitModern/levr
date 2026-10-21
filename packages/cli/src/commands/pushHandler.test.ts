@@ -28,6 +28,7 @@ vi.mock('ora', () => ({
   default: () => ({ start: () => ({ stop: vi.fn() }) }),
 }));
 
+import { client } from '@levr-one/sdk';
 import { pushHandler } from './pushHandler.js';
 import { uploadAttachment, uploadImport } from '../utils/sdk-client.js';
 
@@ -327,5 +328,28 @@ describe('pushHandler routing', () => {
     await pushHandler.call(c, flags({ source: 'e2e' }), file);
     expect(c.process.exitCode).toBe(0);
     expect(mockUploadImport.mock.calls[0]![0].includeResults).toBe(false);
+  });
+
+  // internal — with a PAT, an explicit --workspace-id is sent as the
+  // Workspace-Id header (it used to be dropped); with nothing named, none is.
+  it('a PAT sends an explicit --workspace-id and none when nothing is named', async () => {
+    const setConfig = vi.spyOn(client, 'setConfig');
+    await pushHandler.call(
+      ctx(),
+      flags({ source: 'backend-unit', 'workspace-id': 'ws-7' }),
+      file,
+    );
+    expect(setConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'ws-7' }),
+    );
+
+    setConfig.mockClear();
+    await pushHandler.call(ctx(), flags({ source: 'backend-unit' }), file);
+    const sentWorkspace = setConfig.mock.calls.some(
+      ([config]) =>
+        typeof (config as { workspaceId?: unknown }).workspaceId === 'string',
+    );
+    expect(sentWorkspace).toBe(false);
+    setConfig.mockRestore();
   });
 });

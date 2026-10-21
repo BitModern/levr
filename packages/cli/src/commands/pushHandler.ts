@@ -5,7 +5,7 @@ import { client } from '@levr-one/sdk';
 import type { LocalContext } from '../context.js';
 import type { PushCommandFlags } from '../types/push-types.js';
 import { resolveToken } from '../auth/resolve-token.js';
-import { resolveWorkspace } from '../workspace/resolve-workspace.js';
+import { resolveWorkspaceFor } from '../workspace/resolve-workspace.js';
 import {
   getTeamId,
   getSourceOverride,
@@ -57,22 +57,25 @@ export async function pushHandler(
     this.logger.debug(`API:  ${getApiUrl()}`);
   }
 
-  // 1b. Resolve workspace (JWT only — PAT has workspace baked in)
-  if (auth.type === 'jwt') {
-    try {
-      const ws = await resolveWorkspace(flags['workspace-id']);
+  // 1b. Resolve workspace — looked up for a JWT; for a PAT only an explicit
+  // flag or LEVR_WORKSPACE_ID, else the token's own workspace (internal).
+  try {
+    const ws = await resolveWorkspaceFor(auth, flags['workspace-id']);
+    if (ws) {
       // Update client config with resolved workspace
       client.setConfig({ ...client.getConfig(), workspaceId: ws.workspaceId });
       if (flags.verbose) {
         this.logger.debug(`Workspace: ${ws.workspaceId} (${ws.source})`);
       }
-    } catch (err) {
-      this.logger.error(
-        err instanceof Error ? err.message : 'Workspace resolution failed.',
-      );
-      this.process.exitCode = 1;
-      return;
+    } else if (flags.verbose) {
+      this.logger.debug("Workspace: the token's own");
     }
+  } catch (err) {
+    this.logger.error(
+      err instanceof Error ? err.message : 'Workspace resolution failed.',
+    );
+    this.process.exitCode = 1;
+    return;
   }
 
   // 2. Validate file

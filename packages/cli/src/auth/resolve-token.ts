@@ -1,4 +1,5 @@
 import type { ResolvedAuth } from '../types/auth-types.js';
+import { classifyToken } from './token-shape.js';
 import { getApiUrl, getPatToken } from '../utils/env.js';
 import { readCredentials } from './credentials.js';
 import { isTokenExpired, refreshToken } from './token-refresh.js';
@@ -21,7 +22,8 @@ export class CredentialsMismatchError extends Error {
 
 /**
  * Resolve auth token in priority order:
- * 1. LEVR_TOKEN env var (PAT) — long-lived, no refresh
+ * 1. LEVR_TOKEN env var — a PAT or an OAuth access token, told apart by
+ *    shape (internal); never refreshed
  * 2. Stored credentials (JWT) — auto-refresh if expired
  * 3. Error — not authenticated
  */
@@ -29,7 +31,7 @@ export async function resolveToken(): Promise<ResolvedAuth> {
   // 1. PAT from environment
   const pat = getPatToken();
   if (pat) {
-    return { token: pat, type: 'pat' };
+    return { token: pat, type: classifyToken(pat), source: 'env' };
   }
 
   // 2. Stored JWT credentials
@@ -53,7 +55,7 @@ export async function resolveToken(): Promise<ResolvedAuth> {
       }
       creds = refreshed;
     }
-    return { token: creds.access_token, type: 'jwt' };
+    return { token: creds.access_token, type: 'jwt', source: 'stored' };
   }
 
   // 3. No credentials

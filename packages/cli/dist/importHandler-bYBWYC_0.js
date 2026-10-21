@@ -1,9 +1,9 @@
-import { authGetProfileV1, client, configureClient } from "./sdk-client-B4FMd_Fa.js";
-import { getApiUrl, getTeamId } from "./env-CvjMSRd7.js";
-import "./token-refresh-CJB7Qlxy.js";
-import { resolveToken } from "./resolve-token-ByZq05Us.js";
+import { authGetProfileV1, client, configureClient } from "./sdk-client-BgzKzVIR.js";
+import "./token-refresh-BpFuU4Ij.js";
+import { getApiUrl, getTeamId } from "./env-DjeRwmZ7.js";
+import { resolveToken } from "./resolve-token-DKEXT7SA.js";
 import "./workspace-store-Bmw104Qa.js";
-import { resolveWorkspace } from "./resolve-workspace-BbK3uYQc.js";
+import { resolveWorkspaceFor } from "./resolve-workspace-D8y7twod.js";
 import chalk from "chalk";
 import { createReadStream } from "node:fs";
 import { basename } from "node:path";
@@ -373,16 +373,16 @@ async function importHandler(flags, file) {
 		this.logger.debug(`Auth: ${auth.type.toUpperCase()}`);
 		this.logger.debug(`API:  ${getApiUrl()}`);
 	}
-	if (auth.type === "jwt") {
+	{
 		let workspace;
 		try {
-			workspace = await resolveWorkspace.call(this, flags["workspace-id"]);
+			workspace = await resolveWorkspaceFor(auth, flags["workspace-id"]);
 		} catch (err) {
 			this.logger.error(err instanceof Error ? err.message : "Could not resolve the workspace.");
 			this.process.exitCode = 1;
 			return;
 		}
-		configureClient(auth, workspace.workspaceId);
+		if (workspace) configureClient(auth, workspace.workspaceId);
 	}
 	let teamId;
 	try {

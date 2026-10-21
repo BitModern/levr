@@ -1,10 +1,10 @@
 import { executeInspect } from "./inspect-BbL7kDe-.js";
-import { client, configureClient } from "./sdk-client-B4FMd_Fa.js";
-import "./env-CvjMSRd7.js";
-import "./token-refresh-CJB7Qlxy.js";
-import { resolveToken } from "./resolve-token-ByZq05Us.js";
+import { client, configureClient } from "./sdk-client-BgzKzVIR.js";
+import "./token-refresh-BpFuU4Ij.js";
+import "./env-DjeRwmZ7.js";
+import { resolveToken } from "./resolve-token-DKEXT7SA.js";
 import "./workspace-store-Bmw104Qa.js";
-import { resolveWorkspace } from "./resolve-workspace-BbK3uYQc.js";
+import { resolveWorkspaceFor } from "./resolve-workspace-D8y7twod.js";
 import { existsSync } from "node:fs";
 import { constants as constants$1 } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -365,6 +365,15 @@ function delay(ms) {
 
 //#endregion
 //#region src/commands/gates/runHandler.ts
+/** The server's own words for a failed SDK call, for an error line. */
+function describeSdkError(error) {
+	if (typeof error === "string") return error.length > 200 ? `${error.slice(0, 200)}…` : error;
+	if (!error || typeof error !== "object") return "request failed";
+	const e = error;
+	const message = Array.isArray(e.message) ? e.message.map(String).join("; ") : typeof e.message === "string" ? e.message : typeof e.error === "string" ? e.error : "";
+	const text = [typeof e.statusCode === "number" ? `HTTP ${e.statusCode}` : "", message].filter(Boolean).join(": ") || "request failed";
+	return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+}
 /** ENG-6070 review R5 M3 — dead gates are named, with their remedy. */
 function printDeadGates(out, dead) {
 	for (const d of dead ?? []) out(`  DEAD ${d.test_name ? `"${d.test_name}"` : d.link_id}${d.required === false ? " (advisory)" : ""}: ${d.reason === "test_deleted" ? "its test was deleted" : "the gate was removed"}${d.remedy ? ` — ${d.remedy}` : ""}`);
@@ -431,13 +440,15 @@ async function gatesRunHandler(flags, issue) {
 	};
 	if (flags.ci) setCiHeaders(null);
 	let workspaceId;
-	if (auth.type === "jwt") try {
-		const ws = await resolveWorkspace(flags["workspace-id"]);
-		workspaceId = ws.workspaceId;
-		client.setConfig({
-			...client.getConfig(),
-			workspaceId: ws.workspaceId
-		});
+	try {
+		const ws = await resolveWorkspaceFor(auth, flags["workspace-id"]);
+		if (ws) {
+			workspaceId = ws.workspaceId;
+			client.setConfig({
+				...client.getConfig(),
+				workspaceId: ws.workspaceId
+			});
+		}
 	} catch (err) {
 		this.logger.error(err instanceof Error ? err.message : "Workspace resolution failed.");
 		this.process.exitCode = 1;
@@ -451,7 +462,8 @@ async function gatesRunHandler(flags, issue) {
 		} });
 		const row = found.data?.data?.[0];
 		if (found.error || !row) {
-			this.logger.error(`Issue ${issue} not found in this workspace.`);
+			const where = workspaceId ? `workspace ${workspaceId}` : "the token's workspace";
+			this.logger.error(found.error ? `Could not look up issue ${issue} in ${where} (${describeSdkError(found.error)}).` : `Issue ${issue} not found in ${where}.`);
 			this.process.exitCode = 1;
 			return;
 		}

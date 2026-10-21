@@ -12,7 +12,7 @@ import {
 } from '@levr-one/sdk';
 import type { LocalContext } from '../context.js';
 import { resolveToken } from '../auth/resolve-token.js';
-import { resolveWorkspace } from '../workspace/resolve-workspace.js';
+import { resolveWorkspaceFor } from '../workspace/resolve-workspace.js';
 import { resolveTeamId } from './resolve-team.js';
 import { configureClient } from '../utils/sdk-client.js';
 import { getApiUrl, getTeamId } from '../utils/env.js';
@@ -160,7 +160,10 @@ export async function importHandler(
     this.logger.debug(`Auth: ${auth.type.toUpperCase()}`);
     this.logger.debug(`API:  ${getApiUrl()}`);
   }
-  if (auth.type === 'jwt') {
+  {
+    // Looked up for a JWT; for a PAT only an explicit flag or
+    // LEVR_WORKSPACE_ID, else null for the token's own workspace (internal).
+    //
     // Wrapped like the auth and team steps around it. Every non-returning
     // path in `resolveWorkspace` THROWS ("Workspace <id> not found. Run 'levr
     // workspace list'.", "No workspaces available."), and unwrapped those
@@ -168,7 +171,7 @@ export async function importHandler(
     // ordinary user error whose message was already actionable.
     let workspace;
     try {
-      workspace = await resolveWorkspace.call(this, flags['workspace-id']);
+      workspace = await resolveWorkspaceFor(auth, flags['workspace-id']);
     } catch (err) {
       this.logger.error(
         err instanceof Error ? err.message : 'Could not resolve the workspace.',
@@ -185,7 +188,7 @@ export async function importHandler(
     // need one (auth, sites). Resolving `--team-key` lists teams, which is the
     // first call that requires the header — without this it fails with
     // "Workspace-Id header is required".
-    configureClient(auth, workspace.workspaceId);
+    if (workspace) configureClient(auth, workspace.workspaceId);
   }
 
   // The importing team is resolved AFTER the workspace is settled: team keys

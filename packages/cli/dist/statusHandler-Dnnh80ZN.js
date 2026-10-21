@@ -1,6 +1,6 @@
-import { authGetProfileV1, configureClient } from "./sdk-client-B4FMd_Fa.js";
-import { getApiUrl, getPatToken, readCredentials } from "./env-CvjMSRd7.js";
-import { isTokenExpired } from "./token-refresh-CJB7Qlxy.js";
+import { authGetProfileV1, configureClient } from "./sdk-client-BgzKzVIR.js";
+import { classifyToken, isTokenExpired } from "./token-refresh-BpFuU4Ij.js";
+import { getApiUrl, getPatToken, readCredentials } from "./env-DjeRwmZ7.js";
 import chalk from "chalk";
 
 //#region src/commands/auth/statusHandler.ts
@@ -8,8 +8,10 @@ async function statusHandler() {
 	const apiUrl = getApiUrl();
 	const pat = getPatToken();
 	if (pat) {
-		if (await checkApiReachable(pat, "pat")) {
-			this.process.stdout.write(`${chalk.green("ok")}    Authenticated via LEVR_TOKEN (PAT)\n`);
+		const type = classifyToken(pat);
+		const kind = type === "pat" ? "personal access token" : "OAuth access token";
+		if (await checkApiReachable(pat, type)) {
+			this.process.stdout.write(`${chalk.green("ok")}    Authenticated via LEVR_TOKEN (${kind})\n`);
 			this.process.stdout.write(`  API:  ${apiUrl} (reachable)\n`);
 		} else {
 			this.process.stdout.write(`${chalk.yellow("warn")}  LEVR_TOKEN is set but API is unreachable\n`);

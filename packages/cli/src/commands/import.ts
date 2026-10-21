@@ -36,7 +36,8 @@ Examples:
       'workspace-id': {
         kind: 'parsed',
         parse: String,
-        brief: 'Workspace ID (required for multi-workspace JWT auth)',
+        brief:
+          'Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own',
         placeholder: 'uuid',
         optional: true,
       },

@@ -9,6 +9,7 @@ const sdk = vi.hoisted(() => ({
   issueFindAllV1: vi.fn(),
   issueGateVerificationVerifyGatesV1: vi.fn(),
   issueGateVerificationReportGateResultsV1: vi.fn(),
+  authGetSitesV1: vi.fn(),
   client: { setConfig: vi.fn(), getConfig: vi.fn(() => ({})) },
 }));
 vi.mock('@levr-one/sdk', () => sdk);
@@ -18,6 +19,7 @@ vi.mock('../../auth/resolve-token.js', () => ({
 vi.mock('../../utils/sdk-client.js', () => ({ configureClient: vi.fn() }));
 
 import type { LocalContext } from '../../context.js';
+import { resolveToken } from '../../auth/resolve-token.js';
 import { NoPosixShellError } from './gate-runner.js';
 import { gatesRunDeps, gatesRunHandler } from './runHandler.js';
 
@@ -576,4 +578,128 @@ describe('internal review C1 — inspect ops run in process', () => {
       expect(ctx.process.exitCode).toBe(0);
     },
   );
+});
+
+// internal — `--workspace-id` / LEVR_WORKSPACE_ID were resolved only for a
+// stored-credentials JWT. Every LEVR_TOKEN was called a PAT, so an OAuth
+// access token in CI lost the flag and the request went out with no
+// Workspace-Id at all; the server's answer came back as a bare not-found.
+describe('internal — --workspace-id with LEVR_TOKEN', () => {
+  const env = process.env;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...env };
+    delete process.env['LEVR_WORKSPACE_ID'];
+    sdk.issueFindAllV1.mockResolvedValue({
+      data: { data: [{ id: ISSUE_ID, workspace_id: 'ws-1' }] },
+    });
+    sdk.issueGateVerificationVerifyGatesV1.mockResolvedValue({
+      data: {
+        deliverable: 'internal',
+        status: 'all_pass',
+        local_commands: [],
+        manual_tasks: [],
+      },
+    });
+    sdk.issueGateVerificationReportGateResultsV1.mockResolvedValue({
+      data: {
+        deliverable: 'internal',
+        status: 'all_pass',
+        gates_passing: 0,
+        gates_total: 0,
+        gates: [],
+        receipts: [],
+      },
+    });
+    gatesRunDeps.run = vi.fn(() => ({ exitCode: 0, stdout: '', stderr: '' }));
+    gatesRunDeps.resolveShell = () => ({ file: '/bin/bash' });
+  });
+  afterEach(() => {
+    process.env = env;
+  });
+
+  it('an OAuth access token in LEVR_TOKEN resolves --workspace-id like a login session and sends it', async () => {
+    vi.mocked(resolveToken).mockResolvedValueOnce({
+      type: 'jwt',
+      token: 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1In0.c2ln',
+    });
+    sdk.authGetSitesV1.mockResolvedValue({
+      data: {
+        sites: [{ workspace_id: 'ws-9', workspace_name: 'Nine' }],
+        current_workspace_id: 'ws-9',
+      },
+    });
+    const { ctx } = context();
+    await gatesRunHandler.call(
+      ctx,
+      { ...flags, 'workspace-id': 'ws-9' },
+      'internal',
+    );
+    expect(sdk.authGetSitesV1).toHaveBeenCalled();
+    expect(sdk.client.setConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'ws-9' }),
+    );
+    expect(ctx.process.exitCode).not.toBe(1);
+  });
+
+  it('a PAT sends an explicit --workspace-id as given, without listing sites', async () => {
+    const { ctx } = context();
+    await gatesRunHandler.call(
+      ctx,
+      { ...flags, 'workspace-id': 'ws-7' },
+      'internal',
+    );
+    expect(sdk.authGetSitesV1).not.toHaveBeenCalled();
+    expect(sdk.client.setConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'ws-7' }),
+    );
+    expect(ctx.process.exitCode).not.toBe(1);
+  });
+
+  it('a PAT honours LEVR_WORKSPACE_ID', async () => {
+    process.env['LEVR_WORKSPACE_ID'] = 'ws-7';
+    const { ctx } = context();
+    await gatesRunHandler.call(ctx, flags, 'internal');
+    expect(sdk.client.setConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'ws-7' }),
+    );
+  });
+
+  it("a PAT with no workspace named sends none: the token's own applies", async () => {
+    const { ctx } = context();
+    await gatesRunHandler.call(ctx, flags, 'internal');
+    const sentWorkspace = sdk.client.setConfig.mock.calls.some(
+      ([config]) =>
+        typeof (config as { workspaceId?: unknown }).workspaceId === 'string',
+    );
+    expect(sentWorkspace).toBe(false);
+    expect(ctx.process.exitCode).not.toBe(1);
+  });
+
+  it("a failed lookup names the workspace searched and carries the server's reason, as a lookup failure rather than a not-found", async () => {
+    sdk.issueFindAllV1.mockResolvedValue({
+      error: {
+        statusCode: 403,
+        message:
+          'This personal access token belongs to a different workspace than Workspace-Id names',
+      },
+    });
+    const { ctx, written } = context();
+    await gatesRunHandler.call(
+      ctx,
+      { ...flags, 'workspace-id': 'ws-7' },
+      'internal',
+    );
+    expect(ctx.process.exitCode).toBe(1);
+    expect(written.join('')).toMatch(
+      /Could not look up issue internal in workspace ws-7 \(HTTP 403: This personal access token belongs to a different workspace/,
+    );
+  });
+
+  it("…and says 'the token's workspace' when none was named", async () => {
+    sdk.issueFindAllV1.mockResolvedValue({ data: { data: [] } });
+    const { ctx, written } = context();
+    await gatesRunHandler.call(ctx, flags, 'internal');
+    expect(written.join('')).toMatch(/not found in the token's workspace\./);
+  });
 });

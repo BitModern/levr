@@ -105,4 +105,25 @@ describe('selectHandler', () => {
     expect(logError).toHaveBeenCalledWith(expect.stringContaining('not found'));
     expect(ctx.process.exitCode).toBe(1);
   });
+
+  // internal — the saved choice belongs to the login session; a token from
+  // LEVR_TOKEN (an OAuth access token, now classified as a JWT) must not
+  // write it.
+  it('refuses to save a choice for a JWT that came from LEVR_TOKEN', async () => {
+    mockResolveToken.mockResolvedValue({
+      token: 'tok',
+      type: 'jwt',
+      source: 'env',
+    });
+    mockAuthGetSites.mockResolvedValue(sitesResponse);
+
+    const ctx = createMockContext();
+    await selectHandler.call(ctx, {} as Record<string, never>, 'ws-1');
+
+    expect(mockSaveWorkspace).not.toHaveBeenCalled();
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('LEVR_TOKEN is set'),
+    );
+    expect(ctx.process.exitCode).toBe(1);
+  });
 });

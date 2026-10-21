@@ -1,7 +1,7 @@
-import { authGetSitesV1, configureClient } from "./sdk-client-B4FMd_Fa.js";
-import "./env-CvjMSRd7.js";
-import "./token-refresh-CJB7Qlxy.js";
-import { resolveToken } from "./resolve-token-ByZq05Us.js";
+import { authGetSitesV1, configureClient } from "./sdk-client-BgzKzVIR.js";
+import "./token-refresh-BpFuU4Ij.js";
+import "./env-DjeRwmZ7.js";
+import { resolveToken } from "./resolve-token-DKEXT7SA.js";
 import { saveWorkspace } from "./workspace-store-Bmw104Qa.js";
 
 //#region src/commands/workspace/selectHandler.ts
@@ -16,6 +16,11 @@ async function selectHandler(_flags, workspaceId) {
 	}
 	if (auth.type === "pat") {
 		this.logger.error("Workspace selection requires JWT auth. Run 'levr auth login'.");
+		this.process.exitCode = 1;
+		return;
+	}
+	if (auth.source === "env") {
+		this.logger.error("LEVR_TOKEN is set: a workspace selected here would be saved for your login session, not for that token. Pass --workspace-id or set LEVR_WORKSPACE_ID instead.");
 		this.process.exitCode = 1;
 		return;
 	}

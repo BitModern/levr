@@ -1,12 +1,13 @@
-import { client, configureClient } from "./sdk-client-B4FMd_Fa.js";
-import { resolveToken } from "./resolve-token-ByZq05Us.js";
-import { resolveWorkspace } from "./resolve-workspace-BbK3uYQc.js";
+import { client, configureClient } from "./sdk-client-BgzKzVIR.js";
+import { resolveToken } from "./resolve-token-DKEXT7SA.js";
+import { resolveWorkspaceFor } from "./resolve-workspace-D8y7twod.js";
 
 //#region src/utils/connect.ts
 /**
 * Authenticate the SDK client for a command (ENG-6164): resolve the token,
-* and for a JWT the workspace. Reports the failure and sets exit code 1;
-* returns false when the command must stop.
+* then the workspace — looked up for a JWT, taken from an explicit flag or
+* `LEVR_WORKSPACE_ID` for a PAT (ENG-6068). Reports the failure and sets exit
+* code 1; returns false when the command must stop.
 */
 async function connect(ctx, workspaceIdFlag) {
 	let auth;
@@ -18,9 +19,9 @@ async function connect(ctx, workspaceIdFlag) {
 		return false;
 	}
 	configureClient(auth);
-	if (auth.type === "jwt") try {
-		const ws = await resolveWorkspace(workspaceIdFlag);
-		client.setConfig({
+	try {
+		const ws = await resolveWorkspaceFor(auth, workspaceIdFlag);
+		if (ws) client.setConfig({
 			...client.getConfig(),
 			workspaceId: ws.workspaceId
 		});

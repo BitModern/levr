@@ -224,7 +224,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-CAmLxnsF.js");
+		const { mcpAddHandler } = await import("./addHandler-ybX54_3f.js");
 		return mcpAddHandler;
 	}
 });
@@ -273,7 +273,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-C9Oi92IY.js");
+		const { loginHandler } = await import("./loginHandler-PbKmDAGo.js");
 		return loginHandler;
 	}
 });
@@ -292,7 +292,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-Cf5aI1wq.js");
+		const { logoutHandler } = await import("./logoutHandler-DxnzGPYx.js");
 		return logoutHandler;
 	}
 });
@@ -312,7 +312,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-BQXn93-r.js");
+		const { statusHandler } = await import("./statusHandler-Dnnh80ZN.js");
 		return statusHandler;
 	}
 });
@@ -367,7 +367,7 @@ levr attach --manifest or later uploads.`
 			"workspace-id": {
 				kind: "parsed",
 				parse: String,
-				brief: "Workspace ID (required for multi-workspace JWT auth)",
+				brief: "Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own",
 				placeholder: "uuid",
 				optional: true
 			},
@@ -441,7 +441,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-NvZYBz-H.js");
+		const { pushHandler } = await import("./pushHandler-BulraEwP.js");
 		return pushHandler;
 	}
 });
@@ -482,7 +482,7 @@ Examples:
 			"workspace-id": {
 				kind: "parsed",
 				parse: String,
-				brief: "Workspace ID (required for multi-workspace JWT auth)",
+				brief: "Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own",
 				placeholder: "uuid",
 				optional: true
 			},
@@ -561,7 +561,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-BhOznIQW.js");
+		const { importHandler } = await import("./importHandler-bYBWYC_0.js");
 		return importHandler;
 	}
 });
@@ -582,7 +582,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-DjWj1D3H.js");
+		const { listHandler } = await import("./listHandler-Du_YGzre.js");
 		return listHandler;
 	}
 });
@@ -620,7 +620,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-CrLuGY3d.js");
+		const { selectHandler } = await import("./selectHandler-C0gs-Q70.js");
 		return selectHandler;
 	}
 });
@@ -745,7 +745,7 @@ Examples:
 			"workspace-id": {
 				kind: "parsed",
 				parse: String,
-				brief: "Workspace ID (required for multi-workspace JWT auth)",
+				brief: "Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own",
 				placeholder: "uuid",
 				optional: true
 			},
@@ -776,7 +776,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-CTfUyBNW.js");
+		const { gatesRunHandler } = await import("./runHandler-B-u-0eRk.js");
 		return gatesRunHandler;
 	}
 });
@@ -842,7 +842,7 @@ Examples:
 			"workspace-id": {
 				kind: "parsed",
 				parse: String,
-				brief: "Workspace ID (required for multi-workspace JWT auth)",
+				brief: "Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own",
 				placeholder: "uuid",
 				optional: true
 			},
@@ -889,7 +889,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { attachHandler } = await import("./attachHandler-DXZi2ILT.js");
+		const { attachHandler } = await import("./attachHandler-CfNvVAV2.js");
 		return attachHandler;
 	}
 });
@@ -924,7 +924,7 @@ Examples:
 			"workspace-id": {
 				kind: "parsed",
 				parse: String,
-				brief: "Workspace ID (required for multi-workspace JWT auth)",
+				brief: "Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own",
 				placeholder: "uuid",
 				optional: true
 			},
@@ -965,14 +965,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { resultAppendHandler } = await import("./appendHandler-CUmlIX6q.js");
+		const { resultAppendHandler } = await import("./appendHandler-CKkl9ymw.js");
 		return resultAppendHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.12.5";
+var version = "0.12.6";
 
 //#endregion
 //#region src/app.ts

@@ -4,18 +4,22 @@ import { getPatToken, getApiUrl } from '../../utils/env.js';
 import { readCredentials } from '../../auth/credentials.js';
 import { isTokenExpired } from '../../auth/token-refresh.js';
 import { configureClient } from '../../utils/sdk-client.js';
+import { classifyToken } from '../../auth/token-shape.js';
 import { authGetProfileV1 } from '@levr-one/sdk';
 
 export async function statusHandler(this: LocalContext): Promise<void> {
   const apiUrl = getApiUrl();
   const pat = getPatToken();
 
-  // 1. Check PAT
+  // 1. Check LEVR_TOKEN — a PAT or an OAuth access token, by shape (internal)
   if (pat) {
-    const reachable = await checkApiReachable(pat, 'pat');
+    const type = classifyToken(pat);
+    const kind =
+      type === 'pat' ? 'personal access token' : 'OAuth access token';
+    const reachable = await checkApiReachable(pat, type);
     if (reachable) {
       this.process.stdout.write(
-        `${chalk.green('ok')}    Authenticated via LEVR_TOKEN (PAT)\n`,
+        `${chalk.green('ok')}    Authenticated via LEVR_TOKEN (${kind})\n`,
       );
       this.process.stdout.write(`  API:  ${apiUrl} (reachable)\n`);
     } else {

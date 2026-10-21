@@ -42,8 +42,9 @@ Each function has matching request and response types. `client` and
 ## Authenticate
 
 Create a personal access token in Levr (Settings → Access tokens) and keep it
-in `LEVR_TOKEN`. If your account belongs to more than one workspace, also set
-`LEVR_WORKSPACE_ID`.
+in `LEVR_TOKEN`. A personal access token is bound to the workspace it was
+created in, so `LEVR_WORKSPACE_ID` is optional: leave it unset, or set it to
+that same workspace. Naming a different workspace is refused.
 
 ```ts
 import { client } from '@levr-one/sdk';

@@ -53,4 +53,12 @@ export interface DeviceAuthorizationResponse {
 export interface ResolvedAuth {
   token: string;
   type: 'pat' | 'jwt';
+  /**
+   * Where the token came from (internal): `env` is LEVR_TOKEN, `stored` the
+   * credentials file written by `levr auth login`. An env token is not the
+   * login session, so nothing keyed to that session — the saved workspace
+   * choice — may be read or written on its behalf. Optional because older
+   * callers and test doubles do not set it; absent reads as `stored`.
+   */
+  source?: 'env' | 'stored';
 }

@@ -1,5 +1,6 @@
 import { authGetSitesV1 } from '@levr-one/sdk';
 import type { SitesResponseDto } from '@levr-one/sdk';
+import type { ResolvedAuth } from '../types/auth-types.js';
 import {
   loadWorkspace,
   saveWorkspace,
@@ -83,9 +84,21 @@ export async function autoSelectWorkspace(): Promise<AutoSelectOutcome> {
   return { kind: 'none' };
 }
 
+export interface ResolveWorkspaceOptions {
+  /**
+   * Read and write the saved workspace choice (default true). False for a
+   * token that is not the login session (LEVR_TOKEN, internal): the saved
+   * choice belongs to whoever ran `levr auth login`, so it is neither
+   * consulted, cleared as stale, nor overwritten by this token's workspace.
+   */
+  persist?: boolean;
+}
+
 export async function resolveWorkspace(
   flagValue?: string,
+  options: ResolveWorkspaceOptions = {},
 ): Promise<WorkspaceResult> {
+  const persist = options.persist ?? true;
   let sites: Site[] | null = null;
   const getSites = async () => {
     if (!sites) sites = await fetchSites();
@@ -116,7 +129,7 @@ export async function resolveWorkspace(
   }
 
   // 3. Disk cache (validate cached ID; clear stale cache on miss)
-  const cached = loadWorkspace();
+  const cached = persist ? loadWorkspace() : null;
   if (cached) {
     const s = await getSites();
     if (s.some((site) => site.workspace_id === cached)) {
@@ -132,7 +145,7 @@ export async function resolveWorkspace(
   }
   if (s.length === 1) {
     const single = s[0]!;
-    saveWorkspace(single.workspace_id);
+    if (persist) saveWorkspace(single.workspace_id);
     return { workspaceId: single.workspace_id, source: 'auto' };
   }
 
@@ -147,4 +160,35 @@ export async function resolveWorkspace(
   throw new Error(
     `Multiple workspaces. Select one:\n${list}${overflow}\n\nRun: levr workspace select <id>`,
   );
+}
+
+/**
+ * The workspace a command runs in, for whichever credential it holds —
+ * [issue:internal].
+ *
+ * A JWT is not bound to a workspace, so one is resolved the usual way: the
+ * flag, `LEVR_WORKSPACE_ID`, the cached selection, then auto-select, each
+ * validated against the sites the account can see.
+ *
+ * A personal access token IS bound to one workspace, and the server scopes
+ * every request by it. An explicit `--workspace-id` or `LEVR_WORKSPACE_ID` is
+ * still sent as `Workspace-Id` — the server refuses one that is not the
+ * token's — but nothing is looked up or cached, and with neither set the
+ * answer is null: the token's own workspace applies. Until internal both were
+ * silently dropped for every `LEVR_TOKEN`, including an OAuth access token,
+ * which was classified as a PAT by where it came from and has no workspace to
+ * fall back to. An OAuth token from LEVR_TOKEN is not the login session, so
+ * the saved workspace choice is left alone for it (`persist: false`).
+ */
+export async function resolveWorkspaceFor(
+  auth: Pick<ResolvedAuth, 'type' | 'source'>,
+  flagValue?: string,
+): Promise<WorkspaceResult | null> {
+  if (auth.type === 'jwt') {
+    return resolveWorkspace(flagValue, { persist: auth.source !== 'env' });
+  }
+  if (flagValue) return { workspaceId: flagValue, source: 'flag' };
+  const envWs = process.env['LEVR_WORKSPACE_ID'];
+  if (envWs) return { workspaceId: envWs, source: 'env' };
+  return null;
 }

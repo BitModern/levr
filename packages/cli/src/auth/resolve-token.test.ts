@@ -115,4 +115,21 @@ describe('resolveToken', () => {
     expect(result.type).toBe('jwt');
     expect(result.token).toBe('jwt-token');
   });
+
+  // internal — classified by shape, the server's rule: an OAuth access token
+  // exported as LEVR_TOKEN is a JWT, and takes the JWT-only workspace steps.
+  it('classifies an OAuth access token in LEVR_TOKEN as a JWT, by shape', async () => {
+    const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1In0.c2ln';
+    process.env['LEVR_TOKEN'] = jwt;
+    vi.doMock('./credentials.js', () => ({
+      readCredentials: () => null,
+    }));
+
+    const { resolveToken } = await import('./resolve-token.js');
+
+    const result = await resolveToken();
+    expect(result.type).toBe('jwt');
+    expect(result.token).toBe(jwt);
+    expect(result.source).toBe('env');
+  });
 });

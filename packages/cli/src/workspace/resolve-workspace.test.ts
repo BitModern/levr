@@ -12,7 +12,11 @@ vi.mock('@levr-one/sdk', () => ({
   authGetSitesV1: vi.fn(),
 }));
 
-import { resolveWorkspace, autoSelectWorkspace } from './resolve-workspace.js';
+import {
+  resolveWorkspace,
+  resolveWorkspaceFor,
+  autoSelectWorkspace,
+} from './resolve-workspace.js';
 import { authGetSitesV1 } from '@levr-one/sdk';
 import {
   loadWorkspace,
@@ -217,5 +221,77 @@ describe('autoSelectWorkspace', () => {
     mockAuthGetSites.mockRejectedValue(new Error('Network error'));
     const result = await autoSelectWorkspace();
     expect(result).toEqual({ kind: 'none' });
+  });
+});
+
+// internal — one resolver per credential kind. Until this, every LEVR_TOKEN
+// was a "PAT" and the workspace step was skipped outright, so
+// `--workspace-id` and LEVR_WORKSPACE_ID were silently dropped.
+describe('resolveWorkspaceFor (internal)', () => {
+  it('a JWT resolves as before: the flag is validated against the sites', async () => {
+    mockSites([site1, site2]);
+    const result = await resolveWorkspaceFor({ type: 'jwt' }, 'ws-2');
+    expect(result).toEqual({ workspaceId: 'ws-2', source: 'flag' });
+    expect(mockAuthGetSites).toHaveBeenCalledTimes(1);
+  });
+
+  it('a PAT sends an explicit --workspace-id as given, with no sites lookup', async () => {
+    const result = await resolveWorkspaceFor({ type: 'pat' }, 'ws-2');
+    expect(result).toEqual({ workspaceId: 'ws-2', source: 'flag' });
+    expect(mockAuthGetSites).not.toHaveBeenCalled();
+  });
+
+  it('a PAT honours LEVR_WORKSPACE_ID', async () => {
+    process.env['LEVR_WORKSPACE_ID'] = 'ws-1';
+    const result = await resolveWorkspaceFor({ type: 'pat' });
+    expect(result).toEqual({ workspaceId: 'ws-1', source: 'env' });
+    expect(mockAuthGetSites).not.toHaveBeenCalled();
+  });
+
+  it("a PAT with nothing named yields null — the token's own workspace applies, and no cache is read", async () => {
+    mockLoadWorkspace.mockReturnValue('ws-cached');
+    const result = await resolveWorkspaceFor({ type: 'pat' });
+    expect(result).toBeNull();
+    expect(mockLoadWorkspace).not.toHaveBeenCalled();
+    expect(mockAuthGetSites).not.toHaveBeenCalled();
+  });
+});
+
+// internal review F-002 — an OAuth token in LEVR_TOKEN is not the login
+// session, so it must neither read, clear nor overwrite that session's saved
+// workspace (one global file, not keyed by account).
+describe('resolveWorkspaceFor with an env JWT leaves the saved choice alone', () => {
+  it('does not read or clear the cache, and does not save an auto-selected single workspace', async () => {
+    mockSites([site1]);
+    mockLoadWorkspace.mockReturnValue('ws-stale');
+    const result = await resolveWorkspaceFor({ type: 'jwt', source: 'env' });
+    expect(result).toEqual({ workspaceId: 'ws-1', source: 'auto' });
+    expect(mockLoadWorkspace).not.toHaveBeenCalled();
+    expect(mockClearWorkspace).not.toHaveBeenCalled();
+    expect(mockSaveWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('a stored-session JWT keeps reading and saving the cache', async () => {
+    mockSites([site1]);
+    mockLoadWorkspace.mockReturnValue(null);
+    const result = await resolveWorkspaceFor({ type: 'jwt', source: 'stored' });
+    expect(result).toEqual({ workspaceId: 'ws-1', source: 'auto' });
+    expect(mockLoadWorkspace).toHaveBeenCalled();
+    expect(mockSaveWorkspace).toHaveBeenCalledWith('ws-1');
+  });
+
+  it('an env JWT still honours the flag and LEVR_WORKSPACE_ID, validated against sites', async () => {
+    mockSites([site1, site2]);
+    expect(
+      await resolveWorkspaceFor({ type: 'jwt', source: 'env' }, 'ws-2'),
+    ).toEqual({ workspaceId: 'ws-2', source: 'flag' });
+    process.env['LEVR_WORKSPACE_ID'] = 'ws-1';
+    expect(await resolveWorkspaceFor({ type: 'jwt', source: 'env' })).toEqual({
+      workspaceId: 'ws-1',
+      source: 'env',
+    });
+    await expect(
+      resolveWorkspaceFor({ type: 'jwt', source: 'env' }, 'ws-9'),
+    ).rejects.toThrow('Workspace ws-9 not found');
   });
 });

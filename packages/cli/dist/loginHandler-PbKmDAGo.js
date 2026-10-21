@@ -1,9 +1,9 @@
-import { configureClient } from "./sdk-client-B4FMd_Fa.js";
-import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-CvjMSRd7.js";
+import { configureClient } from "./sdk-client-BgzKzVIR.js";
+import { CLI_CLIENT_ID, getApiUrl, getAuthUrl, setSessionApiUrl, writeCredentials } from "./env-DjeRwmZ7.js";
 import { saveWorkspace } from "./workspace-store-Bmw104Qa.js";
-import { autoSelectWorkspace, fetchSites } from "./resolve-workspace-BbK3uYQc.js";
+import { autoSelectWorkspace, fetchSites } from "./resolve-workspace-D8y7twod.js";
 import { sleep } from "./sleep-CGBHjsj5.js";
-import { findWorkspaceByKeyOrName, looksLikeUrlKey, resolveMcpUrl, scopedMcpUrl } from "./find-workspace-Bl4rfr73.js";
+import { findWorkspaceByKeyOrName, looksLikeUrlKey, resolveMcpUrl, scopedMcpUrl } from "./find-workspace-4Us2vEb7.js";
 import chalk from "chalk";
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
