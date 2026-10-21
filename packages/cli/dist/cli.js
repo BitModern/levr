@@ -695,7 +695,7 @@ Examples:
 		}
 	} },
 	loader: async () => {
-		const { gatesRefsHandler } = await import("./refsHandler-DtcceTRP.js");
+		const { gatesRefsHandler } = await import("./refsHandler--ySvLjmX.js");
 		return gatesRefsHandler;
 	}
 });
@@ -972,7 +972,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.12.6";
+var version = "0.12.7";
 
 //#endregion
 //#region src/app.ts

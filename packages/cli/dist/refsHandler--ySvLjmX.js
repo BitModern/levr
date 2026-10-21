@@ -156,9 +156,11 @@ function notFound(filesScanned, tsConfigPath) {
 * interpret. The gate framework exists to make "verified" and "not verified"
 * distinguishable, and an OOM is neither.
 *
-* 8000 sits above the largest legitimate single scope in this repo
-* (`apps/backender` at 6,314, which resolves comfortably) and below the
-* whole-repo set that does not. Override deliberately with `--max-files` if a
+* 10,000 sits above the largest legitimate single scope in this repo and below
+* the whole-repo set that does not. `apps/backender/src` was 6,314 files when
+* the cap was 8000, and reached 8,016 with ENG-6802, which made every gate
+* scoped to it refuse. It counts test files even when `includeTests` is off
+* (about 1,100 of them); excluding those is a separate follow-up. Override deliberately with `--max-files` if a
 * genuinely larger scope is ever needed — and expect to raise Node's heap with
 * `NODE_OPTIONS=--max-old-space-size=...` at the same time.
 *
@@ -168,7 +170,7 @@ function notFound(filesScanned, tsConfigPath) {
 * would change verdicts for reasons that have nothing to do with the code.
 * (Moved from `scripts/gates/symbol-referenced.lib.ts`, ENG-7284 D5.)
 */
-const DEFAULT_MAX_FILES = 8e3;
+const DEFAULT_MAX_FILES = 1e4;
 /** Thrown when the requested scope holds more files than the resolver will load. */
 var ScopeTooBroadError = class extends Error {
 	fileCount;

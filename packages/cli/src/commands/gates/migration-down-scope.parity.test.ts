@@ -55,7 +55,9 @@ const tsMigration = (down: string) =>
 const EMPTY_TABLE = ['TRUNC', 'ATE'].join('');
 
 describe('migration_down_scope CLI copy matches db-core', () => {
-  it('agrees on every backend migration', () => {
+  // Parses every migration twice, so its time grows with the corpus: under
+  // 1 s locally, but 6.7–7.5 s on a loaded CI runner, past the 5 s default.
+  it('agrees on every backend migration', { timeout: 30_000 }, () => {
     const dirs = [
       join(repo, 'apps/backender/src/database/migrations'),
       join(repo, 'apps/backender/src/database/migrations/gen'),
