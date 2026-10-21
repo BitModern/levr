@@ -71,7 +71,10 @@ describe('migration_down_scope CLI copy matches db-core', () => {
     }
     // The corpus is real: an empty directory would make this vacuous.
     expect(count).toBeGreaterThan(100);
-  });
+    // Both checks read every migration (~350 and growing) synchronously:
+    // ~0.5 s locally, but 5–11 s on a CI runner shared with the other
+    // affected packages' suites, past vitest's 5 s default (internal PR CI).
+  }, 30_000);
 
   it.each([
     ['unscoped delete', 'await queryRunner.query(`DELETE FROM "issue"`);'],
