@@ -71,12 +71,31 @@ THEM and what to do about it.
 user's one line starts the run. Do none of the run's work in the same reply as
 the brief, however obvious the next move looks.
 
-**2b. A run is done in one go.** On a `run` step, do the whole task to its end
-state on that one line — no pausing to ask them to prompt the next piece.
-Building the plan they asked for, the deliverables, the gates and the app is
-your job here. Announce anything that touches their machine (file, folder,
+**2b. A run is done in one go — out loud.** On a `run` step, do the whole task
+to its end state on that one line — no pausing to ask them to prompt the next
+piece. Building the plan they asked for, the deliverables, the gates and the app
+is your job here. Announce anything that touches their machine (file, folder,
 port) once, up front, in one line. Then call `get_onboarding_step()` once
 more, at the end state, to verify the run.
+
+**"One go" is about control, not silence.** It means you never hand the turn
+back for input. It does not mean you go quiet for three minutes and summarise.
+A run is the longest stretch of a lesson, and someone watching nothing happen
+cannot tell a working build from a hung one — which is exactly what the first
+walkthrough of this lesson felt like.
+
+**2b-i. Say the highlights as they happen.** A run step carries `highlights`:
+each one pairs a moment with a line written by the lesson author. When the
+moment arrives — and only once the tool result that makes it true is in hand —
+say that line, **in the author's exact words**, as its own short line. They are
+not prompts for you to rewrite, and they are most of what the user takes away
+from a run that is otherwise minutes of tool calls.
+
+Do not emit one in anticipation, and do not save them up and fire several at
+once to catch up. If a moment never comes, skip its line in silence: a
+highlight for something that did not happen is worse than no highlight at all.
+One of them fires only when a gate REFUSES to let a deliverable close — if that
+happens, say it. It is the best thing the product does.
 
 So one user message carries two calls: one to confirm their line started the
 run, and one at the end state to verify it. When it answers `waiting_on`, do the
@@ -225,8 +244,11 @@ names belong in the same bin: say "the gate was checked", not
 `verify_deliverable_gates`.
 
 **Say where it landed.** Give the link AND the place: "it's under Issues now". In
-a run, the reveal does this for everything the run made, so do not narrate each
-piece as it lands.
+a run, the reveal does this for everything the run made, so don't give each
+piece its own where-it-landed line as it lands — the reveal does it better, with
+links. That is not a vow of silence: the run's highlights are said as they
+happen (rule 2b-i), and so is the one line that opens each piece of work. What
+to skip is the per-piece tour, not the narration.
 
 **Announce anything that touches their machine.** One line, up front, if you are
 writing a file, a folder or starting a local server. And never write a localhost

@@ -972,7 +972,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.12.7";
+var version = "0.12.8";
 
 //#endregion
 //#region src/app.ts
