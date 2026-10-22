@@ -57,26 +57,31 @@ const EMPTY_TABLE = ['TRUNC', 'ATE'].join('');
 describe('migration_down_scope CLI copy matches db-core', () => {
   // Parses every migration twice, so its time grows with the corpus: under
   // 1 s locally, but 6.7–7.5 s on a loaded CI runner, past the 5 s default.
-  it('agrees on every backend migration', { timeout: 30_000 }, () => {
-    const dirs = [
-      join(repo, 'apps/backender/src/database/migrations'),
-      join(repo, 'apps/backender/src/database/migrations/gen'),
-    ];
-    let count = 0;
-    for (const dir of dirs) {
-      if (!fs.existsSync(dir)) continue;
-      for (const name of fs.readdirSync(dir)) {
-        if (!name.endsWith('.ts')) continue;
-        both([join(dir, name)]);
-        count += 1;
+  it(
+    'agrees on every backend migration',
+    { timeout: 30_000 },
+    () => {
+      const dirs = [
+        join(repo, 'apps/backender/src/database/migrations'),
+        join(repo, 'apps/backender/src/database/migrations/gen'),
+      ];
+      let count = 0;
+      for (const dir of dirs) {
+        if (!fs.existsSync(dir)) continue;
+        for (const name of fs.readdirSync(dir)) {
+          if (!name.endsWith('.ts')) continue;
+          both([join(dir, name)]);
+          count += 1;
+        }
       }
-    }
-    // The corpus is real: an empty directory would make this vacuous.
-    expect(count).toBeGreaterThan(100);
-    // Both checks read every migration (~350 and growing) synchronously:
-    // ~0.5 s locally, but 5–11 s on a CI runner shared with the other
-    // affected packages' suites, past vitest's 5 s default (internal PR CI).
-  }, 30_000);
+      // The corpus is real: an empty directory would make this vacuous.
+      expect(count).toBeGreaterThan(100);
+      // Both checks read every migration (~350 and growing) synchronously:
+      // ~0.5 s locally, but 5–11 s on a CI runner shared with the other
+      // affected packages' suites, past vitest's 5 s default (internal PR CI).
+    },
+    30_000,
+  );
 
   it.each([
     ['unscoped delete', 'await queryRunner.query(`DELETE FROM "issue"`);'],
