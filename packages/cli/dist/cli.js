@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { COMPLETION_SHELLS } from "./completionHandler-O2G_WZLf.js";
-import { gatesInspectCommand } from "./inspect-BbL7kDe-.js";
+import { COVERAGE_DEFAULT_EXCLUDES } from "./coverage-defaults-Ct3KNnGl.js";
+import "./gate-op-BINrIT2l.js";
+import { gatesInspectCommand } from "./inspect-CinRBSv6.js";
 import { buildApplication, buildCommand, buildRouteMap, proposeCompletions, run, text_en } from "@stricli/core";
 import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
@@ -224,7 +226,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-ybX54_3f.js");
+		const { mcpAddHandler } = await import("./addHandler-CD1pda0z.js");
 		return mcpAddHandler;
 	}
 });
@@ -273,7 +275,7 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-PbKmDAGo.js");
+		const { loginHandler } = await import("./loginHandler-CXmNViCo.js");
 		return loginHandler;
 	}
 });
@@ -292,7 +294,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-DxnzGPYx.js");
+		const { logoutHandler } = await import("./logoutHandler-DwTURB_A.js");
 		return logoutHandler;
 	}
 });
@@ -312,7 +314,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-Dnnh80ZN.js");
+		const { statusHandler } = await import("./statusHandler-ByTUMdKK.js");
 		return statusHandler;
 	}
 });
@@ -441,7 +443,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-BulraEwP.js");
+		const { pushHandler } = await import("./pushHandler-BkCmzQz7.js");
 		return pushHandler;
 	}
 });
@@ -561,7 +563,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-bYBWYC_0.js");
+		const { importHandler } = await import("./importHandler-86cjc2Zs.js");
 		return importHandler;
 	}
 });
@@ -582,7 +584,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-Du_YGzre.js");
+		const { listHandler } = await import("./listHandler-BoCzGUDK.js");
 		return listHandler;
 	}
 });
@@ -620,7 +622,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-C0gs-Q70.js");
+		const { selectHandler } = await import("./selectHandler-Dp74pefc.js");
 		return selectHandler;
 	}
 });
@@ -637,8 +639,282 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-PaLZKLGF.js");
+		const { currentHandler } = await import("./currentHandler-DmffKHyZ.js");
 		return currentHandler;
+	}
+});
+
+//#endregion
+//#region src/commands/gates/bindings-export.ts
+const gatesBindingsExportCommand = buildCommand({
+	docs: {
+		brief: "Export the workspace's gate configuration as JSON",
+		fullDescription: `Write the workspace's own gate bindings (every tier) and the gate
+definitions people in the workspace authored, as one JSON file: the format
+\`levr gates bindings import\` reads. Sorted, so exporting an unchanged
+workspace twice gives the same bytes.
+
+Owner or Admin only: the file holds every command the workspace's gates run.
+
+Writes to stdout unless --out is given.
+
+Exit code 0 on success, 1 when the server refuses (a Member gets 403) or the
+request fails, 2 for a usage error.
+
+Examples:
+  levr gates bindings export > gates.json
+  levr gates bindings export --out gates.json --workspace-id <uuid>`
+	},
+	parameters: {
+		flags: {
+			"workspace-id": {
+				kind: "parsed",
+				parse: String,
+				brief: "Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own",
+				placeholder: "uuid",
+				optional: true
+			},
+			out: {
+				kind: "parsed",
+				parse: String,
+				brief: "Write the file here instead of stdout",
+				placeholder: "file",
+				optional: true
+			}
+		},
+		aliases: {
+			w: "workspace-id",
+			o: "out"
+		}
+	},
+	loader: async () => {
+		const { gatesBindingsExportHandler } = await import("./bindingsHandler-Dxx2LIci.js");
+		return gatesBindingsExportHandler;
+	}
+});
+
+//#endregion
+//#region src/commands/gates/bindings-import.ts
+const gatesBindingsImportCommand = buildCommand({
+	docs: {
+		brief: "Import a gate configuration file into the workspace",
+		fullDescription: `Apply a gate configuration file (the format \`levr gates bindings export\`
+writes) to the workspace. The file is parsed and checked here first, so a
+malformed file is refused before anything is sent.
+
+The import APPLIES unless --dry-run is given; --dry-run previews the plan and
+writes nothing. One line per entry:
+  create   not stored yet; created
+  exists   stored exactly as the file says; nothing to do
+  differs  stored differently; reported and NOT overwritten
+  update   the disabled placeholder a workspace starts with; filled in
+  delete   the entry says "delete": true; the stored binding is removed
+  absent   the entry says "delete": true; nothing was stored
+A binding the file does not mention is never touched: deletes are explicit.
+Running the same import twice writes nothing the second time.
+
+Owner or Admin only.
+
+--repo-root checks that every file the lanes name (scripts, tests/<name>.rs
+for --test <name>) exists in that checkout before sending.
+
+Exit code 0 on success; 1 when the server refuses (403, 400), a lane file is
+missing, a row differs, or the request fails; 2 for a usage error or a file
+that does not parse.
+
+Examples:
+  levr gates bindings import gates.json --dry-run
+  levr gates bindings import gates.json
+  levr gates bindings import scripts/gates/bindings/lansweeper-agv.json --repo-root ~/src/agv`
+	},
+	parameters: {
+		positional: {
+			kind: "tuple",
+			parameters: [{
+				parse: String,
+				brief: "The gate configuration JSON file",
+				placeholder: "file",
+				optional: false
+			}]
+		},
+		flags: {
+			"workspace-id": {
+				kind: "parsed",
+				parse: String,
+				brief: "Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own",
+				placeholder: "uuid",
+				optional: true
+			},
+			"repo-root": {
+				kind: "parsed",
+				parse: String,
+				brief: "Check every file the lanes name exists under this checkout",
+				placeholder: "path",
+				optional: true
+			},
+			"dry-run": {
+				kind: "boolean",
+				default: false,
+				brief: "Preview the plan; write nothing"
+			}
+		},
+		aliases: { w: "workspace-id" }
+	},
+	loader: async () => {
+		const { gatesBindingsImportHandler } = await import("./bindingsHandler-Dxx2LIci.js");
+		return gatesBindingsImportHandler;
+	}
+});
+
+//#endregion
+//#region src/commands/gates/changed-coverage.ts
+const gatesChangedCoverageCommand = buildCommand({
+	docs: {
+		brief: "Check line coverage over only the lines the change added",
+		fullDescription: `Read an lcov file and measure coverage over the lines this change added,
+against the merge base. This is the command a changed_line_coverage gate runs.
+
+The base is, first match wins: --base (empty or 'auto' counts as not given);
+the CI provider's PR target branch (e.g. GITHUB_BASE_REF); origin/HEAD. The
+working tree is compared with \`git merge-base HEAD <base>\`, so committed,
+staged, unstaged and untracked files all count.
+
+Only changed .ts, .tsx and .rs files are measured, and a line counts only
+when the lcov file marks it executable. Every measured file must have an lcov
+SF record: one without is reported and exits 2, never read as zero lines.
+
+lcov SF paths are matched against repository paths: an absolute path is made
+relative to the repository root, a relative one is resolved against
+--lcov-root (e.g. apps/backender when the tests ran from that app).
+
+Excluded by default (--exclude adds to this list):
+  ${COVERAGE_DEFAULT_EXCLUDES.join("\n  ")}
+
+Exit code 0 when coverage is at or above --min (default 80), or when fewer
+than 20 changed lines are executable (reported as not enforced); 1 below
+--min, printing every uncovered file:line; 2 for a usage error, no merge base,
+no lcov file, a changed file with no lcov record, or a crash.
+
+Examples:
+  levr gates changed-coverage --lcov apps/backender/coverage/lcov.info --lcov-root apps/backender
+  levr gates changed-coverage --lcov coverage/lcov.info --base origin/main --scope packages/cli --min 90`
+	},
+	parameters: { flags: {
+		lcov: {
+			kind: "parsed",
+			parse: String,
+			brief: "lcov file to read (e.g. coverage/lcov.info)",
+			placeholder: "file"
+		},
+		min: {
+			kind: "parsed",
+			parse: String,
+			brief: "Minimum percentage of changed executable lines covered",
+			placeholder: "percent",
+			default: "80"
+		},
+		base: {
+			kind: "parsed",
+			parse: String,
+			brief: "Base ref to diff against; empty or 'auto' means auto-detect",
+			placeholder: "ref",
+			default: ""
+		},
+		scope: {
+			kind: "parsed",
+			parse: String,
+			brief: "Only count changes under this path (repeatable)",
+			placeholder: "path",
+			variadic: true,
+			optional: true
+		},
+		exclude: {
+			kind: "parsed",
+			parse: String,
+			brief: "Also exclude changed files matching this glob (repeatable)",
+			placeholder: "glob",
+			variadic: true,
+			optional: true
+		},
+		"lcov-root": {
+			kind: "parsed",
+			parse: String,
+			brief: "Directory relative lcov SF paths are resolved against",
+			placeholder: "dir",
+			default: "."
+		}
+	} },
+	loader: async () => {
+		const { gatesChangedCoverageHandler } = await import("./changedCoverageHandler-B8Zh5WIK.js");
+		return gatesChangedCoverageHandler;
+	}
+});
+
+//#endregion
+//#region src/commands/gates/dependency-audit.ts
+const gatesDependencyAuditCommand = buildCommand({
+	docs: {
+		brief: "Audit only the dependencies the change added or upgraded",
+		fullDescription: `Find the packages this change added or upgraded, by diffing each changed
+lockfile (yarn.lock, package-lock.json, pnpm-lock.yaml, Cargo.lock) at the
+merge base against the working tree, then run trivy and keep the findings that
+name one of those packages. This is the command a dependency_audit gate runs.
+A vulnerable dependency the change did not touch does not fail it.
+
+The base is, first match wins: --base (empty or 'auto' counts as not given);
+the CI provider's PR target branch (e.g. GITHUB_BASE_REF); origin/HEAD.
+
+trivy runs offline against the database it already has
+(trivy fs --scanners vuln,license --skip-db-update --offline-scan --format json)
+and never downloads one. Warm its cache outside the gate, for example in a
+scheduled CI job or once on a dev machine:
+  trivy fs --download-db-only
+
+Exit code 0 when no added or upgraded package has a finding at or above
+--severity (default HIGH) or, with --allow-licenses, a license outside the
+list; 1 when one does, naming package@version and the CVE or license; 2 for a
+usage error, no merge base, trivy missing, an empty or missing database, or a
+crash.
+
+Examples:
+  levr gates dependency-audit
+  levr gates dependency-audit --base origin/main --severity CRITICAL
+  levr gates dependency-audit --allow-licenses MIT,Apache-2.0,BSD-3-Clause,ISC`
+	},
+	parameters: { flags: {
+		base: {
+			kind: "parsed",
+			parse: String,
+			brief: "Base ref to diff against; empty or 'auto' means auto-detect",
+			placeholder: "ref",
+			default: ""
+		},
+		scope: {
+			kind: "parsed",
+			parse: String,
+			brief: "Only count lockfiles under this path (repeatable)",
+			placeholder: "path",
+			variadic: true,
+			optional: true
+		},
+		severity: {
+			kind: "parsed",
+			parse: String,
+			brief: "Lowest severity that fails: UNKNOWN, LOW, MEDIUM, HIGH, CRITICAL",
+			placeholder: "level",
+			default: "HIGH"
+		},
+		"allow-licenses": {
+			kind: "parsed",
+			parse: String,
+			brief: "Comma-separated SPDX licenses allowed; omit to skip the license check",
+			placeholder: "list",
+			optional: true
+		}
+	} },
+	loader: async () => {
+		const { gatesDependencyAuditHandler } = await import("./dependencyAuditHandler-CdpW-IvY.js");
+		return gatesDependencyAuditHandler;
 	}
 });
 
@@ -695,7 +971,7 @@ Examples:
 		}
 	} },
 	loader: async () => {
-		const { gatesRefsHandler } = await import("./refsHandler--ySvLjmX.js");
+		const { gatesRefsHandler } = await import("./refsHandler-BPlcdJvR.js");
 		return gatesRefsHandler;
 	}
 });
@@ -776,7 +1052,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-B-u-0eRk.js");
+		const { gatesRunHandler } = await import("./runHandler-BLkPzImG.js");
 		return gatesRunHandler;
 	}
 });
@@ -889,7 +1165,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { attachHandler } = await import("./attachHandler-CfNvVAV2.js");
+		const { attachHandler } = await import("./attachHandler-Ojk7mc2E.js");
 		return attachHandler;
 	}
 });
@@ -965,14 +1241,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { resultAppendHandler } = await import("./appendHandler-CKkl9ymw.js");
+		const { resultAppendHandler } = await import("./appendHandler-BYOoCNXJ.js");
 		return resultAppendHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.12.8";
+var version = "0.12.9";
 
 //#endregion
 //#region src/app.ts
@@ -994,6 +1270,15 @@ const workspaceRoutes = buildRouteMap({
 });
 const gatesRoutes = buildRouteMap({
 	routes: {
+		bindings: buildRouteMap({
+			routes: {
+				export: gatesBindingsExportCommand,
+				import: gatesBindingsImportCommand
+			},
+			docs: { brief: "Export or import the workspace's gate configuration" }
+		}),
+		"changed-coverage": gatesChangedCoverageCommand,
+		"dependency-audit": gatesDependencyAuditCommand,
 		inspect: gatesInspectCommand,
 		refs: gatesRefsCommand,
 		run: gatesRunCommand

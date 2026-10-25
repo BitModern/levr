@@ -1,0 +1,510 @@
+import { authGetProfileV1, client, configureClient } from "./sdk-client-CSy2LOEh.js";
+import "./token-refresh-DEmYbJ8V.js";
+import { getApiUrl, getTeamId } from "./env-Cv-anxJA.js";
+import { resolveToken } from "./resolve-token-D1zteEfm.js";
+import "./workspace-store-BJyB_WEG.js";
+import { resolveWorkspaceFor } from "./resolve-workspace-CJN1plpd.js";
+import chalk from "chalk";
+import { createReadStream } from "node:fs";
+import { basename } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
+import { createInterface } from "node:readline/promises";
+import ora from "ora";
+
+//#region ../sdk-public/dist/gen/team/functions.js
+/** GET /v1/team */
+const teamFindAllV1 = (options) => {
+	return (options?.client ?? client).get({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/team",
+		...options
+	});
+};
+
+//#endregion
+//#region ../sdk-public/dist/gen/test-case-import/functions.js
+/** POST /v1/test-case-import/preview */
+const testCaseImportPreviewV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/test-case-import/preview",
+		bodySerializer: (body) => {
+			const fd = new FormData();
+			if (body && typeof body === "object") for (const [k, v] of Object.entries(body)) {
+				if (v == null) continue;
+				fd.append(k, v instanceof Blob ? v : String(v));
+			}
+			return fd;
+		},
+		...options
+	});
+};
+/** POST /v1/test-case-import/commit */
+const testCaseImportCommitV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/test-case-import/commit",
+		...options
+	});
+};
+
+//#endregion
+//#region src/commands/resolve-team.ts
+/**
+* The importing team — NOT the same thing as the `teams` column in the file.
+*
+* `teams` is OWNERSHIP: which teams the imported tests belong to. The
+* importing team is who is doing the import, and the backend uses it as
+* `primaryTeamId` for decisions the file cannot answer:
+*
+*   - where an UNQUALIFIED `estimate` column lands (ENG-4396) — a bare
+*     `estimate` is not team-neutral, it sizes one specific team;
+*   - the guaranteed owner when the file names no teams at all
+*     (`ensureMinimumOfOneOwner`);
+*   - which team is excluded from the "extra teams" set.
+*
+* So it is not redundant with the file. It IS unreasonable to demand a UUID
+* for it when the file speaks in keys, which is what `--team-key` fixes.
+*
+* Deliberately NOT inferred from the file's first `teams` value. That value
+* decides where an unqualified estimate lands, and row order is a proxy for
+* that question, not an answer to it — a reordered export would silently size
+* a different team. When it cannot be determined, ask.
+*/
+async function fetchTeams() {
+	const PAGE_SIZE = 200;
+	const MAX_PAGES = 25;
+	const out = [];
+	for (let page = 1; page <= MAX_PAGES; page++) {
+		const result = await teamFindAllV1({ query: {
+			limit: PAGE_SIZE,
+			page
+		} });
+		if (result.error || !result.data) throw new Error(`Failed to list teams (${describeError(result.error)}).`);
+		const body = result.data;
+		const rows = body.data ?? [];
+		for (const r of rows) if (r.id && r.key) out.push({
+			id: r.id,
+			key: r.key,
+			name: r.name ?? r.key
+		});
+		const totalPages = body.meta?.totalPages;
+		if (rows.length === 0) break;
+		if (totalPages !== void 0 ? page >= totalPages : rows.length < PAGE_SIZE) break;
+		if (page === MAX_PAGES) process.stderr.write(`[levr] Warning: stopped after ${MAX_PAGES} pages of teams; a --team-key may not resolve.\n`);
+	}
+	return out;
+}
+/**
+* The caller's ACTIVE team, when it belongs to this workspace.
+*
+* `active_team_id` is the user's HOME team, not "the team they are looking
+* at" — a distinction `apps/client/CLAUDE.md` is emphatic about. That makes it
+* a fair default for "who is importing" and a poor one for anything scoped to
+* a view, so it is used here and reported, never assumed silently.
+*
+* MUST be checked against this workspace's teams. A user can belong to several
+* workspaces while their home team lives in one of them; adopting it unchecked
+* would import into a team that is not in the workspace being imported to.
+*
+* A failure here is not fatal — it just means no default. The explicit flags
+* and the single-team case still work without a profile call succeeding.
+*/
+async function activeTeamIn(teams) {
+	let activeId;
+	try {
+		const result = await authGetProfileV1();
+		if (result.error || !result.data) return null;
+		activeId = result.data.active_team_id ?? void 0;
+	} catch {
+		return null;
+	}
+	if (!activeId) return null;
+	return teams.some((t) => t.id === activeId) ? activeId : null;
+}
+/**
+* F-012: `JSON.stringify(new Error("boom"))` is `"{}"` — Error's own fields are
+* non-enumerable. The detail that was meant to end the misdirection produced
+* "Failed to list teams ({})", which is worse than saying nothing.
+*/
+function describeError(error) {
+	if (error === void 0 || error === null) return "no data returned";
+	if (error instanceof Error) return error.message;
+	if (typeof error === "string") return error;
+	try {
+		const json = JSON.stringify(error);
+		if (json !== void 0 && json !== "{}") return json;
+	} catch {}
+	return "unserialisable error";
+}
+function describe(teams) {
+	return teams.map((t) => `  ${t.key}  ${t.name}`).join("\n");
+}
+/**
+* Resolve the importing team from `--team-id`, `--team-key`, or the workspace.
+*
+* Key matching is case-insensitive: the file writes `ENG`, and a user typing
+* `eng` means the same team. Errors list the valid keys, because "no team
+* matched" without saying what would have is the least useful thing this can
+* print.
+*/
+async function resolveTeamId(teamId, teamKey, envTeamId) {
+	if (teamId && teamKey) throw new Error("Pass either --team-id or --team-key, not both — they can disagree, and there is no sensible winner.");
+	if (teamId) return {
+		teamId,
+		source: "team-id"
+	};
+	const teams = await fetchTeams();
+	if (teams.length === 0) throw new Error("No teams found in this workspace.");
+	if (teamKey) {
+		const wanted = teamKey.trim().toLowerCase();
+		const matches = teams.filter((t) => t.key.toLowerCase() === wanted);
+		if (matches.length === 1) return {
+			teamId: matches[0].id,
+			source: "team-key"
+		};
+		if (matches.length === 0) throw new Error(`No team with key "${teamKey}" in this workspace. Available:\n${describe(teams)}`);
+		throw new Error(`More than one team has key "${teamKey}" in this workspace — refusing to guess.`);
+	}
+	if (envTeamId) {
+		if (teams.some((t) => t.id === envTeamId)) return {
+			teamId: envTeamId,
+			source: "env"
+		};
+		throw new Error(`LEVR_TEAM_ID (${envTeamId}) is not a team in this workspace. Available:\n${describe(teams)}`);
+	}
+	const active = await activeTeamIn(teams);
+	if (active) return {
+		teamId: active,
+		source: "active-team"
+	};
+	if (teams.length === 1) return {
+		teamId: teams[0].id,
+		source: "only-team"
+	};
+	throw new Error(`--team-key or --team-id is required: this workspace has ${teams.length} teams and you have no active team here.\n${describe(teams)}`);
+}
+
+//#endregion
+//#region src/utils/import-mapping.ts
+/**
+* Every import target the CLI will accept for `--map`.
+*
+* ENG-3857 shipped a `teams` target on the server and in the web client, and
+* this list was left behind — so `levr import --map "Team=teams"` threw
+* "Invalid --map target" and team ownership was simply unreachable from the
+* CLI. Nothing caught it: this is the THIRD hand-maintained copy of the
+* target list (backend `IMPORT_TARGET_PROPERTIES`, client
+* `TEST_CASE_KNOWN_PROPERTIES`, here), and while the ELEMENT type is derived
+* from the SDK, TypeScript cannot see that an array literal omits a member of
+* a union — `ImportTarget[]` is satisfied by any subset, including `[]`.
+*
+* So the literal is `as const` and the exhaustiveness assertions below turn a
+* missing target into a COMPILE error naming it, rather than a runtime
+* rejection the user discovers. Adding a target server-side now breaks this
+* build until it is listed here.
+*
+* Caveat worth knowing: `@levr/sdk` resolves to `dist/`, so the union this
+* is checked against is only as fresh as the last SDK build. A regenerated
+* but unbuilt SDK delays detection to the next build — it does not restore
+* the old failure, where the omission was invisible indefinitely.
+*/
+const IMPORT_TARGET_LIST = [
+	"row_type",
+	"test_id",
+	"test_key",
+	"folder_id",
+	"folder_path",
+	"folder_name",
+	"test_name",
+	"test_description",
+	"automation_status",
+	"automation_type",
+	"case_type_id",
+	"case_type_name",
+	"test_priority",
+	"estimate",
+	"assignee_email",
+	"labels",
+	"teams",
+	"attachment_filenames",
+	"data_set_names",
+	"sequence",
+	"item_id",
+	"method",
+	"expected_result",
+	"keyword",
+	"shared_step_id",
+	"shared_precondition_id",
+	"data_table",
+	"steps",
+	"preconditions"
+];
+const IMPORT_TARGETS = IMPORT_TARGET_LIST;
+const REQUIRED_TARGETS = ["test_name"];
+/**
+* Parse a --map value: "Source Column=target", "Source Column=" (drop),
+* or "Source Column=labels:prefix" (import-as-labels: each value becomes
+* the label "prefix:value", preserving the column's provenance).
+*/
+function parseMapFlag(pair) {
+	const separator = pair.indexOf("=");
+	if (separator <= 0) throw new Error(`Invalid --map "${pair}" — expected "Source Column=target_field" (or "Source Column=" to drop, or "Source Column=labels:prefix" to import values as prefixed labels).`);
+	const column = pair.slice(0, separator).trim();
+	const raw = pair.slice(separator + 1).trim();
+	if (raw === "") return {
+		column,
+		target: null
+	};
+	if (raw.startsWith("labels:")) {
+		const labelPrefix = raw.slice(7).trim();
+		if (!labelPrefix) throw new Error(`Invalid --map "${pair}" — "labels:" needs a prefix (e.g. "State=labels:state").`);
+		return {
+			column,
+			target: "labels",
+			labelPrefix
+		};
+	}
+	const target = IMPORT_TARGETS.find((t) => t === raw);
+	if (!target) throw new Error(`Invalid --map target "${raw}". Valid targets: ${IMPORT_TARGETS.join(", ")} (labels also accepts "labels:prefix")`);
+	return {
+		column,
+		target
+	};
+}
+/** Apply overrides (from --map / --mapping-file) onto the proposed mapping. */
+function applyOverrides(mapping, overrides) {
+	const result = mapping.map((entry) => ({ ...entry }));
+	for (const override of overrides) {
+		const entry = result.find((m) => m.originalName === override.column);
+		if (!entry) throw new Error(`--map column "${override.column}" not found in the file. Columns: ${result.map((m) => m.originalName).join(", ")}`);
+		entry.targetProperty = override.target;
+		entry.matchType = override.target ? "manual" : "unmapped";
+		entry.confidence = override.target ? 1 : 0;
+		entry.labelPrefix = override.labelPrefix;
+	}
+	return result;
+}
+/** Required targets not covered by any mapped column. */
+function missingRequired(mapping) {
+	const covered = new Set(mapping.map((m) => m.targetProperty).filter(Boolean));
+	return REQUIRED_TARGETS.filter((t) => !covered.has(t));
+}
+/** Columns worth walking interactively: unmapped, or LLM guesses < 0.7. */
+function columnsNeedingReview(mapping) {
+	return mapping.filter((m) => m.targetProperty === null || m.matchType === "llm" && m.confidence < .7);
+}
+
+//#endregion
+//#region src/commands/importHandler.ts
+const MATCH_COLORS = {
+	exact: chalk.green,
+	prefix: chalk.green,
+	preset: chalk.green,
+	fuzzy: chalk.yellow,
+	llm: chalk.magenta,
+	unmapped: chalk.red,
+	manual: chalk.green
+};
+/** Stream the file into a Blob — no readFileSync, no sync stall. */
+async function fileToBlob(path$1) {
+	const chunks = [];
+	for await (const chunk of createReadStream(path$1)) chunks.push(chunk);
+	return new Blob(chunks);
+}
+function printMapping(logger, mapping) {
+	const width = Math.max(...mapping.map((m) => m.originalName.length), 13);
+	logger.info("");
+	logger.info(chalk.bold(`  ${"SOURCE COLUMN".padEnd(width)}  →  ${"TARGET".padEnd(24)} MATCH`));
+	for (const m of mapping) {
+		const color = MATCH_COLORS[m.matchType] ?? chalk.white;
+		const target = m.targetProperty ?? "— unmapped —";
+		const badge = m.matchType === "unmapped" ? "unmapped" : `${m.matchType} ${Math.round(m.confidence * 100)}%`;
+		logger.info(`  ${m.originalName.padEnd(width)}  →  ${target.padEnd(24)} ${color(badge)}`);
+	}
+	logger.info("");
+}
+async function pickTarget(rl, logger, column) {
+	logger.info(chalk.bold(`"${column.originalName}" is ${column.targetProperty ? `mapped to ${column.targetProperty} (low confidence)` : "unmapped"}.`));
+	const columns = 3;
+	const cellWidth = 26;
+	for (let i = 0; i < IMPORT_TARGETS.length; i += columns) logger.info("  " + IMPORT_TARGETS.slice(i, i + columns).map((t, j) => `${String(i + j + 1).padStart(2)}) ${t}`.padEnd(cellWidth)).join(""));
+	for (;;) {
+		const answer = (await rl.question("Target number or name (blank = skip/drop this column): ")).trim();
+		if (answer === "") return null;
+		const byNumber = IMPORT_TARGETS[Number(answer) - 1];
+		if (byNumber && String(Number(answer)) === answer) return byNumber;
+		const byName = IMPORT_TARGETS.find((t) => t === answer.toLowerCase());
+		if (byName) return byName;
+		logger.info(chalk.red(`  "${answer}" is not a valid target — try again.`));
+	}
+}
+async function importHandler(flags, file) {
+	if (flags.verbose) this.logger.setVerbose(true);
+	if (!file && !flags["sheets-url"]) {
+		this.logger.error("Provide a file path or --sheets-url.");
+		this.process.exitCode = 1;
+		return;
+	}
+	if (file && flags["sheets-url"]) {
+		this.logger.error("Provide a file OR --sheets-url, not both.");
+		this.process.exitCode = 1;
+		return;
+	}
+	let auth;
+	try {
+		auth = await resolveToken();
+	} catch (err) {
+		this.logger.error(err instanceof Error ? err.message : "Authentication failed.");
+		this.process.exitCode = 1;
+		return;
+	}
+	configureClient(auth);
+	if (flags.verbose) {
+		this.logger.debug(`Auth: ${auth.type.toUpperCase()}`);
+		this.logger.debug(`API:  ${getApiUrl()}`);
+	}
+	{
+		let workspace;
+		try {
+			workspace = await resolveWorkspaceFor(auth, flags["workspace-id"]);
+		} catch (err) {
+			this.logger.error(err instanceof Error ? err.message : "Could not resolve the workspace.");
+			this.process.exitCode = 1;
+			return;
+		}
+		if (workspace) configureClient(auth, workspace.workspaceId);
+	}
+	let teamId;
+	try {
+		const team = await resolveTeamId(flags["team-id"], flags["team-key"], getTeamId());
+		teamId = team.teamId;
+		if (team.source === "active-team") this.logger.info(`Importing as your active team (${teamId}).`);
+		else if (team.source === "env") this.logger.info(`Importing as LEVR_TEAM_ID (${teamId}).`);
+		else if (team.source === "only-team") this.logger.info(`Importing as the only team in this workspace.`);
+	} catch (err) {
+		this.logger.error(err instanceof Error ? err.message : "Could not resolve the team.");
+		this.process.exitCode = 1;
+		return;
+	}
+	const spinner = ora("Uploading and analyzing the file…").start();
+	let preview;
+	try {
+		const body = {
+			team_id: teamId,
+			format: flags.format,
+			sheets_url: flags["sheets-url"]
+		};
+		if (file) {
+			const blob = await fileToBlob(file);
+			body["file"] = new File([blob], basename(file));
+		}
+		const result = await testCaseImportPreviewV1({
+			body,
+			requestValidator: void 0
+		});
+		if (result.error || !result.data) throw new Error(result.error?.message ?? `Preview failed (HTTP ${result.response?.status ?? "?"}).`);
+		preview = result.data;
+		spinner.succeed(`${preview.filename} (${preview.format}) — ${preview.row_count} data rows detected`);
+	} catch (err) {
+		spinner.fail(err instanceof Error ? err.message : "Preview failed.");
+		this.process.exitCode = 1;
+		return;
+	}
+	let mapping;
+	try {
+		const overrides = (flags.map ?? []).map(parseMapFlag);
+		if (flags["mapping-file"]) {
+			const saved = JSON.parse(await readFile(flags["mapping-file"], "utf8"));
+			overrides.push(...saved);
+		}
+		mapping = applyOverrides(preview.proposed_mapping, overrides);
+	} catch (err) {
+		this.logger.error(err instanceof Error ? err.message : String(err));
+		this.process.exitCode = 1;
+		return;
+	}
+	printMapping(this.logger, mapping);
+	if (!flags.yes && process.stdin.isTTY === true) {
+		const rl = createInterface({
+			input: process.stdin,
+			output: process.stdout
+		});
+		try {
+			for (const column of columnsNeedingReview(mapping)) {
+				const target = await pickTarget(rl, this.logger, column);
+				mapping = applyOverrides(mapping, [{
+					column: column.originalName,
+					target
+				}]);
+			}
+			while (missingRequired(mapping).length > 0) {
+				this.logger.info(chalk.red(`Required field(s) uncovered: ${missingRequired(mapping).join(", ")}. Every test case needs a name.`));
+				const source = (await rl.question(`Which source column holds the test name? (${mapping.map((m) => m.originalName).join(", ")}): `)).trim();
+				const entry = mapping.find((m) => m.originalName === source);
+				if (!entry) {
+					this.logger.info(chalk.red(`  "${source}" is not a column — try again.`));
+					continue;
+				}
+				mapping = applyOverrides(mapping, [{
+					column: entry.originalName,
+					target: "test_name"
+				}]);
+			}
+			printMapping(this.logger, mapping);
+			const confirm = (await rl.question("Commit this import? [y/N]: ")).trim().toLowerCase();
+			if (confirm !== "y" && confirm !== "yes") {
+				this.logger.info("Aborted — nothing was written.");
+				return;
+			}
+		} finally {
+			rl.close();
+		}
+	} else if (missingRequired(mapping).length > 0) {
+		this.logger.error(`Required field(s) uncovered: ${missingRequired(mapping).join(", ")}. Map them with --map "Source Column=test_name" (non-interactive runs cannot prompt).`);
+		this.process.exitCode = 1;
+		return;
+	}
+	if (flags["save-mapping"]) {
+		await writeFile(flags["save-mapping"], JSON.stringify(mapping.map((m) => ({
+			column: m.originalName,
+			target: m.targetProperty
+		})), null, 2) + "\n");
+		this.logger.info(`Confirmed mapping saved to ${flags["save-mapping"]}`);
+	}
+	const commitSpinner = ora("Committing import…").start();
+	let outcome;
+	try {
+		const result = await testCaseImportCommitV1({
+			body: {
+				token: preview.token,
+				confirmed_mapping: mapping
+			},
+			requestValidator: void 0
+		});
+		if (result.error || !result.data) throw new Error(result.error?.message ?? `Commit failed (HTTP ${result.response?.status ?? "?"}).`);
+		outcome = result.data;
+	} catch (err) {
+		commitSpinner.fail(err instanceof Error ? err.message : "Commit failed.");
+		this.process.exitCode = 1;
+		return;
+	}
+	const { stats } = outcome;
+	if (outcome.status === "failed") commitSpinner.fail(`Import failed — 0 of ${stats.rows_processed} rows imported.`);
+	else commitSpinner.succeed(`Import ${outcome.status.replace(/_/g, " ")}: ${stats.tests_created} tests, ${stats.folders_created} folders, ${stats.steps_created} steps, ${stats.preconditions_created} preconditions (${stats.rows_failed} rows failed)`);
+	for (const warning of outcome.warnings) this.logger.info(chalk.yellow(`  warning: ${warning.message}`));
+	for (const error of outcome.errors) this.logger.info(chalk.red(`  error: ${error.message}`));
+	if (outcome.status === "failed") this.process.exitCode = 1;
+}
+
+//#endregion
+export { importHandler };

@@ -9,6 +9,10 @@ import { importCommand } from './commands/import.js';
 import { listCommand } from './commands/workspace/list.js';
 import { selectCommand } from './commands/workspace/select.js';
 import { currentCommand } from './commands/workspace/current.js';
+import { gatesBindingsExportCommand } from './commands/gates/bindings-export.js';
+import { gatesBindingsImportCommand } from './commands/gates/bindings-import.js';
+import { gatesChangedCoverageCommand } from './commands/gates/changed-coverage.js';
+import { gatesDependencyAuditCommand } from './commands/gates/dependency-audit.js';
 import { gatesInspectCommand } from './commands/gates/inspect.js';
 import { gatesRefsCommand } from './commands/gates/refs.js';
 import { gatesRunCommand } from './commands/gates/run.js';
@@ -38,9 +42,24 @@ const workspaceRoutes = buildRouteMap({
   },
 });
 
+// internal D8.3: a workspace's gate configuration as one JSON file.
+const gatesBindingsRoutes = buildRouteMap({
+  routes: {
+    export: gatesBindingsExportCommand,
+    import: gatesBindingsImportCommand,
+  },
+  docs: {
+    brief: "Export or import the workspace's gate configuration",
+  },
+});
+
 // internal F — the supported runner for a deliverable's gate local_commands.
 const gatesRoutes = buildRouteMap({
   routes: {
+    bindings: gatesBindingsRoutes,
+    // internal D4: the changed_line_coverage and dependency_audit runners.
+    'changed-coverage': gatesChangedCoverageCommand,
+    'dependency-audit': gatesDependencyAuditCommand,
     inspect: gatesInspectCommand,
     // internal D5: the symbol_referenced gate's runner.
     refs: gatesRefsCommand,

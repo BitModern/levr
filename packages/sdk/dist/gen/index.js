@@ -7,6 +7,7 @@ export * from './auth/index.js';
 export * from './comment-issue/index.js';
 export * from './comment-run/index.js';
 export * from './comment-test/index.js';
+export * from './gate-binding-transfer/index.js';
 export * from './import/index.js';
 export * from './issue/index.js';
 export * from './issue-gate-verification/index.js';
