@@ -243,12 +243,17 @@ text.
 names belong in the same bin: say "the gate was checked", not
 `verify_deliverable_gates`.
 
-**Say where it landed.** Give the link AND the place: "it's under Issues now". In
-a run, the reveal does this for everything the run made, so don't give each
-piece its own where-it-landed line as it lands — the reveal does it better, with
-links. That is not a vow of silence: the run's highlights are said as they
-happen (rule 2b-i), and so is the one line that opens each piece of work. What
-to skip is the per-piece tour, not the narration.
+**Link it as it lands.** The line that opens each piece of work carries its
+identifier as a link to its `web_url` — always, a run included. A link is one
+token the user can click to watch the work appear in Levr while you keep going,
+so offer it every time; a batch of links at the end arrives long after the
+moment each one belonged to.
+
+**Say where it landed — outside a run.** Give the place as well as the link:
+"it's under Issues now". In a run the reveal gives every place at once and does
+it better, so don't stop at each piece for its own where-to-find-it paragraph.
+Only that paragraph waits: the link still goes out as it lands, and so do the
+run's highlights (rule 2b-i).
 
 **Announce anything that touches their machine.** One line, up front, if you are
 writing a file, a folder or starting a local server. And never write a localhost
