@@ -74,13 +74,27 @@ const sitesResponse = {
 } as never;
 
 describe('selectHandler', () => {
-  it('shows error when not authenticated', async () => {
-    mockResolveToken.mockRejectedValue(new Error('No auth'));
+  it('forwards the resolveToken error when not authenticated', async () => {
+    mockResolveToken.mockRejectedValue(
+      new Error("Not authenticated. Run 'levr auth login' first."),
+    );
     const ctx = createMockContext();
     await selectHandler.call(ctx, {} as Record<string, never>, 'ws-1');
     expect(logError).toHaveBeenCalledWith(
       expect.stringContaining('levr auth login'),
     );
+    expect(ctx.process.exitCode).toBe(1);
+  });
+
+  // internal: a transient refresh failure keeps the login; saying "Not
+  // authenticated" would send the user to log in for nothing.
+  it('forwards a transient refresh failure as is', async () => {
+    const message =
+      "Token refresh failed (HTTP 503). Your login is kept; try again, or run 'levr auth login' if it keeps failing.";
+    mockResolveToken.mockRejectedValue(new Error(message));
+    const ctx = createMockContext();
+    await selectHandler.call(ctx, {} as Record<string, never>, 'ws-1');
+    expect(logError).toHaveBeenCalledWith(message);
     expect(ctx.process.exitCode).toBe(1);
   });
 

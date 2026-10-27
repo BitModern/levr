@@ -231,7 +231,11 @@ Refresh logic (resolve-token.ts → token-refresh.ts):
   2. If expires_at - 5min < now → refresh
   3. POST /v1/oauth/token { grant_type: refresh_token }
   4. On success → update credentials file
-  5. On failure → delete credentials, throw error
+  5. 400/401 `invalid_grant` (the refresh token is dead) → delete
+     credentials, return null (resolve-token asks for `levr auth login`)
+  6. Anything else (5xx, 429, another error code, a proxy's page, a
+     network error, an unusable success body) → keep credentials, throw
+     (the next command retries). Same rule as the web client.
 
 PAT (from LEVR_TOKEN env var):
   ├── No expiry management by CLI (server-side validation)
@@ -272,4 +276,4 @@ CI metadata (`CiMetadata`) is sent as `import_metadata` (JSON string) and stored
 - **Localhost binding** — callback server binds to `127.0.0.1` only (not `0.0.0.0`)
 - **File permissions** — credentials stored with `0600` (owner read/write only)
 - **No secrets in binary** — OAuth client is public (client_id=3, no client_secret); all secrets are server-side
-- **Refresh token handling** — on refresh failure, credentials are deleted (forces re-login)
+- **Refresh token handling** — only an `invalid_grant` refusal deletes the credentials and forces re-login; any other failure keeps them, so a server or network hiccup never signs the user out (internal)

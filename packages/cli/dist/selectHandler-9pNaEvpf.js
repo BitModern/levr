@@ -1,7 +1,7 @@
 import { authGetSitesV1, configureClient } from "./sdk-client-CSy2LOEh.js";
-import "./token-refresh-DEmYbJ8V.js";
+import "./token-refresh-cvAydkok.js";
 import "./env-Cv-anxJA.js";
-import { resolveToken } from "./resolve-token-D1zteEfm.js";
+import { resolveToken } from "./resolve-token-BeX-Xegl.js";
 import { saveWorkspace } from "./workspace-store-BJyB_WEG.js";
 
 //#region src/commands/workspace/selectHandler.ts
@@ -9,8 +9,8 @@ async function selectHandler(_flags, workspaceId) {
 	let auth;
 	try {
 		auth = await resolveToken();
-	} catch {
-		this.logger.error("Not authenticated. Run 'levr auth login' first.");
+	} catch (err) {
+		this.logger.error(err instanceof Error ? err.message : "Not authenticated. Run 'levr auth login' first.");
 		this.process.exitCode = 1;
 		return;
 	}

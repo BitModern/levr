@@ -226,7 +226,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-CD1pda0z.js");
+		const { mcpAddHandler } = await import("./addHandler-CJOweVZf.js");
 		return mcpAddHandler;
 	}
 });
@@ -314,7 +314,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-ByTUMdKK.js");
+		const { statusHandler } = await import("./statusHandler-BgQTktJm.js");
 		return statusHandler;
 	}
 });
@@ -443,7 +443,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-BkCmzQz7.js");
+		const { pushHandler } = await import("./pushHandler-D02XXrQZ.js");
 		return pushHandler;
 	}
 });
@@ -563,7 +563,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-86cjc2Zs.js");
+		const { importHandler } = await import("./importHandler-t4UNZ-tS.js");
 		return importHandler;
 	}
 });
@@ -584,7 +584,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-BoCzGUDK.js");
+		const { listHandler } = await import("./listHandler-D-W39_YC.js");
 		return listHandler;
 	}
 });
@@ -622,7 +622,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-Dp74pefc.js");
+		const { selectHandler } = await import("./selectHandler-9pNaEvpf.js");
 		return selectHandler;
 	}
 });
@@ -688,7 +688,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesBindingsExportHandler } = await import("./bindingsHandler-Dxx2LIci.js");
+		const { gatesBindingsExportHandler } = await import("./bindingsHandler-BR_vk1eC.js");
 		return gatesBindingsExportHandler;
 	}
 });
@@ -761,7 +761,7 @@ Examples:
 		aliases: { w: "workspace-id" }
 	},
 	loader: async () => {
-		const { gatesBindingsImportHandler } = await import("./bindingsHandler-Dxx2LIci.js");
+		const { gatesBindingsImportHandler } = await import("./bindingsHandler-BR_vk1eC.js");
 		return gatesBindingsImportHandler;
 	}
 });
@@ -1052,7 +1052,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-BLkPzImG.js");
+		const { gatesRunHandler } = await import("./runHandler-DMJO--tc.js");
 		return gatesRunHandler;
 	}
 });
@@ -1165,7 +1165,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { attachHandler } = await import("./attachHandler-Ojk7mc2E.js");
+		const { attachHandler } = await import("./attachHandler-DFlDUObZ.js");
 		return attachHandler;
 	}
 });
@@ -1241,14 +1241,14 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { resultAppendHandler } = await import("./appendHandler-BYOoCNXJ.js");
+		const { resultAppendHandler } = await import("./appendHandler-mYa2KKNC.js");
 		return resultAppendHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.12.10";
+var version = "0.12.11";
 
 //#endregion
 //#region src/app.ts

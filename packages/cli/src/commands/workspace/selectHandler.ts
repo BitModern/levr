@@ -14,8 +14,14 @@ export async function selectHandler(
   let auth;
   try {
     auth = await resolveToken();
-  } catch {
-    this.logger.error("Not authenticated. Run 'levr auth login' first.");
+  } catch (err) {
+    // The resolver's own message: a transient refresh failure says the login
+    // is kept, which "Not authenticated" would contradict (internal).
+    this.logger.error(
+      err instanceof Error
+        ? err.message
+        : "Not authenticated. Run 'levr auth login' first.",
+    );
     this.process.exitCode = 1;
     return;
   }
