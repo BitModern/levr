@@ -14,6 +14,7 @@ export type ResponseTeamDto = {
   settings?: unknown | null;
   estimation_scale?: "none" | "fibonacci" | "linear" | "tshirt";
   estimation_allow_zero?: boolean;
+  auto_close_parent?: boolean;
   estimation_unestimated_value?: number;
   is_system?: boolean;
   created_at: unknown;
@@ -45,6 +46,7 @@ export type TeamFindAllV1Data = {
     'filter.is_private'?: Array<string>;
     'filter.issue_count'?: Array<string>;
     'filter.estimation_allow_zero'?: Array<string>;
+    'filter.auto_close_parent'?: Array<string>;
     'filter.estimation_unestimated_value'?: Array<string>;
     'filter.is_system'?: Array<string>;
     'filter.created_at'?: Array<string>;
