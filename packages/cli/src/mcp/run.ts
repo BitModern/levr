@@ -695,10 +695,37 @@ export function nextStepsText(report: RunReport): string {
       ? 'Nothing was installed.'
       : 'Nothing to do.';
   }
-  const lines = [
-    'Next: restart the client(s) above — each will prompt you to authorize',
-    'Levr once in the browser. Then ask it: "What issues are assigned to me?"',
-  ];
+  // Claude Code does not prompt: it lists the server as needing
+  // authentication and waits for the user to run /mcp (user, 2026-10-28:
+  // nothing in the flow said so). Name the entry it was written under. When
+  // it is the only client installed, "each will prompt you" would be false
+  // (code review F-005), so that run gets the /mcp line alone.
+  const installed = report.outcomes.filter(
+    (o) => o.result.ok && !o.result.alreadyConfigured,
+  );
+  const claudeCode = installed.find((o) => o.id === 'claude-code');
+  const onlyClaudeCode = claudeCode && installed.length === 1;
+  const entry =
+    claudeCode?.entryName ?? report.entryName ?? DEFAULT_SERVER_NAME;
+  // A mixed run names Claude Code as the exception in the same breath, so
+  // "the client(s) above" never includes a client the next line contradicts
+  // (audit of the first-task branch, 2026-10-29).
+  const lines = onlyClaudeCode
+    ? [
+        `Next: restart Claude Code, run /mcp, pick ${entry} and choose Authenticate —`,
+        'it opens your browser once. Then ask it: "What issues are assigned to me?"',
+      ]
+    : claudeCode
+      ? [
+          'Next: restart the client(s) above. Most prompt you to authorize Levr',
+          `once in the browser; Claude Code does not: run /mcp, pick ${entry} and`,
+          'choose Authenticate, and it opens your browser once. Then ask it:',
+          '"What issues are assigned to me?"',
+        ]
+      : [
+          'Next: restart the client(s) above — each will prompt you to authorize',
+          'Levr once in the browser. Then ask it: "What issues are assigned to me?"',
+        ];
   // Project-scoped files are meant to be committed; say so rather than
   // touching the user's index for them. A file git ignores cannot be shared
   // that way, so it gets the opposite advice instead of a contradiction

@@ -2752,7 +2752,16 @@ const PLUGIN_TIP = "Tip: the Levr plugin adds /levr:work, /levr:file and /levr:d
 function nextStepsText(report) {
 	if (report.dryRun) return "Dry run — re-run without --dry-run to apply these changes.";
 	if (!report.outcomes.some((o) => o.result.ok && !o.result.alreadyConfigured && (o.result.wrote || o.result.executed || o.result.command))) return report.outcomes.some((o) => !o.result.ok) ? "Nothing was installed." : "Nothing to do.";
-	const lines = ["Next: restart the client(s) above — each will prompt you to authorize", "Levr once in the browser. Then ask it: \"What issues are assigned to me?\""];
+	const installed = report.outcomes.filter((o) => o.result.ok && !o.result.alreadyConfigured);
+	const claudeCode = installed.find((o) => o.id === "claude-code");
+	const onlyClaudeCode = claudeCode && installed.length === 1;
+	const entry = claudeCode?.entryName ?? report.entryName ?? DEFAULT_SERVER_NAME;
+	const lines = onlyClaudeCode ? [`Next: restart Claude Code, run /mcp, pick ${entry} and choose Authenticate —`, "it opens your browser once. Then ask it: \"What issues are assigned to me?\""] : claudeCode ? [
+		"Next: restart the client(s) above. Most prompt you to authorize Levr",
+		`once in the browser; Claude Code does not: run /mcp, pick ${entry} and`,
+		"choose Authenticate, and it opens your browser once. Then ask it:",
+		"\"What issues are assigned to me?\""
+	] : ["Next: restart the client(s) above — each will prompt you to authorize", "Levr once in the browser. Then ask it: \"What issues are assigned to me?\""];
 	const projectWrites = report.outcomes.filter((o) => o.result.scope === "project" && o.result.wrote);
 	if (projectWrites.some((o) => o.result.gitIgnored !== true)) lines.push("", "Project-scoped config was written into this repository — commit it to", "share the Levr MCP with everyone who checks it out.");
 	if (projectWrites.some((o) => o.result.gitIgnored === true)) lines.push("", "A project-scoped file above is git-ignored, so it stays on this machine.", "To share it, un-ignore that path (a `!` rule in .gitignore) or use --scope user.");

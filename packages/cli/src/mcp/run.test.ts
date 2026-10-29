@@ -550,9 +550,67 @@ describe('cli-command execution reporting (D5)', () => {
   });
 
   it('counts an executed command as having done something', () => {
+    // The fixture installs Claude Code alone, so the restart line is its own.
     expect(nextStepsText(report(cmdResult({ executed: true })))).toContain(
-      'restart the client(s)',
+      'Next: restart Claude Code',
     );
+  });
+
+  // Claude Code lists the server as needing authentication and waits; the
+  // generic "each will prompt you" line is not true of it.
+  it('tells a Claude Code install to run /mcp and authenticate, naming the entry', () => {
+    const next = nextStepsText(report(cmdResult({ executed: true })));
+    expect(next).toContain('run /mcp, pick levr and choose');
+    expect(next).toContain('Authenticate');
+    // Claude Code alone: no "each will prompt you", which it does not.
+    expect(next).not.toContain('each will prompt');
+    // Beside another client, the generic line stays and Claude Code gets its own.
+    const mixed = nextStepsText({
+      ...report(cmdResult({ executed: true })),
+      outcomes: [
+        {
+          id: 'claude-code',
+          label: 'Claude Code',
+          result: cmdResult({ executed: true }),
+        },
+        {
+          id: 'cursor',
+          label: 'Cursor',
+          result: cmdResult({ executed: true }),
+        },
+      ],
+    });
+    expect(mixed).toContain('Most prompt you');
+    expect(mixed).not.toContain('each will prompt');
+    expect(mixed).toContain('Claude Code does not: run /mcp, pick levr');
+    const beside = nextStepsText({
+      ...report(cmdResult({ executed: true })),
+      outcomes: [
+        {
+          id: 'claude-code',
+          label: 'Claude Code',
+          result: cmdResult({ executed: true }),
+          entryName: 'levr-beta',
+        },
+      ],
+    });
+    expect(beside).toContain('pick levr-beta and choose');
+  });
+
+  it('does not mention /mcp when Claude Code was already set up or failed', () => {
+    expect(
+      nextStepsText({
+        ...report(cmdResult({ executed: true })),
+        outcomes: [
+          {
+            id: 'cursor',
+            label: 'Cursor',
+            result: cmdResult({ executed: true }),
+          },
+        ],
+      }),
+    ).not.toContain('/mcp');
+    expect(nextStepsText(report(alreadyExists()))).not.toContain('/mcp');
   });
 
   // internal: `claude mcp add` refused an entry the installer could not see.
