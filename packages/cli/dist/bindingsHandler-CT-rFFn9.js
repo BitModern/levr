@@ -217,6 +217,52 @@ const CAPTURE_KINDS = Object.freeze({
 		maxBytes: 50 * MIB,
 		uploadTimeoutMs: uploadTimeoutFor(50 * MIB),
 		viewer: "video"
+	},
+	action_trace: {
+		id: "action_trace",
+		labelKey: "browserCaptures.kindActionTrace",
+		label: "Action trace",
+		noun: "action trace",
+		tools: ["browser_stop_trace"],
+		mime: "application/x-ndjson",
+		uploadMime: OCTET_STREAM,
+		ext: "jsonl",
+		filenamePrefix: "trace-actions",
+		maxBytes: 25 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(25 * MIB),
+		viewer: "action_trace"
+	},
+	demo_screencast: {
+		id: "demo_screencast",
+		labelKey: "browserCaptures.kindDemoRecording",
+		label: "Demo recording",
+		noun: "demo recording",
+		tools: [],
+		mime: "video/webm",
+		uploadMime: "video/webm",
+		ext: "webm",
+		filenamePrefix: "demo",
+		maxBytes: 1024 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(1024 * MIB),
+		viewer: "video",
+		multipart: true,
+		variantOf: "screencast"
+	},
+	demo_frames: {
+		id: "demo_frames",
+		labelKey: "browserCaptures.kindDemoFrames",
+		label: "Demo frames",
+		noun: "demo frame bundle",
+		tools: [],
+		mime: "application/x-tar",
+		uploadMime: OCTET_STREAM,
+		ext: "tar",
+		filenamePrefix: "demo-frames",
+		maxBytes: 1024 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(1024 * MIB),
+		viewer: "download",
+		multipart: true,
+		variantOf: "screencast"
 	}
 });
 /** Every tool of every kind. */
