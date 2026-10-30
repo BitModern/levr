@@ -107,12 +107,17 @@ Uses `typescript-eslint` with `recommendedTypeChecked` plus Prettier:
 ## Development
 
 ```bash
-# Build (requires the public SDK to be built first — it is bundled in)
-cd packages/sdk-public && yarn build
-cd packages/cli && yarn build
+# Build — from the repo root. Turbo's `^build` builds the bundled workspaces
+# (@levr-one/sdk, @levr/ci-env, @levr/mcp-harnesses, ...) first, cached.
+# A bare `yarn build` in packages/cli bypasses that and bundles whatever
+# (possibly stale) dist/ those workspaces already have.
+yarn turbo run build --filter=@levr-one/cli
 
-# Watch mode
+# Watch mode (in packages/cli, after the build above has built the deps)
 yarn dev
+
+# Run the dev build — set LEVR_URL first (see "Worktree tip"), else it hits prod
+node packages/cli/dist/cli.js --help
 
 # Run tests
 yarn test
