@@ -38,6 +38,7 @@ export const zResponseIssueDto = /* @__PURE__ */ z.object({
   milestone_id: z.string().nullable().optional(),
   spoke_key: z.string().nullable().optional(),
   gate_run_id: z.string().nullable().optional(),
+  external_provenance: z.unknown().optional(),
   project_id: z.string().nullable().optional(),
   assignee_id: z.string().nullable().optional(),
   parent_id: z.string().nullable().optional(),

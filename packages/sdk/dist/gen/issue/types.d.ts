@@ -38,6 +38,7 @@ export type ResponseIssueDto = {
   milestone_id?: string | null | null;
   spoke_key?: string | null | null;
   gate_run_id?: string | null | null;
+  external_provenance?: unknown | null;
   project_id?: string | null | null;
   assignee_id?: string | null | null;
   parent_id?: string | null | null;
