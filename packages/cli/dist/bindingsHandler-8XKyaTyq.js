@@ -363,6 +363,29 @@ const ORDERING_FIXTURES = [
 ];
 
 //#endregion
+//#region ../shared/dist/runs/automation-retention.js
+/** The newest runs of every source are always kept. Not configurable. */
+const AUTOMATION_RETENTION_FLOOR = 10;
+const AUTOMATION_RETENTION_MAX_RUNS_MIN = AUTOMATION_RETENTION_FLOOR;
+const AUTOMATION_RETENTION_MAX_RUNS_MAX = 1e4;
+/**
+* The stored value of the retention setting. Strict: an unknown key is a
+* malformed value, not something to carry along silently.
+*/
+const AutomationRetentionSettingSchema = z.object({
+	days: z.union([
+		z.literal(30),
+		z.literal(90),
+		z.literal(180)
+	]),
+	maxRunsPerSource: z.number().int().min(AUTOMATION_RETENTION_MAX_RUNS_MIN).max(AUTOMATION_RETENTION_MAX_RUNS_MAX)
+}).strict();
+const AUTOMATION_RETENTION_DEFAULTS = Object.freeze({
+	days: 90,
+	maxRunsPerSource: 100
+});
+
+//#endregion
 //#region ../shared/dist/runs/gate-command-pattern.js
 /** Package managers, fetchers, interpreters, shells, and wrappers. */
 const PATTERN_WRAPPER_PROGRAMS = [
