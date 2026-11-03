@@ -226,7 +226,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-Dafsu41N.js");
+		const { mcpAddHandler } = await import("./addHandler-DG2flbF8.js");
 		return mcpAddHandler;
 	}
 });
@@ -688,7 +688,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesBindingsExportHandler } = await import("./bindingsHandler-8XKyaTyq.js");
+		const { gatesBindingsExportHandler } = await import("./bindingsHandler-DQHF9AqQ.js");
 		return gatesBindingsExportHandler;
 	}
 });
@@ -761,7 +761,7 @@ Examples:
 		aliases: { w: "workspace-id" }
 	},
 	loader: async () => {
-		const { gatesBindingsImportHandler } = await import("./bindingsHandler-8XKyaTyq.js");
+		const { gatesBindingsImportHandler } = await import("./bindingsHandler-DQHF9AqQ.js");
 		return gatesBindingsImportHandler;
 	}
 });
@@ -1248,7 +1248,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.12.14";
+var version = "0.12.15";
 
 //#endregion
 //#region src/app.ts

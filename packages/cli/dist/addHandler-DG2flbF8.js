@@ -918,7 +918,8 @@ const LEVR_PREAPPROVED_TOOLS = [
 	"report_gate_results",
 	"get_gate_status",
 	"transition_issue",
-	"get_practice_app"
+	"get_practice_app",
+	"my_work"
 ];
 /**
 * A plain description of what each tool does, printed next to its entry in
@@ -939,7 +940,8 @@ const LEVR_PREAPPROVED_TOOL_DESCRIPTIONS = {
 	verify_deliverable_gates: "runs the task's checklist",
 	report_gate_results: "records the checklist results your agent ran",
 	get_gate_status: "reads the task's checklist results",
-	get_practice_app: "reads the sample practice app"
+	get_practice_app: "reads the sample practice app",
+	my_work: "reads your tasks, ranked, with what to pick up next"
 };
 
 //#endregion

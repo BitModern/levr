@@ -2630,6 +2630,736 @@ const ReviewLoopPrMergedEventSchema = z.object({
 const ReviewLoopEventSchema = z.discriminatedUnion("event", [ReviewLoopPushEventSchema, ReviewLoopPrMergedEventSchema]);
 
 //#endregion
+//#region ../shared/dist/issues/next-issue/job-profiles.js
+/** States where a deliverable waits for verification (QA's lead tier). */
+const VERIFICATION_STATE_NAMES = ["In Review", "Gates Pending"];
+/**
+* The state named Review that PM's lead tier admits Proposals and Plans from
+* (a Plan's own `Review` state). A Proposal's `In Review` is a verification
+* name, declared once in VERIFICATION_STATE_NAMES, and is NOT part of this
+* tier; Proposals reach PM through the triage clause instead.
+*/
+const PM_REVIEW_STATE_NAMES = ["Review"];
+/** The dev type order. An untyped or unknown type sorts after the last tier. */
+const DEV_TYPE_TIERS = [
+	["Incident"],
+	["Bug", "Security"],
+	["Deliverable", "Finding"],
+	[
+		"Task",
+		"Feature",
+		"Improvement",
+		"Story",
+		"Chore"
+	],
+	["Doc", "Test"]
+];
+/** Case-insensitive, whitespace-trimmed name match. */
+function nameMatches(name, names) {
+	if (!name) return false;
+	const needle = name.trim().toLowerCase();
+	return names.some((candidate) => candidate.toLowerCase() === needle);
+}
+const DEV_PROFILE = {
+	job: "dev",
+	typeTiers: DEV_TYPE_TIERS,
+	leadTier: null,
+	admittedContainerTypes: [],
+	affinity: null
+};
+/** Move `promoted` types into a new first tier, keeping the rest in dev order. */
+function promoteTypes(tiers, promoted) {
+	const promotedLower = new Set(promoted.map((t) => t.toLowerCase()));
+	return [promoted, ...tiers.map((tier) => tier.filter((t) => !promotedLower.has(t.toLowerCase()))).filter((tier) => tier.length > 0)];
+}
+const QA_VERIFICATION_TIER = {
+	name: "verification",
+	matches: (issue$1) => nameMatches(issue$1.stateName, VERIFICATION_STATE_NAMES),
+	reason: () => "waiting in verification"
+};
+/**
+* PM's lead tier: every triage-type issue (a Decision awaiting an answer is
+* one), plus Proposals and Plans in a state named Review
+* (PM_REVIEW_STATE_NAMES). A Proposal in Triage matches the first clause; a
+* Proposal, Plan or Decision in any other state does not.
+*/
+const PM_TRIAGE_TIER = {
+	name: "triage",
+	matches: (issue$1) => issue$1.stateType === "triage" || nameMatches(issue$1.typeName, ["Proposal", "Plan"]) && nameMatches(issue$1.stateName, PM_REVIEW_STATE_NAMES),
+	reason: (issue$1) => {
+		if (nameMatches(issue$1.typeName, ["Proposal"])) return "proposal awaiting review";
+		if (nameMatches(issue$1.typeName, ["Plan"])) return "plan in review";
+		if (nameMatches(issue$1.typeName, ["Decision"])) return "decision awaiting an answer";
+		return "waiting in triage";
+	}
+};
+const JOB_PROFILES = {
+	dev: DEV_PROFILE,
+	qa: {
+		...DEV_PROFILE,
+		job: "qa",
+		typeTiers: promoteTypes(DEV_PROFILE.typeTiers, [
+			"Bug",
+			"Incident",
+			"Test",
+			"Finding"
+		]),
+		leadTier: QA_VERIFICATION_TIER
+	},
+	pm: {
+		...DEV_PROFILE,
+		job: "pm",
+		leadTier: PM_TRIAGE_TIER,
+		admittedContainerTypes: [
+			"Proposal",
+			"Plan",
+			"Decision"
+		]
+	}
+};
+
+//#endregion
+//#region ../shared/dist/issues/next-issue/rank-next-issues.js
+const DUE_SOON_WINDOW_MS = 10080 * 60 * 1e3;
+
+//#endregion
+//#region ../shared/dist/issues/next-issue/conformance-fixture.js
+/**
+* The conformance fixture for the next-issue ranker (Plan ENG-7779, D1 sub-req 7).
+*
+* Raw `SnapshotRows` plus the EXPECTED full order for each job. The same
+* fixture is asserted by the shared unit tests (D1), by the backend adapter's
+* conformance spec once the rows are round-tripped through Postgres (D2) and by
+* the client mapper (D4): if the two sides ever disagree on the order, this is
+* what they disagree against.
+*
+* The actor is `user-me`, on team `team-1`. The completed issue is ENG-100,
+* a child of plan ENG-90; it was blocking ENG-101 (now free) and ENG-102 (still
+* blocked by ENG-300). `now` is 2026-10-23T12:00:00Z.
+*
+* Coverage checklist (one row per bullet, at least):
+*  - every dev tier: parked, ownership, momentum (unblocked AND sibling), each
+*    state type, each priority value including 0, each deadline bucket, each
+*    type tier, recency and identifier tiebreaks
+*  - a mirrored relation pair (ENG-129 ⇄ ENG-300) counted once
+*  - a hidden blocker (ENG-116 → X-999, absent everywhere)
+*  - an open blocker that exists only in `relationEndStates` (ENG-117 → out-1)
+*  - a closed blocker in the pool (ENG-118 → ENG-119, done) and a closed
+*    `depends_on` (ENG-130 → ENG-119)
+*  - a past snooze (ENG-114) and a future snooze (ENG-113)
+*  - an unassigned in_progress issue (ENG-107) treated as to_do
+*  - excluded rows present for every exclusion: finished (ENG-100, ENG-119,
+*    ENG-128), containers (ENG-90, ENG-123, ENG-124, ENG-126), someone else's
+*    (ENG-120, ENG-121, ENG-127, ENG-300) — the job tests slice the pool down
+*    to fewer survivors than `limit` and assert none of these fill the gap
+*/
+const ME = "user-me";
+const OTHER = "user-other";
+const TEAM = "team-1";
+const S = {
+	triage: "st-triage",
+	backlog: "st-backlog",
+	todo: "st-todo",
+	inProgress: "st-in-progress",
+	inReview: "st-in-review",
+	gatesPending: "st-gates-pending",
+	blocked: "st-blocked",
+	planReview: "st-plan-review",
+	done: "st-done",
+	canceled: "st-canceled"
+};
+const T = {
+	incident: "tl-incident",
+	bug: "tl-bug",
+	security: "tl-security",
+	deliverable: "tl-deliverable",
+	finding: "tl-finding",
+	task: "tl-task",
+	feature: "tl-feature",
+	doc: "tl-doc",
+	test: "tl-test",
+	epic: "tl-epic",
+	plan: "tl-plan",
+	proposal: "tl-proposal",
+	decision: "tl-decision"
+};
+const CYCLE_ACTIVE = "cycle-active";
+const CYCLE_UPCOMING = "cycle-upcoming";
+const day = (d) => `2026-10-${d}T00:00:00.000Z`;
+const issue = (s) => ({
+	id: `i-${s.n}`,
+	identifier: `ENG-${s.n}`,
+	title: s.title ?? `Issue ${s.n}`,
+	team_id: TEAM,
+	project_id: "project-1",
+	parent_id: s.parent ?? null,
+	assignee_id: s.assignee,
+	priority: s.priority,
+	workflow_state_id: s.state,
+	type_label_id: s.type,
+	due_date: s.due ?? null,
+	snoozed_until: s.snoozed ?? null,
+	sla_status: s.sla ?? null,
+	cycle_id: s.cycle ?? null,
+	updated_at: day(s.updated)
+});
+const rel = (issueN, relation_type, relatedN) => ({
+	issue_id: typeof issueN === "number" ? `i-${issueN}` : issueN,
+	related_issue_id: typeof relatedN === "number" ? `i-${relatedN}` : relatedN,
+	relation_type
+});
+const NEXT_ISSUE_CONFORMANCE_FIXTURE = {
+	actorId: ME,
+	teamIds: [TEAM],
+	completedIssueId: "i-100",
+	now: "2026-10-23T12:00:00.000Z",
+	rows: {
+		workflowStates: [
+			{
+				id: S.triage,
+				name: "Triage",
+				type: "triage"
+			},
+			{
+				id: S.backlog,
+				name: "Backlog",
+				type: "backlog"
+			},
+			{
+				id: S.todo,
+				name: "To Do",
+				type: "to_do"
+			},
+			{
+				id: S.inProgress,
+				name: "In Progress",
+				type: "in_progress"
+			},
+			{
+				id: S.inReview,
+				name: "In Review",
+				type: "in_progress"
+			},
+			{
+				id: S.gatesPending,
+				name: "Gates Pending",
+				type: "in_progress"
+			},
+			{
+				id: S.blocked,
+				name: "Blocked",
+				type: "in_progress"
+			},
+			{
+				id: S.planReview,
+				name: "Review",
+				type: "in_progress"
+			},
+			{
+				id: S.done,
+				name: "Done",
+				type: "done"
+			},
+			{
+				id: S.canceled,
+				name: "Canceled",
+				type: "canceled"
+			}
+		],
+		typeLabels: [
+			{
+				id: T.incident,
+				name: "Incident"
+			},
+			{
+				id: T.bug,
+				name: "Bug"
+			},
+			{
+				id: T.security,
+				name: "Security"
+			},
+			{
+				id: T.deliverable,
+				name: "Deliverable"
+			},
+			{
+				id: T.finding,
+				name: "Finding"
+			},
+			{
+				id: T.task,
+				name: "Task"
+			},
+			{
+				id: T.feature,
+				name: "Feature"
+			},
+			{
+				id: T.doc,
+				name: "Doc"
+			},
+			{
+				id: T.test,
+				name: "Test"
+			},
+			{
+				id: T.epic,
+				name: "Epic"
+			},
+			{
+				id: T.plan,
+				name: "Plan"
+			},
+			{
+				id: T.proposal,
+				name: "Proposal"
+			},
+			{
+				id: T.decision,
+				name: "Decision"
+			}
+		],
+		cycles: [{
+			id: CYCLE_ACTIVE,
+			status: "active",
+			starts_at: day("20"),
+			ends_at: day("26")
+		}, {
+			id: CYCLE_UPCOMING,
+			status: "upcoming",
+			starts_at: day("27"),
+			ends_at: "2026-11-02T00:00:00.000Z"
+		}],
+		issues: [
+			issue({
+				n: 90,
+				state: S.inProgress,
+				priority: 2,
+				type: T.plan,
+				assignee: ME,
+				updated: "23",
+				title: "Plan ENG-90"
+			}),
+			issue({
+				n: 100,
+				state: S.done,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "23",
+				parent: "i-90",
+				title: "Completed"
+			}),
+			issue({
+				n: 101,
+				state: S.todo,
+				priority: 3,
+				type: T.task,
+				assignee: null,
+				updated: "20",
+				title: "Unblocked by 100"
+			}),
+			issue({
+				n: 102,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "14",
+				title: "Still blocked"
+			}),
+			issue({
+				n: 103,
+				state: S.todo,
+				priority: 2,
+				type: T.feature,
+				assignee: null,
+				updated: "20",
+				parent: "i-90",
+				title: "Sibling"
+			}),
+			issue({
+				n: 104,
+				state: S.inProgress,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "22",
+				title: "Mine in progress"
+			}),
+			issue({
+				n: 105,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "22",
+				title: "Mine urgent"
+			}),
+			issue({
+				n: 106,
+				state: S.backlog,
+				priority: 2,
+				type: T.task,
+				assignee: ME,
+				updated: "12",
+				due: day("20"),
+				title: "Mine backlog overdue"
+			}),
+			issue({
+				n: 107,
+				state: S.inProgress,
+				priority: 1,
+				type: T.task,
+				assignee: null,
+				updated: "21",
+				title: "Unowned in progress"
+			}),
+			issue({
+				n: 108,
+				state: S.todo,
+				priority: 0,
+				type: T.task,
+				assignee: null,
+				updated: "22",
+				title: "No priority"
+			}),
+			issue({
+				n: 109,
+				state: S.todo,
+				priority: 4,
+				type: T.incident,
+				assignee: null,
+				updated: "21",
+				title: "Low incident"
+			}),
+			issue({
+				n: 110,
+				state: S.todo,
+				priority: 3,
+				type: T.bug,
+				assignee: null,
+				updated: "20",
+				cycle: CYCLE_ACTIVE,
+				title: "In active cycle"
+			}),
+			issue({
+				n: 111,
+				state: S.todo,
+				priority: 3,
+				type: T.doc,
+				assignee: null,
+				updated: "10",
+				title: "Doc"
+			}),
+			issue({
+				n: 112,
+				state: S.todo,
+				priority: 3,
+				type: null,
+				assignee: null,
+				updated: "21",
+				title: "Untyped"
+			}),
+			issue({
+				n: 113,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "14",
+				snoozed: "2026-11-01T00:00:00.000Z",
+				title: "Snoozed"
+			}),
+			issue({
+				n: 114,
+				state: S.todo,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "16",
+				snoozed: day("01"),
+				title: "Snooze expired"
+			}),
+			issue({
+				n: 115,
+				state: S.blocked,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "19",
+				title: "Blocked state"
+			}),
+			issue({
+				n: 116,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "14",
+				title: "Hidden blocker"
+			}),
+			issue({
+				n: 117,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "14",
+				title: "Outside-pool blocker"
+			}),
+			issue({
+				n: 118,
+				state: S.todo,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "18",
+				title: "Closed blocker"
+			}),
+			issue({
+				n: 119,
+				state: S.done,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "01",
+				title: "Done blocker"
+			}),
+			issue({
+				n: 120,
+				state: S.inReview,
+				priority: 2,
+				type: T.deliverable,
+				assignee: OTHER,
+				updated: "21",
+				title: "Other in review"
+			}),
+			issue({
+				n: 121,
+				state: S.gatesPending,
+				priority: 3,
+				type: T.deliverable,
+				assignee: OTHER,
+				updated: "21",
+				title: "Other gates pending"
+			}),
+			issue({
+				n: 122,
+				state: S.triage,
+				priority: 2,
+				type: T.bug,
+				assignee: null,
+				updated: "21",
+				title: "Triage bug"
+			}),
+			issue({
+				n: 123,
+				state: S.triage,
+				priority: 3,
+				type: T.proposal,
+				assignee: null,
+				updated: "20",
+				title: "Proposal"
+			}),
+			issue({
+				n: 124,
+				state: S.planReview,
+				priority: 2,
+				type: T.plan,
+				assignee: OTHER,
+				updated: "20",
+				title: "Plan in review"
+			}),
+			issue({
+				n: 125,
+				state: S.triage,
+				priority: 0,
+				type: T.decision,
+				assignee: null,
+				updated: "20",
+				title: "Decision"
+			}),
+			issue({
+				n: 126,
+				state: S.todo,
+				priority: 1,
+				type: T.epic,
+				assignee: ME,
+				updated: "20",
+				title: "Epic"
+			}),
+			issue({
+				n: 127,
+				state: S.todo,
+				priority: 1,
+				type: T.task,
+				assignee: OTHER,
+				updated: "20",
+				title: "Other task"
+			}),
+			issue({
+				n: 128,
+				state: S.canceled,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "01",
+				title: "Canceled"
+			}),
+			issue({
+				n: 129,
+				state: S.todo,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "13",
+				title: "Mirrored pair"
+			}),
+			issue({
+				n: 130,
+				state: S.todo,
+				priority: 3,
+				type: T.test,
+				assignee: ME,
+				updated: "17",
+				title: "Depends on done"
+			}),
+			issue({
+				n: 131,
+				state: S.todo,
+				priority: 2,
+				type: T.task,
+				assignee: ME,
+				updated: "21",
+				due: day("27"),
+				title: "Due soon"
+			}),
+			issue({
+				n: 132,
+				state: S.todo,
+				priority: 2,
+				type: T.task,
+				assignee: ME,
+				updated: "19",
+				sla: "at_risk",
+				title: "SLA at risk"
+			}),
+			issue({
+				n: 300,
+				state: S.todo,
+				priority: 2,
+				type: T.task,
+				assignee: OTHER,
+				updated: "20",
+				title: "Open blocker"
+			})
+		],
+		relations: [
+			rel(100, "blocks", 101),
+			rel(101, "blocked_by", 100),
+			rel(100, "blocks", 102),
+			rel(102, "blocked_by", 300),
+			rel(116, "blocked_by", "x-999"),
+			rel(117, "blocked_by", "out-1"),
+			rel(118, "blocked_by", 119),
+			rel(129, "blocked_by", 300),
+			rel(300, "blocks", 129),
+			rel(130, "depends_on", 119),
+			rel(119, "is_dependency_of", 130),
+			rel(104, "relates_to", 105)
+		],
+		relationEndStates: {
+			"out-1": "open",
+			"out-2": "closed"
+		}
+	},
+	expected: {
+		dev: [
+			"ENG-104",
+			"ENG-105",
+			"ENG-131",
+			"ENG-132",
+			"ENG-118",
+			"ENG-114",
+			"ENG-130",
+			"ENG-106",
+			"ENG-101",
+			"ENG-103",
+			"ENG-107",
+			"ENG-110",
+			"ENG-111",
+			"ENG-112",
+			"ENG-108",
+			"ENG-109",
+			"ENG-122",
+			"ENG-115",
+			"ENG-102",
+			"ENG-113",
+			"ENG-116",
+			"ENG-117",
+			"ENG-129"
+		],
+		qa: [
+			"ENG-120",
+			"ENG-121",
+			"ENG-104",
+			"ENG-105",
+			"ENG-131",
+			"ENG-132",
+			"ENG-130",
+			"ENG-118",
+			"ENG-114",
+			"ENG-106",
+			"ENG-101",
+			"ENG-103",
+			"ENG-107",
+			"ENG-110",
+			"ENG-111",
+			"ENG-112",
+			"ENG-108",
+			"ENG-109",
+			"ENG-122",
+			"ENG-115",
+			"ENG-102",
+			"ENG-113",
+			"ENG-116",
+			"ENG-117",
+			"ENG-129"
+		],
+		pm: [
+			"ENG-122",
+			"ENG-123",
+			"ENG-125",
+			"ENG-124",
+			"ENG-104",
+			"ENG-105",
+			"ENG-131",
+			"ENG-132",
+			"ENG-118",
+			"ENG-114",
+			"ENG-130",
+			"ENG-106",
+			"ENG-101",
+			"ENG-103",
+			"ENG-107",
+			"ENG-110",
+			"ENG-111",
+			"ENG-112",
+			"ENG-108",
+			"ENG-109",
+			"ENG-115",
+			"ENG-102",
+			"ENG-113",
+			"ENG-116",
+			"ENG-117",
+			"ENG-129"
+		]
+	}
+};
+
+//#endregion
 //#region ../shared/dist/first-task/first-task-prompt.js
 /**
 * The framing of a first-task prompt — plan ENG-6341 D4 rev 3.1 (ENG-6763).
@@ -2758,7 +3488,7 @@ async function executeBindingsImport(flags, file, deps) {
 	const out = [];
 	if (flags["repo-root"]) {
 		const root = flags["repo-root"];
-		const missing = missingFiles(payload, (rel) => deps.exists(root, rel));
+		const missing = missingFiles(payload, (rel$1) => deps.exists(root, rel$1));
 		for (const f of namedFiles(payload)) out.push(`${missing.includes(f) ? "MISSING" : "present"}  ${f}`);
 		if (missing.length > 0) return {
 			exitCode: 1,
@@ -2820,7 +3550,7 @@ async function liveDeps(workspaceFlag) {
 		})),
 		readFile: (file) => fs.readFileSync(file, "utf8"),
 		writeFile: (file, content) => fs.writeFileSync(file, content),
-		exists: (root, rel) => fs.existsSync(path$1.join(root, rel))
+		exists: (root, rel$1) => fs.existsSync(path$1.join(root, rel$1))
 	};
 }
 function emit(ctx, outcome) {
