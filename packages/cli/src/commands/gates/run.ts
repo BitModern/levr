@@ -2,8 +2,8 @@ import { buildCommand } from '@stricli/core';
 
 export const gatesRunCommand = buildCommand({
   docs: {
-    brief: "Run a deliverable's gate commands and report the raw results",
-    fullDescription: `Verify a deliverable's gates, run every local command from the current
+    brief: "Run an issue's gate commands and report the raw results",
+    fullDescription: `Verify an issue's gates, run every local command from the current
 directory (run it from the repo root), and report the raw exit code and output
 tails so the server can derive each verdict.
 
@@ -35,7 +35,7 @@ Examples:
       parameters: [
         {
           parse: String,
-          brief: 'Deliverable issue identifier (internal) or UUID',
+          brief: 'Issue identifier (internal) or UUID',
           placeholder: 'issue',
           optional: false,
         },

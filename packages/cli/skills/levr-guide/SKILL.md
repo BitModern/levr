@@ -241,7 +241,7 @@ text.
 
 **Never show the payload.** No JSON, no field dumps, no "the tool returned". Tool
 names belong in the same bin: say "the gate was checked", not
-`verify_deliverable_gates`.
+`verify_gates`.
 
 **Link it as it lands.** The line that opens each piece of work carries its
 identifier as a link to its `web_url` — always, a run included. A link is one

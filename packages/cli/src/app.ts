@@ -66,7 +66,7 @@ const gatesRoutes = buildRouteMap({
     run: gatesRunCommand,
   },
   docs: {
-    brief: "Run a deliverable's gates and report the raw results",
+    brief: "Run an issue's gates and report the raw results",
   },
 });
 

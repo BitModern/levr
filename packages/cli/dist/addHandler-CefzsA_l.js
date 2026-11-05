@@ -885,7 +885,9 @@ function besideName(serverName, url) {
 * `McpToolAdapterService.DESTRUCTIVE_TOOL_NAMES`.
 *
 * Rules for this list:
-* - Only the non-destructive tools a first task actually calls. A tool that
+* - Only the non-destructive tools a first task or an ordinary gated issue
+*   actually calls (`batch_verify_gates`: agents used it in the real-agent
+*   trial, user decision 2026-11-04). A tool that
 *   can delete, merge away or permanently unlink anything never belongs here.
 * - Nor does a tool whose PURPOSE is to waive a check (waive_gate): see
 *   {@link LEVR_NEVER_PREAPPROVED_TOOLS}.
@@ -914,7 +916,8 @@ const LEVR_PREAPPROVED_TOOLS = [
 	"get_issue_comments",
 	"add_issue_comment",
 	"deploy_gates",
-	"verify_deliverable_gates",
+	"verify_gates",
+	"batch_verify_gates",
 	"report_gate_results",
 	"get_gate_status",
 	"transition_issue",
@@ -937,7 +940,8 @@ const LEVR_PREAPPROVED_TOOL_DESCRIPTIONS = {
 	add_issue_comment: "adds a comment to a task",
 	deploy_gates: "writes the task's gates; it can also change or withdraw a gate (recorded)",
 	transition_issue: "moves a task to another status; Done is refused while a required check fails, unless your agent waives that check (the waiver is recorded)",
-	verify_deliverable_gates: "runs the task's checklist",
+	verify_gates: "runs the task's checklist",
+	batch_verify_gates: "runs the checklists of several tasks in one call",
 	report_gate_results: "records the checklist results your agent ran",
 	get_gate_status: "reads the task's checklist results",
 	get_practice_app: "reads the sample practice app",

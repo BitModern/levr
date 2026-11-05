@@ -226,7 +226,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-DG2flbF8.js");
+		const { mcpAddHandler } = await import("./addHandler-CefzsA_l.js");
 		return mcpAddHandler;
 	}
 });
@@ -980,8 +980,8 @@ Examples:
 //#region src/commands/gates/run.ts
 const gatesRunCommand = buildCommand({
 	docs: {
-		brief: "Run a deliverable's gate commands and report the raw results",
-		fullDescription: `Verify a deliverable's gates, run every local command from the current
+		brief: "Run an issue's gate commands and report the raw results",
+		fullDescription: `Verify an issue's gates, run every local command from the current
 directory (run it from the repo root), and report the raw exit code and output
 tails so the server can derive each verdict.
 
@@ -1012,7 +1012,7 @@ Examples:
 			kind: "tuple",
 			parameters: [{
 				parse: String,
-				brief: "Deliverable issue identifier (ENG-50) or UUID",
+				brief: "Issue identifier (ENG-50) or UUID",
 				placeholder: "issue",
 				optional: false
 			}]
@@ -1248,7 +1248,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.12.15";
+var version = "0.12.16";
 
 //#endregion
 //#region src/app.ts
@@ -1283,7 +1283,7 @@ const gatesRoutes = buildRouteMap({
 		refs: gatesRefsCommand,
 		run: gatesRunCommand
 	},
-	docs: { brief: "Run a deliverable's gates and report the raw results" }
+	docs: { brief: "Run an issue's gates and report the raw results" }
 });
 const resultRoutes = buildRouteMap({
 	routes: { append: resultAppendCommand },
