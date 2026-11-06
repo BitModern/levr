@@ -380,9 +380,15 @@ const AutomationRetentionSettingSchema = z.object({
 	]),
 	maxRunsPerSource: z.number().int().min(AUTOMATION_RETENTION_MAX_RUNS_MIN).max(AUTOMATION_RETENTION_MAX_RUNS_MAX)
 }).strict();
+/**
+* 350 runs per source keeps about 30 days of the busiest staging CI source
+* (bitmodern5, 2026-11-05 dry run); 100 kept only about 9. Chosen by David
+* on ENG-4833: a cap can be lowered later, but raising it never brings back
+* runs that were already archived.
+*/
 const AUTOMATION_RETENTION_DEFAULTS = Object.freeze({
 	days: 90,
-	maxRunsPerSource: 100
+	maxRunsPerSource: 350
 });
 
 //#endregion
