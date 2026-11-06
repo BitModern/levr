@@ -1704,7 +1704,7 @@ const WRAPPER_PREFIX_RE = /* @__PURE__ */ new RegExp("^(?:" + [
 */
 const TEST_RUNNER_RE = new RegExp([
 	String.raw`^yarn(?:\s+(?:-s|--silent|--verbose|--offline|--frozen-lockfile|--immutable|workspace\s+\S+|--cwd\s+\S+))*\s+(?:run\s+)?(?:test(?::[\w-]+)?\b|vitest\b|jest\b)`,
-	String.raw`^yarn\s+workspaces\s+foreach(?:\s+(?:--(?:include|exclude|from|jobs)(?:=|\s+)\S+|-j\s+\S+|-[A-Za-z]+|--[\w-]+(?:=\S+)?))*\s+(?:run\s+)?test(?::[\w-]+)?\b`,
+	String.raw`^yarn\s+workspaces\s+foreach(?:\s+(?:--(?:include|exclude|from|jobs)(?:=\S+|\s+[^-\s]\S*)|-j\s+[^-\s]\S*|-[A-Za-z]+|--[\w-]+(?:=\S+)?))*\s+(?:run\s+)?test(?::[\w-]+)?\b`,
 	String.raw`^npm\s+(?:run\s+)?test(?::[\w-]+)?\b`,
 	String.raw`^pnpm\s+(?:(?:--filter|-F|--dir|-C)\s+\S+\s+|(?:-r|--recursive)\s+)*(?:run\s+)?test(?::[\w-]+)?\b`,
 	String.raw`^pnpm\s+(?:exec\s+|dlx\s+)?(?:vitest|jest|playwright)\b`,
@@ -1722,6 +1722,9 @@ const TEST_RUNNER_RE = new RegExp([
 	String.raw`^dotnet\s+test(?:\s|$)`,
 	String.raw`^(?:bundle\s+exec\s+)?(?:bin\/)?rspec(?:\s|$)`,
 	String.raw`^(?:npx\s+(?:(?:--yes|-y|--no-install|--no|-p\s+\S+|--package(?:=|\s+)\S+)\s+)*|yarn\s+(?:run\s+)?|pnpm\s+(?:exec\s+)?|(?:\.\/)?node_modules\/\.bin\/)?mocha(?:\s|$)`,
+	String.raw`^(?:(?:\S*\/)?node|(?:(?:npx(?:\s+(?:--yes|-y))*|pnpm(?:\s+exec)?|yarn)\s+)?(?:\S*\/)?tsx)\s+(?:(?:--(?:import|require|loader|experimental-loader|test-reporter|test-reporter-destination|test-name-pattern|test-skip-pattern|test-concurrency|test-timeout|test-shard|test-isolation|test-global-setup|test-coverage-exclude|test-coverage-include|test-coverage-branches|test-coverage-functions|test-coverage-lines|env-file|env-file-if-exists|watch-path|disable-warning|experimental-config-file|tsconfig|conditions|input-type|title)|-r|-C)\s+[^-\s]\S*\s+|-\S+\s+)*?--test(?:\s|$)`,
+	String.raw`^(?:(?:uv|poetry|pipenv|hatch)\s+run\s+)?(?:\S*\/)?python[\d.]*\s+(?:-[WX]\s+[^-\s]\S*\s+|-[A-Za-z]+\s+)*-m\s+unittest(?:\s|$)`,
+	String.raw`^(?:(?:uv|poetry|pipenv|hatch)\s+run\s+)?(?:(?:\S*\/)?python[\d.]*\s+-m\s+)?coverage\s+run\s+(?:--(?:source|rcfile|include|omit|data-file|context|concurrency)\s+[^-\s]\S*\s+|-\S+\s+)*?-m\s+unittest(?:\s|$)`,
 	String.raw`^yarn\s+playwright\s+test(?:\s|$)`
 ].join("|"));
 /**
@@ -1756,6 +1759,24 @@ const SEMANTIC_RUNNER_RE = /* @__PURE__ */ new RegExp(`(?:^|[\\s|;&(])(?:${JUDGE
 * any wrapper) is a candidate; a judge is one whose FIRST word is the binary.
 */
 const JUDGE_COMMAND_RE = /* @__PURE__ */ new RegExp(`^(?:${JUDGE_BINARIES})(?:\\s|$)`);
+/**
+* Commands that build, install or tear down around a run, by shape — review
+* round 3 (CRA F-007). Taken for the run, a `yarn build` that printed `Done
+* in 2.1s` stood in for a silent `make test` beside it. Maven and Gradle
+* lifecycles (`mvn install`, `gradle build`) run the tests, so they are not
+* listed; and a segment a runner rule recognises is never one of these.
+*/
+const BUILD_OR_TEARDOWN_RE = new RegExp([
+	String.raw`^(?:yarn|npm|pnpm|bun)(?:\s+run)?\s+(?:build|install|ci|i|add|lint|format|typecheck|tsc|prepare|compile|codegen|generate)(?::[\w-]+)?(?:\s|$)`,
+	String.raw`^(?:yarn|pnpm|bun)$`,
+	String.raw`^(?:(?:\S*\/)?python[\d.]*\s+-m\s+)?pip[\d.]*\s+install(?:\s|$)`,
+	String.raw`^(?:\S*\/)?tsc(?:\s|$)`,
+	String.raw`^cargo\s+(?:\+\S+\s+)?(?:build|check|fetch)(?:\s|$)`,
+	String.raw`^go\s+(?:build|mod|generate|vet|install)(?:\s|$)`,
+	String.raw`^docker(?:-compose|\s+compose)?(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(?:build|up|down|stop|pull|start|rm|kill|restart)(?:\s|$)`,
+	String.raw`^(?:bundle|composer)\s+install(?:\s|$)`,
+	String.raw`^dotnet\s+(?:build|restore)(?:\s|$)`
+].join("|"));
 
 //#endregion
 //#region ../shared/dist/runs/gate-binding-config.js
