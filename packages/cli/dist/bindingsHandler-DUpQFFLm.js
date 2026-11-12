@@ -2775,6 +2775,14 @@ const DUE_SOON_WINDOW_MS = 10080 * 60 * 1e3;
 *    `depends_on` (ENG-130 → ENG-119)
 *  - a past snooze (ENG-114) and a future snooze (ENG-113)
 *  - an unassigned in_progress issue (ENG-107) treated as to_do
+*  - the blocking tier (Plan ENG-9686 D1), on five unassigned backlog Tasks
+*    that are otherwise equal (ENG-133..137, so no other pick moves): ENG-134
+*    blocks two open pool issues (ENG-127, ENG-300, one of them through a
+*    mirrored pair) and ranks first; ENG-135 blocks one out-of-pool open end
+*    (out-1); ENG-136 blocks only a hidden end (x-999: a private-team issue
+*    on the server, which reports it open AND uncounted; absent on the
+*    client) and ENG-137 only a done issue (ENG-119), both counting 0 like
+*    ENG-133, which blocks nothing
 *  - excluded rows present for every exclusion: finished (ENG-100, ENG-119,
 *    ENG-128), containers (ENG-90, ENG-123, ENG-124, ENG-126), someone else's
 *    (ENG-120, ENG-121, ENG-127, ENG-300) — the job tests slice the pool down
@@ -2835,6 +2843,14 @@ const rel = (issueN, relation_type, relatedN) => ({
 	related_issue_id: typeof relatedN === "number" ? `i-${relatedN}` : relatedN,
 	relation_type
 });
+/** The blocking-tier rows (Plan ENG-9686 D1), by issue number. */
+const BLOCKING_TIER_TITLES = {
+	133: "Blocks nothing",
+	134: "Blocks two open issues",
+	135: "Blocks an outside-pool issue",
+	136: "Blocks only a hidden issue",
+	137: "Blocks only a done issue"
+};
 const NEXT_ISSUE_CONFORMANCE_FIXTURE = {
 	actorId: ME,
 	teamIds: [TEAM],
@@ -3273,6 +3289,15 @@ const NEXT_ISSUE_CONFORMANCE_FIXTURE = {
 				sla: "at_risk",
 				title: "SLA at risk"
 			}),
+			...Object.entries(BLOCKING_TIER_TITLES).map(([n, title]) => issue({
+				n: Number(n),
+				state: S.backlog,
+				priority: 3,
+				type: T.task,
+				assignee: null,
+				updated: "09",
+				title
+			})),
 			issue({
 				n: 300,
 				state: S.todo,
@@ -3295,7 +3320,13 @@ const NEXT_ISSUE_CONFORMANCE_FIXTURE = {
 			rel(300, "blocks", 129),
 			rel(130, "depends_on", 119),
 			rel(119, "is_dependency_of", 130),
-			rel(104, "relates_to", 105)
+			rel(104, "relates_to", 105),
+			rel(134, "blocks", 127),
+			rel(127, "blocked_by", 134),
+			rel(300, "blocked_by", 134),
+			rel(135, "blocks", "out-1"),
+			rel(136, "blocks", "x-999"),
+			rel(137, "is_dependency_of", 119)
 		],
 		relationEndStates: {
 			"out-1": "open",
@@ -3321,6 +3352,11 @@ const NEXT_ISSUE_CONFORMANCE_FIXTURE = {
 			"ENG-108",
 			"ENG-109",
 			"ENG-122",
+			"ENG-134",
+			"ENG-135",
+			"ENG-133",
+			"ENG-136",
+			"ENG-137",
 			"ENG-115",
 			"ENG-102",
 			"ENG-113",
@@ -3348,6 +3384,11 @@ const NEXT_ISSUE_CONFORMANCE_FIXTURE = {
 			"ENG-108",
 			"ENG-109",
 			"ENG-122",
+			"ENG-134",
+			"ENG-135",
+			"ENG-133",
+			"ENG-136",
+			"ENG-137",
 			"ENG-115",
 			"ENG-102",
 			"ENG-113",
@@ -3376,6 +3417,11 @@ const NEXT_ISSUE_CONFORMANCE_FIXTURE = {
 			"ENG-112",
 			"ENG-108",
 			"ENG-109",
+			"ENG-134",
+			"ENG-135",
+			"ENG-133",
+			"ENG-136",
+			"ENG-137",
 			"ENG-115",
 			"ENG-102",
 			"ENG-113",

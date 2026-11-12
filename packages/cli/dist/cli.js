@@ -688,7 +688,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesBindingsExportHandler } = await import("./bindingsHandler-BuChtKck.js");
+		const { gatesBindingsExportHandler } = await import("./bindingsHandler-DUpQFFLm.js");
 		return gatesBindingsExportHandler;
 	}
 });
@@ -761,7 +761,7 @@ Examples:
 		aliases: { w: "workspace-id" }
 	},
 	loader: async () => {
-		const { gatesBindingsImportHandler } = await import("./bindingsHandler-BuChtKck.js");
+		const { gatesBindingsImportHandler } = await import("./bindingsHandler-DUpQFFLm.js");
 		return gatesBindingsImportHandler;
 	}
 });
@@ -1248,7 +1248,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.12.18";
+var version = "0.12.19";
 
 //#endregion
 //#region src/app.ts
