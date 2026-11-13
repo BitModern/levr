@@ -4,7 +4,6 @@ export type CreateCommentTestDto = {
   body?: string | null | null;
   key?: number;
   source?: unknown | null;
-  spoke_key?: string | null | null;
   test_id: string;
 };
 
@@ -13,7 +12,6 @@ export type ResponseCommentTestDto = {
   body?: string | null | null;
   key?: number;
   source?: unknown | null;
-  spoke_key?: string | null | null;
   test_id: string;
   created_at: unknown;
   updated_at: unknown;

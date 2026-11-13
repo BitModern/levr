@@ -87,7 +87,7 @@ describe('artifact-upload (internal)', () => {
       relatedType: 'automation_run_result',
       relatedId: RESULT_ID,
     });
-    // Spoke identifiers, and an explicit type for a TC/TR team key (F-010).
+    // Older three-part identifiers, and an explicit type for a TC/TR team key (F-010).
     expect(parseTarget('ENG-JP-5')).toEqual({
       relatedType: 'issue',
       relatedId: 'ENG-JP-5',

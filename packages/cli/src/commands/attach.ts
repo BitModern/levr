@@ -37,7 +37,8 @@ Targets:
                                  automation_run_result:<uuid>
   <related_type>:<identifier>    an explicit type, e.g. issue:TC-12 for a
                                  team whose key is TC or TR
-Spoke identifiers (ENG-JP-5) work in every form.
+An older three-part identifier (ENG-JP-5) is accepted in every form, and
+resolves only where a row still holds it.
 
 Files are private: only signed-in workspace members can open them. --embed
 also adds a link to the entity so they render there: a new comment on an

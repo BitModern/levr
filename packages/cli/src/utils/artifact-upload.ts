@@ -58,8 +58,9 @@ export class TargetParseError extends Error {
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-// One optional spoke segment (ENG-JP-5, TC-ROD-40), the shape the server
-// accepts (internal code review F-010).
+// One optional middle segment (ENG-JP-5, TC-ROD-40) is accepted: a row
+// created before identifiers lost it can still hold one, and the server
+// resolves it only where such a row exists (internal code review F-010).
 const IDENTIFIER_RE = /^([A-Z][A-Z0-9]*)(?:-[A-Z0-9]{2,10})?-(\d+)$/;
 
 /**

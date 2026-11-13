@@ -7,7 +7,6 @@ export const zCreateCommentRunDto = /* @__PURE__ */ z.object({
   body: z.string().nullable().optional(),
   key: z.number().optional(),
   source: z.unknown().optional(),
-  spoke_key: z.string().nullable().optional(),
   run_id: z.string(),
 });
 
@@ -16,7 +15,6 @@ export const zResponseCommentRunDto = /* @__PURE__ */ z.object({
   body: z.string().nullable().optional(),
   key: z.number().optional(),
   source: z.unknown().optional(),
-  spoke_key: z.string().nullable().optional(),
   run_id: z.string(),
   created_at: z.unknown(),
   updated_at: z.unknown(),

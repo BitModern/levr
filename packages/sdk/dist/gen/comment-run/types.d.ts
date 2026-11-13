@@ -4,7 +4,6 @@ export type CreateCommentRunDto = {
   body?: string | null | null;
   key?: number;
   source?: unknown | null;
-  spoke_key?: string | null | null;
   run_id: string;
 };
 
@@ -13,7 +12,6 @@ export type ResponseCommentRunDto = {
   body?: string | null | null;
   key?: number;
   source?: unknown | null;
-  spoke_key?: string | null | null;
   run_id: string;
   created_at: unknown;
   updated_at: unknown;
