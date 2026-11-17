@@ -31,8 +31,9 @@ import { resolveWorkspaceFor } from '../../workspace/resolve-workspace.js';
  * exits 2 before any request. It then APPLIES unless `--dry-run` is given,
  * which sends `dry_run=true` and writes nothing. The server re-plans and
  * re-checks every row; a stored row that differs is reported `differs` and
- * never overwritten, and a binding is deleted only when its entry says
- * `"delete": true`.
+ * never overwritten (except a judge gate type's row with `--replace-judge`,
+ * planned `replace`, internal), and a binding is deleted only when its
+ * entry says `"delete": true`.
  *
  * Exit codes: 0 success; 1 refused by the server (403, 400), a lane file
  * missing under --repo-root, a `differs` row, or a failed request; 2 a usage
@@ -47,6 +48,11 @@ export interface BindingsImportFlags {
   'workspace-id'?: string;
   'repo-root'?: string;
   'dry-run': boolean;
+  /**
+   * [issue:internal] Sends `replace_judge=true`: a differing binding of a
+   * judge gate type is planned `replace` and written. Default false.
+   */
+  'replace-judge'?: boolean;
 }
 
 export interface BindingsOutcome {
@@ -63,8 +69,15 @@ export interface BindingsReply {
 
 export interface BindingsDeps {
   exportConfig: () => Promise<BindingsReply>;
-  /** POST the file as chosen; `dryRun` sends `dry_run=true`. */
-  importConfig: (file: unknown, dryRun: boolean) => Promise<BindingsReply>;
+  /**
+   * POST the file as chosen; `dryRun` sends `dry_run=true`, and
+   * `opts.replaceJudge` sends `replace_judge=true` (internal).
+   */
+  importConfig: (
+    file: unknown,
+    dryRun: boolean,
+    opts?: { replaceJudge: boolean },
+  ) => Promise<BindingsReply>;
   readFile: (file: string) => string;
   writeFile: (file: string, content: string) => void;
   /** `relativePath` exists under `root`. */
@@ -199,7 +212,11 @@ export async function executeBindingsImport(
   let reply: BindingsReply;
   try {
     // The file exactly as chosen: the server parses it with the same rules.
-    reply = await deps.importConfig(raw, flags['dry-run']);
+    // replace_judge is sent only when asked for, so an import without
+    // --replace-judge is the same request it always was.
+    reply = flags['replace-judge']
+      ? await deps.importConfig(raw, flags['dry-run'], { replaceJudge: true })
+      : await deps.importConfig(raw, flags['dry-run']);
   } catch (err) {
     return fail(
       1,
@@ -220,7 +237,11 @@ export async function executeBindingsImport(
   }
   for (const b of result.bindings ?? []) {
     const differs =
-      b.action === 'differs' ? '  (NOT applied: the stored row differs)' : '';
+      b.action === 'differs'
+        ? '  (NOT applied: the stored row differs)'
+        : b.action === 'replace'
+          ? '  (the stored judge binding is replaced)'
+          : '';
     const note = b.note ? `  # ${b.note}` : '';
     out.push(
       `${b.action.padEnd(8)} ${b.gate_key} [${tierLabel(b)}]${differs}${note}`,
@@ -283,13 +304,18 @@ async function liveDeps(
   });
   return {
     exportConfig: async () => reply(await gateBindingTransferExportConfigV1()),
-    importConfig: async (file, dryRun) =>
-      reply(
+    importConfig: async (file, dryRun, opts) => {
+      const query = {
+        ...(dryRun ? { dry_run: 'true' as const } : {}),
+        ...(opts?.replaceJudge ? { replace_judge: 'true' as const } : {}),
+      };
+      return reply(
         await gateBindingTransferImportConfigV1({
           body: file as GateConfigFileDto,
-          ...(dryRun ? { query: { dry_run: 'true' as const } } : {}),
+          ...(Object.keys(query).length > 0 ? { query } : {}),
         }),
-      ),
+      );
+    },
     readFile: (file) => fs.readFileSync(file, 'utf8'),
     writeFile: (file, content) => fs.writeFileSync(file, content),
     exists: (root, rel) => fs.existsSync(path.join(root, rel)),

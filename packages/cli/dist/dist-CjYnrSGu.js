@@ -1,0 +1,3921 @@
+import { client } from "./sdk-client-COhVazCc.js";
+import { z } from "zod";
+
+//#region ../sdk-public/dist/gen/gate-binding-transfer/functions.js
+/** GET /v1/gate/bindings/export */
+const gateBindingTransferExportConfigV1 = (options) => {
+	return (options?.client ?? client).get({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/gate/bindings/export",
+		...options
+	});
+};
+/** POST /v1/gate/bindings/import */
+const gateBindingTransferImportConfigV1 = (options) => {
+	return (options?.client ?? client).post({
+		security: [{
+			scheme: "bearer",
+			type: "http"
+		}],
+		url: "/v1/gate/bindings/import",
+		...options
+	});
+};
+
+//#endregion
+//#region ../shared/dist/constants/related-type.constants.js
+/**
+* Related type constants for polymorphic entities (attachments, label assignments, etc.)
+*
+* These are the normalized short-form related_type values used in the database.
+* The old Levr PHP format ('App\\Models\\Test') has been replaced with simple strings ('test').
+*/
+/**
+* Map of entity names to their related_type database values.
+* Use RELATED_TYPE_MAP.Test instead of hardcoding 'test'.
+*/
+const RELATED_TYPE_MAP = {
+	Test: "test",
+	Step: "step",
+	Folder: "folder",
+	Plan: "plan",
+	Defect: "defect",
+	Requirement: "requirement",
+	RunResult: "run_result",
+	RunResultStep: "run_result_step",
+	ImportJob: "import_job",
+	Run: "run",
+	Issue: "issue",
+	Project: "project",
+	Initiative: "initiative",
+	Cycle: "cycle",
+	Staged: "staged",
+	DataSet: "data_set",
+	RunResultVariant: "run_result_variant",
+	ResearchStep: "research_step",
+	ProjectUpdate: "project_update",
+	AutomationRunResult: "automation_run_result",
+	Unlinked: "unlinked"
+};
+/**
+* Array of allowed related type values (for validation/enum)
+*/
+const RELATED_TYPES = Object.values(RELATED_TYPE_MAP);
+
+//#endregion
+//#region ../shared/dist/constants/file-upload.constants.js
+/** Maximum file size in bytes (50 MB) */
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+//#endregion
+//#region ../shared/dist/constants/provider-type.constants.js
+/**
+* LLM provider type enum + display-name map.
+*
+* Single source of truth shared between `apps/backender` (provider/profile
+* services, seeds) and `apps/client` (profile form dropdowns, synced-profile
+* provider-name display). The backender re-exports these from
+* `provider-type.enum.ts` for backward compatibility; the client imports them
+* from `@levr/shared` directly.
+*
+* NOTE: `ProviderTypeApiBaseUrl` is intentionally NOT moved here — it is
+* backend-only (no client needs default provider base URLs) and stays local to
+* `apps/backender/src/provider/provider-type.enum.ts`.
+*/
+var ProviderType;
+(function(ProviderType$1) {
+	ProviderType$1[ProviderType$1["OpenAI"] = 1] = "OpenAI";
+	ProviderType$1[ProviderType$1["Anthropic"] = 2] = "Anthropic";
+	ProviderType$1[ProviderType$1["Groq"] = 3] = "Groq";
+	ProviderType$1[ProviderType$1["Gemini"] = 4] = "Gemini";
+	ProviderType$1[ProviderType$1["FireworksAI"] = 5] = "FireworksAI";
+	ProviderType$1[ProviderType$1["MistralAI"] = 6] = "MistralAI";
+	ProviderType$1[ProviderType$1["OpenRouter"] = 7] = "OpenRouter";
+})(ProviderType || (ProviderType = {}));
+const ProviderTypeNames = {
+	[ProviderType.OpenAI]: "OpenAI",
+	[ProviderType.Anthropic]: "Anthropic",
+	[ProviderType.Groq]: "Groq",
+	[ProviderType.Gemini]: "Gemini",
+	[ProviderType.FireworksAI]: "FireworksAI",
+	[ProviderType.MistralAI]: "MistralAI",
+	[ProviderType.OpenRouter]: "OpenRouter"
+};
+
+//#endregion
+//#region ../shared/dist/constants/browser-capture-kinds.js
+/**
+* Levr Browser capture kinds (ENG-7189 D1): the one place that says what each
+* kind of browser capture is — its stored and wire types, file name, size
+* cap, label and viewer. The router's reserve/finalise, the MCP "not saved"
+* note, the gateway attach binding and the web client's Captures list all
+* read this registry; none of them branches on a tool name.
+*
+* A capture tool names its kind on its `@levr/browser-protocol` spec
+* (`captureKind`, a plain string: the extension never imports this package).
+* Backender's `browser-captures.spec.ts` checks both sides list the same
+* tools.
+*
+* Pure data, browser-safe, no imports.
+*/
+const MIB = 1024 * 1024;
+const OCTET_STREAM = "application/octet-stream";
+/**
+* The slowest uplink a full-size capture upload is given time for: about
+* 1.4 Mbit/s, so a 50 MiB recording gets 300 s (ENG-7189 D5, R1-C6).
+*/
+const CAPTURE_MIN_UPLINK_BITS_PER_SECOND = 14e5;
+/** How long `maxBytes` takes at the minimum uplink, in whole seconds (ms). */
+function uploadTimeoutFor(maxBytes) {
+	return Math.ceil(maxBytes * 8 / CAPTURE_MIN_UPLINK_BITS_PER_SECOND) * 1e3;
+}
+const CAPTURE_KINDS = Object.freeze({
+	screenshot: {
+		id: "screenshot",
+		labelKey: "browserCaptures.kindScreenshot",
+		label: "Screenshot",
+		noun: "screenshot",
+		tools: ["browser_screenshot", "browser_screenshot_focused_tab"],
+		mime: "image/png",
+		uploadMime: "image/png",
+		ext: "png",
+		filenamePrefix: "screenshot",
+		maxBytes: 50 * MIB,
+		viewer: "image",
+		formats: { jpeg: {
+			mime: "image/jpeg",
+			uploadMime: "image/jpeg",
+			ext: "jpg"
+		} },
+		toolLabels: { browser_screenshot_focused_tab: {
+			labelKey: "browserCaptures.kindFocusedTab",
+			label: "Screenshot of the focused tab"
+		} }
+	},
+	trace: {
+		id: "trace",
+		labelKey: "browserCaptures.kindTrace",
+		label: "Performance trace",
+		noun: "trace",
+		tools: ["browser_stop_performance_trace"],
+		mime: "application/json",
+		uploadMime: OCTET_STREAM,
+		ext: "json",
+		filenamePrefix: "trace",
+		maxBytes: 50 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(50 * MIB),
+		viewer: "trace"
+	},
+	console: {
+		id: "console",
+		labelKey: "browserCaptures.kindConsole",
+		label: "Console log",
+		noun: "console log",
+		tools: ["browser_save_console_logs"],
+		mime: "application/json",
+		uploadMime: OCTET_STREAM,
+		ext: "json",
+		filenamePrefix: "console",
+		maxBytes: 5 * MIB,
+		viewer: "console"
+	},
+	har: {
+		id: "har",
+		labelKey: "browserCaptures.kindHar",
+		label: "Network log",
+		noun: "network log",
+		tools: ["browser_save_har"],
+		mime: "application/json",
+		uploadMime: OCTET_STREAM,
+		ext: "har",
+		filenamePrefix: "network",
+		maxBytes: 25 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(25 * MIB),
+		viewer: "har"
+	},
+	screencast: {
+		id: "screencast",
+		labelKey: "browserCaptures.kindRecording",
+		label: "Recording",
+		noun: "recording",
+		tools: ["browser_stop_recording"],
+		mime: "video/webm",
+		uploadMime: "video/webm",
+		ext: "webm",
+		filenamePrefix: "recording",
+		maxBytes: 50 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(50 * MIB),
+		viewer: "video"
+	},
+	action_trace: {
+		id: "action_trace",
+		labelKey: "browserCaptures.kindActionTrace",
+		label: "Action trace",
+		noun: "action trace",
+		tools: ["browser_stop_trace"],
+		mime: "application/x-ndjson",
+		uploadMime: OCTET_STREAM,
+		ext: "jsonl",
+		filenamePrefix: "trace-actions",
+		maxBytes: 25 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(25 * MIB),
+		viewer: "action_trace"
+	},
+	demo_screencast: {
+		id: "demo_screencast",
+		labelKey: "browserCaptures.kindDemoRecording",
+		label: "Demo recording",
+		noun: "demo recording",
+		tools: [],
+		mime: "video/webm",
+		uploadMime: "video/webm",
+		ext: "webm",
+		filenamePrefix: "demo",
+		maxBytes: 1024 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(1024 * MIB),
+		viewer: "video",
+		multipart: true,
+		variantOf: "screencast"
+	},
+	demo_frames: {
+		id: "demo_frames",
+		labelKey: "browserCaptures.kindDemoFrames",
+		label: "Demo frames",
+		noun: "demo frame bundle",
+		tools: [],
+		mime: "application/x-tar",
+		uploadMime: OCTET_STREAM,
+		ext: "tar",
+		filenamePrefix: "demo-frames",
+		maxBytes: 1024 * MIB,
+		uploadTimeoutMs: uploadTimeoutFor(1024 * MIB),
+		viewer: "download",
+		multipart: true,
+		variantOf: "screencast"
+	}
+});
+/** Every tool of every kind. */
+const CAPTURE_KIND_TOOLS = Object.freeze(Object.values(CAPTURE_KINDS).flatMap((kind) => kind.tools));
+/** Every wire Content-Type a capture upload may carry. */
+const CAPTURE_UPLOAD_MIMES = Object.freeze([...new Set(Object.values(CAPTURE_KINDS).flatMap((kind) => [kind.uploadMime, ...Object.values(kind.formats ?? {}).map((f) => f.uploadMime)]))]);
+
+//#endregion
+//#region ../shared/dist/constants/first-task-nudge.constants.js
+/**
+* The day-after first-task nudge email's opt-out (ENG-6396, plan ENG-6341
+* D13 — user decision 2026-10-12).
+*
+* The nudge is a one-time getting-started email, not a notification: it is
+* sent by DEFAULT and is independent of `notification_preference` (whose
+* email channel stays opt-in). A person stops it with
+* `user_preference.first_task_nudge_email = false`, from Settings >
+* Notifications or the one-click link in the email itself. The server job
+* and the web client read the column through `wantsFirstTaskNudge`, and the
+* email's link is built from `FIRST_TASK_NUDGE_OPT_OUT_PATH`, which the
+* settings page recognises.
+*/
+/** The settings section that holds the toggle. */
+const FIRST_TASK_NUDGE_SETTINGS_SECTION = "notifications";
+/** Query parameter the email's opt-out link carries. */
+const FIRST_TASK_NUDGE_OPT_OUT_PARAM = "opt-out";
+/** The value of `FIRST_TASK_NUDGE_OPT_OUT_PARAM` that turns the nudge off. */
+const FIRST_TASK_NUDGE_OPT_OUT_VALUE = "first-task-email";
+/**
+* Workspace-relative path of the email's one-click opt-out link (append it to
+* `<client>/w/<url_key>`). Opening it turns the nudge off for the signed-in
+* person and shows the setting, where it can be turned back on.
+*/
+const FIRST_TASK_NUDGE_OPT_OUT_PATH = `/settings/${FIRST_TASK_NUDGE_SETTINGS_SECTION}?${FIRST_TASK_NUDGE_OPT_OUT_PARAM}=${FIRST_TASK_NUDGE_OPT_OUT_VALUE}`;
+
+//#endregion
+//#region ../shared/dist/estimates/estimate-scale.js
+/**
+* T-shirt stored integer → label. 0 is the allow-zero tier.
+*
+* The gaps (no 4, 6, 7, …) are the point: these are Fibonacci values, not
+* positions. `intToLabel` falls back to the raw number for anything absent, so
+* a legacy ordinal that escaped the migration renders as "4" rather than
+* silently masquerading as a size.
+*/
+const TSHIRT_LABEL_BY_INT = {
+	0: "-",
+	1: "XS",
+	2: "S",
+	3: "M",
+	5: "L",
+	8: "XL",
+	13: "XXL",
+	21: "XXXL"
+};
+const TSHIRT_INT_BY_LABEL = Object.fromEntries(Object.entries(TSHIRT_LABEL_BY_INT).map(([int, label]) => [label, Number(int)]));
+
+//#endregion
+//#region ../shared/dist/cycles/status-fixtures.js
+/** Offset applied to fixture numbers so they cannot collide with real cycles. */
+const ORDERING_NUMBER_BASE = 8100;
+const ORDERING_FIXTURES = [
+	{
+		key: "renumbered",
+		start_date: "2026-05-01",
+		end_date: "2026-05-14",
+		number: ORDERING_NUMBER_BASE + 5,
+		because: "oldest start_date but the HIGHEST number — a back-dated create, a reassigned number, or an import. `number` ordering wrongly puts it first"
+	},
+	{
+		key: "oldest",
+		start_date: "2026-06-01",
+		end_date: "2026-06-14",
+		number: ORDERING_NUMBER_BASE + 1,
+		because: "falls outside a window of 3 under the canonical ordering"
+	},
+	{
+		key: "mid",
+		start_date: "2026-06-15",
+		end_date: "2026-06-28",
+		number: ORDERING_NUMBER_BASE + 2,
+		because: "the third and last member of the canonical window"
+	},
+	{
+		key: "tied-early",
+		start_date: "2026-07-01",
+		end_date: "2026-07-14",
+		number: ORDERING_NUMBER_BASE + 3,
+		because: "shares a start_date with `tied-late`; the LOWER number, so it sorts second of the pair under DESC"
+	},
+	{
+		key: "tied-late",
+		start_date: "2026-07-01",
+		end_date: "2026-07-14",
+		number: ORDERING_NUMBER_BASE + 4,
+		because: "shares a start_date with `tied-early`; the HIGHER number, so the tiebreaker must place it first"
+	}
+];
+
+//#endregion
+//#region ../shared/dist/runs/automation-retention.js
+/** The newest runs of every source are always kept. Not configurable. */
+const AUTOMATION_RETENTION_FLOOR = 10;
+const AUTOMATION_RETENTION_MAX_RUNS_MIN = AUTOMATION_RETENTION_FLOOR;
+const AUTOMATION_RETENTION_MAX_RUNS_MAX = 1e4;
+/**
+* The stored value of the retention setting. Strict: an unknown key is a
+* malformed value, not something to carry along silently.
+*/
+const AutomationRetentionSettingSchema = z.object({
+	days: z.union([
+		z.literal(30),
+		z.literal(90),
+		z.literal(180)
+	]),
+	maxRunsPerSource: z.number().int().min(AUTOMATION_RETENTION_MAX_RUNS_MIN).max(AUTOMATION_RETENTION_MAX_RUNS_MAX)
+}).strict();
+/**
+* 350 runs per source keeps about 30 days of the busiest staging CI source
+* (bitmodern5, 2026-11-05 dry run); 100 kept only about 9. Chosen by David
+* on ENG-4833: a cap can be lowered later, but raising it never brings back
+* runs that were already archived.
+*/
+const AUTOMATION_RETENTION_DEFAULTS = Object.freeze({
+	days: 90,
+	maxRunsPerSource: 350
+});
+
+//#endregion
+//#region ../shared/dist/runs/gate-command-pattern.js
+/** Package managers, fetchers, interpreters, shells, and wrappers. */
+const PATTERN_WRAPPER_PROGRAMS = [
+	"yarn",
+	"npm",
+	"pnpm",
+	"bun",
+	"npx",
+	"node",
+	"deno",
+	"tsx",
+	"ts-node",
+	"python",
+	"python3",
+	"ruby",
+	"perl",
+	"sh",
+	"bash",
+	"zsh",
+	"pwsh",
+	"env",
+	"sudo",
+	"timeout",
+	"nice",
+	"xargs"
+];
+/**
+* Sub-fetchers and inline-code flags. A wrapper whose first fixed positional
+* is one of these, or another wrapper, is too broad unless a later fixed
+* positional is a real argument. Inline-code flags refuse even then.
+*/
+const PATTERN_SUB_FETCHERS = [
+	"dlx",
+	"exec",
+	"x",
+	"node",
+	"run-script",
+	"eval"
+];
+const PATTERN_INLINE_CODE_FLAGS = [
+	"-e",
+	"-c",
+	"-p",
+	"--eval",
+	"--print",
+	"--input-type"
+];
+/** git subcommands that do not modify the repository. */
+const GIT_READ_ONLY_SUBCOMMANDS = [
+	"status",
+	"diff",
+	"log",
+	"show",
+	"rev-parse",
+	"ls-files",
+	"blame",
+	"grep",
+	"describe",
+	"shortlog",
+	"name-rev",
+	"cat-file",
+	"rev-list",
+	"version",
+	"help",
+	"annotate",
+	"for-each-ref",
+	"merge-base",
+	"check-ignore",
+	"check-attr",
+	"count-objects",
+	"var",
+	"interpret-trailers"
+];
+const WRAPPERS = new Set(PATTERN_WRAPPER_PROGRAMS);
+const SUB_FETCHERS = new Set(PATTERN_SUB_FETCHERS);
+const INLINE_FLAGS = new Set(PATTERN_INLINE_CODE_FLAGS);
+const GIT_READ_ONLY = new Set(GIT_READ_ONLY_SUBCOMMANDS);
+
+//#endregion
+//#region ../shared/dist/runs/evidence-utilities.js
+/**
+* Evidence Utilities — shared logic for creating issue_test_evidence records
+* when execution results change status.
+*
+* Used by the backend (tq/run/run-result-variant.service.ts) after rollup
+* to automatically record evidence. Can also be used by the client for
+* optimistic evidence creation.
+*/
+/**
+* The evidence vocabulary — the TypeScript source of truth (ENG-4257 D1).
+*
+* Mirrors BOTH per-table Postgres enums (`issue_test_evidence_evidence_type_enum`
+* and `issue_automation_test_evidence_evidence_type_enum`), which are extended
+* SEPARATELY — per-table enums are the codebase convention and the generator
+* mints `{table}_{column}_enum`. The three-way agreement spec in
+* `apps/backender/src/tq/evidence/evidence-vocabulary-agreement.spec.ts`
+* asserts this tuple set-equals `Object.values` of both generated enums, so a
+* value added to the specs without running codegen, or to one enum and not the
+* other, fails a test instead of diverging silently.
+*
+* `superseded` is a RETRACTION, not an observation: a previously recorded
+* verdict has been withdrawn (result reset to Retest/Pending, or its run
+* deleted). The ledger is append-only and never mutates history — a retraction
+* is a newer row that outranks the verdict it withdraws. (The one exception
+* is a REWORDING, never a new observation: the ENG-5030 data migration
+* retypes `pending` rows written for blocked results to `blocked` in place,
+* because appending would stamp a fresh recorded_at and falsely outrank a
+* later verdict.)
+*
+* `override` and `not_applicable` are EXCUSES, not observations either
+* (ENG-4187): a human accepted the link's state and authorized completion
+* anyway (`override`), or declared that the test cannot apply to this issue
+* (`not_applicable`). Both carry a required `reason`, assert nothing about
+* execution, and stand until newer evidence supersedes them. They classify to
+* the `waived` verdict in link-verification.ts — never to `verified`, so the
+* coverage widget does not count a waived link as covered.
+*
+* `pending` is an OBLIGATION, and the newest member. A run exists for this
+* link and has not answered yet. It is what separates "queued, waiting" from
+* "never run", which had no separate word before the vocabulary alignment —
+* both read `unverified` and the projection could not tell a user which one
+* they were looking at.
+*
+* It is written where every other verdict is written: run creation and a
+* retest append a row, and the real verdict supersedes it by recency. The
+* projection never queries `run_result` — `verified` and `failing` do not, and
+* `pending` earns its place by working the same way.
+*
+* `blocked` is the other obligation (ENG-5030). The tester could not run the
+* test — something external stopped it — so nothing was observed and an
+* answer is still owed, exactly as with `pending`; what the word adds is WHY.
+* ENG-5027 wrote `pending` for a Blocked result while Blocked had no storage
+* type of its own; with the type real, the ledger says the honest thing.
+* Classifies to `blocked` in link-verification.ts: blocks Done like
+* `pending`, is not coverage, and never asserts a failure.
+*/
+const EVIDENCE_TYPES = [
+	"detection",
+	"pass",
+	"fail",
+	"regression",
+	"verification",
+	"flaky",
+	"superseded",
+	"override",
+	"not_applicable",
+	"pending",
+	"skipped",
+	"blocked"
+];
+/**
+* [issue:ENG-6034] Which evidence kinds record an EXECUTION. The rest record a
+* DECISION: nobody ran anything, so no executor may be attributed to them. A
+* waiver (`override`, legacy `not_applicable`) and a retraction
+* (`superseded`) are acts about the obligation; `pending` says an answer is
+* owed; `skipped` is an abstention that reads as waived.
+*
+* `issue_test_evidence.executor_type` is NULL for decision rows. Every writer
+* reads this one table — the client-write stamp in
+* IssueTestEvidenceService.create, the server writer in
+* RunResultVariantService, and the client's display helper
+* (`evidenceExecutorType`) — so none can disagree about which rows had an
+* executor.
+*
+* A `Record` over the whole union rather than a list of exceptions: adding a
+* kind to `EVIDENCE_TYPES` without deciding here is a compile error, instead
+* of the new kind silently defaulting to "an execution" and being stamped.
+*/
+const IS_EXECUTION = {
+	detection: true,
+	pass: true,
+	fail: true,
+	regression: true,
+	verification: true,
+	flaky: true,
+	blocked: true,
+	superseded: false,
+	override: false,
+	not_applicable: false,
+	pending: false,
+	skipped: false
+};
+const NOT_EXECUTED_EVIDENCE_TYPES = EVIDENCE_TYPES.filter((t) => !IS_EXECUTION[t]);
+
+//#endregion
+//#region ../shared/dist/runs/automation-failure.js
+/**
+* What counts as an automation FAILURE — defined once (ENG-6017, absorbs
+* ENG-6141).
+*
+* An automation result is a failure when its status is `failed`, `errored`,
+* `timed_out` or `interrupted`. Run-level surfaces always agreed on that; the
+* test-level signals (health fail rate, worst offenders, suite ranking, flip
+* rate, recent-results strip, PR comment) read `failed` alone, so a test that
+* only errored, timed out or was interrupted looked healthy. Every consumer
+* reads this module instead of keeping its own list:
+*
+* - backender `RED_AUTOMATION_RESULT_STATUS_TYPES` (gen automation-run-result
+*   service) is built from `AUTOMATION_FAILURE_STATUS_TYPES`;
+* - `AutomationBuilderService.tallyResult` and the rollup `errored_count` arm
+*   (`rollup-aggregate.util.ts`) bucket `AUTOMATION_ERRORED_BUCKET_STATUS_TYPES`;
+* - `TestHealthService` (transition and readout) and the client suite widget
+*   compute the rate through `automationFailRate`;
+* - widget-queries `automationFailRateExpr` is the SQL twin of
+*   `automationFailRate` (drift-tested in `dialect-portability.test.ts`);
+* - the flip-rate scorer, the recent-results strip and the PR comment list
+*   filter on `AUTOMATION_FAILURE_STATUS_TYPES`;
+* - the client status pill and the run-detail failed filter.
+*
+* Pure and browser-safe: no imports.
+*/
+/** Every automation result status that is a failure. */
+const AUTOMATION_FAILURE_STATUS_TYPES = [
+	"failed",
+	"errored",
+	"timed_out",
+	"interrupted"
+];
+const FAILURE_SET = new Set(AUTOMATION_FAILURE_STATUS_TYPES);
+
+//#endregion
+//#region ../shared/dist/runs/link-verification.js
+/** Latest-evidence types that satisfy a verifies/accepts link. */
+const PASSING_EVIDENCE_TYPES = ["pass", "verification"];
+/**
+* The complement of PASSING_EVIDENCE_TYPES over the full vocabulary (ENG-4257
+* D2) — DERIVED, never hand-written, so the coverage widget's inverted SQL
+* predicate (D5) is built from the same list the classifier below is total
+* over and cannot disagree with it. The partition test in
+* link-verification.test.ts pins PASSING ∪ NON_PASSING = EVIDENCE_TYPES and
+* PASSING ∩ NON_PASSING = ∅.
+*/
+const NON_PASSING_EVIDENCE_TYPES = EVIDENCE_TYPES.filter((t) => !PASSING_EVIDENCE_TYPES.includes(t));
+
+//#endregion
+//#region ../shared/dist/runs/judge-presets.js
+/**
+* The judge registry — ENG-8219 (plan ENG-8199 D1).
+*
+* An L4 semantic gate's verdict is what a judge CLI says. Which CLIs count as
+* judges used to live in three hand-kept lists (the verdict parser's regex,
+* the command validator's allowlist and technique inference), and they drifted:
+* grok was missing from one (ENG-7698), claude from all three. Every one of
+* them is now derived from `JUDGE_PRESETS`, so a preset added here is a judge
+* everywhere at once.
+*
+* A workspace may also register a CUSTOM judge. It is recognised by the
+* provenance the gate resolver stamps on the step it rendered
+* (`judge_provenance` on `RawGateStepResult`), never by joining this list, so
+* `isJudgeBinary` takes the registered names as an argument.
+*
+* Pure data and predicates: no framework, no I/O.
+*/
+/** The five vetted presets, in display order. */
+const JUDGE_PRESET_IDS = [
+	"codex",
+	"claude",
+	"gemini",
+	"agy",
+	"grok"
+];
+/**
+* The agy model the agy preset pins — ENG-5062, kept by ENG-8220 (final
+* review A-003). agy bakes the effort tier INTO the id and rejects
+* `--effort` with a suffixed id, so the pin is `--model <id>` alone. The
+* seeded `default_verification_rule.model` (db-core `L4_JUDGE_MODEL`) is read
+* from this preset's argv, so the two cannot drift.
+*/
+const AGY_MODEL = "gemini-3.8-flash-low";
+/** Redirect that closes stdin for an argument-mode judge. */
+const CLOSED_STDIN = "</dev/null";
+const JUDGE_PRESETS = Object.freeze({
+	codex: {
+		id: "codex",
+		bin: "codex",
+		promptVia: "stdin",
+		argv: (via) => [
+			"codex",
+			"exec",
+			"--ephemeral",
+			"--skip-git-repo-check",
+			"-s",
+			"read-only",
+			"--color",
+			"never",
+			...via === "stdin" ? ["-"] : []
+		],
+		stdinRedirect: "",
+		stderrMode: "2>/dev/null",
+		output: "text"
+	},
+	claude: {
+		id: "claude",
+		bin: "claude",
+		promptVia: "arg",
+		argv: () => [
+			"claude",
+			"--output-format",
+			"text",
+			"-p"
+		],
+		stdinRedirect: CLOSED_STDIN,
+		stderrMode: "2>&1",
+		output: "text"
+	},
+	gemini: {
+		id: "gemini",
+		bin: "gemini",
+		promptVia: "arg",
+		argv: (via) => via === "arg" ? ["gemini", "-p"] : ["gemini"],
+		stdinRedirect: CLOSED_STDIN,
+		stderrMode: "2>&1",
+		output: "text"
+	},
+	agy: {
+		id: "agy",
+		bin: "agy",
+		promptVia: "arg",
+		argv: () => [
+			"agy",
+			"--model",
+			AGY_MODEL,
+			"-p"
+		],
+		stdinRedirect: CLOSED_STDIN,
+		stderrMode: "2>&1",
+		output: "text"
+	},
+	grok: {
+		id: "grok",
+		bin: "grok",
+		promptVia: "arg",
+		argv: (via) => via === "arg" ? [
+			"grok",
+			"--disable-web-search",
+			"-p"
+		] : ["grok", "--disable-web-search"],
+		stdinRedirect: CLOSED_STDIN,
+		stderrMode: "2>&1",
+		output: "json"
+	}
+});
+/** Is `id` one of the five preset ids? Unknown ids, any case variant included, are refused. */
+function isJudgePresetId(id) {
+	return typeof id === "string" && JUDGE_PRESET_IDS.includes(id);
+}
+/** The executables of the presets — the one list every judge check derives from. */
+const JUDGE_PRESET_BINARIES = Object.freeze(JUDGE_PRESET_IDS.map((id) => JUDGE_PRESETS[id].bin));
+/** A custom judge name: a plain word, so it can never carry shell syntax. */
+const CUSTOM_JUDGE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+/**
+* Why `name` cannot be registered as a custom judge, or `null` when it can.
+*
+* A name that collides with a preset id (in any case) is refused: a custom
+* `claude` would shadow the vetted preset while reading as it everywhere a
+* person looks.
+*/
+function customJudgeNameRefusal(name) {
+	if (!CUSTOM_JUDGE_NAME_RE.test(name)) return `custom judge name ${JSON.stringify(name)} must be 1-64 letters, digits, '.', '_' or '-', starting with a letter or digit`;
+	const lower = name.toLowerCase();
+	if (JUDGE_PRESET_IDS.some((id) => id === lower)) return `custom judge name "${name}" collides with the preset id "${lower}"; choose another name or bind the preset`;
+	return null;
+}
+
+//#endregion
+//#region ../shared/dist/runs/gate-command-validation.js
+/** Plain file and text inspection — the presence and pattern checks. */
+const INSPECTION_BINARIES = [
+	"grep",
+	"test",
+	"[",
+	"[[",
+	"wc",
+	"cat",
+	"head",
+	"tail",
+	"awk",
+	"sed",
+	"sort",
+	"uniq",
+	"echo",
+	"printf",
+	"tr",
+	"cut",
+	"diff",
+	"find",
+	"ls",
+	"xargs",
+	"cd",
+	"timeout",
+	"rg",
+	"tee",
+	"shellcheck",
+	"actionlint",
+	"jq",
+	"cmp"
+];
+/**
+* Arguments a binary may never be given — second R4 follow-up. `jq` (1.7.1,
+* checked) has no in-place option; `-i` / `--in-place` are refused anyway so
+* a jq build or wrapper that grew one (as `yq -i` and `sed -i` have) can
+* never rewrite a file from a gate. A short-flag cluster holding `i` counts.
+*/
+const FORBIDDEN_ARGS = new Map([["jq", /(?:^|\s)(?:-[A-Za-z]*i[A-Za-z]*|--in-place)(?:=|\s|$)/]]);
+/**
+* A short option anywhere in a cluster, attached value or not: `-r x`,
+* `-rx`, `-vr x`. A cluster is read only up to the first letter that takes a
+* value (`valueLetters`): in `-cfoo.yml` the `c` takes `foo.yml`, so its `o`
+* is part of a path, not a flag.
+*/
+function shortFlagArg(letter, valueLetters) {
+	return /* @__PURE__ */ new RegExp(`(?:^|[\\s<>|;&(])-(?:(?![${valueLetters}])[A-Za-z])*${letter}`);
+}
+/**
+* One argument flag, alone, with an attached `=value`, or run into a shell
+* operator (`--report-path>x`): anything but another flag-name character
+* ends it.
+*/
+function flagArg(flag) {
+	return /* @__PURE__ */ new RegExp(`(?:^|[\\s<>|;&(])${flag.replace(/-/g, "\\-")}(?![A-Za-z0-9_-])`);
+}
+/**
+* The words the shell would pass, split at whitespace AND at the operators
+* that end a word (`--config=auto>/tmp/log` passes `--config=auto`), with
+* one layer of surrounding quotes removed. A `#` that starts a word begins a
+* comment, and a redirection's target (`>--metrics=off`, `2> x`) is a file,
+* so neither is an argument.
+*/
+function argWords(rest) {
+	return rest.replace(/(^|\s)#.*$/s, "").replace(/(?:(?<=^|[\s<>|;&()])\d+)?(?:<<?|>>?)&?\s*[^\s<>|;&()]*/g, " ").split(/[\s<>|;&()]+/).filter((word) => word.length > 0).map((word) => word.replace(/^(['"])(.*)\1$/, "$2"));
+}
+/**
+* [issue:ENG-7618 D3.2] A config semgrep fetches from the network: a URL,
+* `auto`, or a registry ruleset (`p/…`, `r/…`, `s/…`). Registry rules are
+* downloaded at run time and are under the Semgrep Rules License.
+*/
+function isRemoteSemgrepConfig(value) {
+	return /^[a-z][a-z0-9+.-]*:/i.test(value) || value.startsWith("//") || value === "auto" || /^[prs]\//.test(value);
+}
+/**
+* [issue:ENG-7618 D3.2] `semgrep scan` / `opengrep scan` must name a LOCAL
+* rule set and turn telemetry off. Without an explicit `--config` semgrep
+* picks one from its own default source (`SEMGREP_RULES`, or the registry
+* depending on version) and sends metrics. Every spelling is read: `--config
+* X`, `--config=X`, `-c X`, `-cX`, `-c=X`, `-f X`, `-fX` and `-f=X` for the
+* config, and
+* `--metrics X` / `--metrics=X` for metrics, of which the LAST one counts (so
+* a trailing `--metrics=on` undoes an earlier `off`).
+*/
+/**
+* semgrep's short options that take a value: `-c`/`-f` config, `-e`
+* pattern, `-l` language, `-o` output, `-j` jobs.
+*/
+const SEMGREP_VALUE_LETTERS = /[cfeloj]/;
+/** semgrep's long options that take the next word as their value. */
+const SEMGREP_LONG_VALUE_FLAGS = new Set([
+	"--pattern",
+	"--lang",
+	"--output",
+	"--jobs",
+	"--include",
+	"--exclude",
+	"--exclude-rule",
+	"--severity",
+	"--timeout",
+	"--timeout-threshold",
+	"--max-memory",
+	"--max-target-bytes",
+	"--max-chars-per-line",
+	"--max-lines-per-finding",
+	"--baseline-commit",
+	"--project-root",
+	"--replacement",
+	"--sarif-output",
+	"--json-output",
+	"--text-output",
+	"--emacs-output",
+	"--vim-output",
+	"--gitlab-sast-output",
+	"--gitlab-secrets-output",
+	"--junit-xml-output"
+]);
+function semgrepRequiredArgs(rest) {
+	const words = argWords(rest);
+	const configs = [];
+	let metrics;
+	for (let i = 0; i < words.length; i++) {
+		const word = words[i] ?? "";
+		const next = words[i + 1];
+		let m;
+		if (word === "--") break;
+		if (word === "--config") {
+			if (next !== void 0) configs.push(next);
+			i++;
+		} else if (m = /^--config=(.*)$/.exec(word)) configs.push(m[1] ?? "");
+		else if (m = /^-([A-Za-z]+)(=?)(.*)$/.exec(word)) {
+			const letters = m[1] ?? "";
+			const at = letters.search(SEMGREP_VALUE_LETTERS);
+			if (at === -1) continue;
+			const attached = letters.slice(at + 1) + (m[2] ?? "") + (m[3] ?? "");
+			const value = attached.replace(/^=/, "");
+			const isConfig = letters[at] === "c" || letters[at] === "f";
+			if (attached.length > 0) {
+				if (isConfig) configs.push(value);
+			} else if (next !== void 0) {
+				if (isConfig) configs.push(next);
+				i++;
+			}
+		} else if (word === "--metrics") {
+			metrics = next;
+			i++;
+		} else if (m = /^--metrics=(.*)$/.exec(word)) metrics = m[1];
+		else if (SEMGREP_LONG_VALUE_FLAGS.has(word)) i++;
+	}
+	const named = configs.filter((value) => value.length > 0);
+	if (named.length === 0) return "must name a local rule set with --config <path>";
+	const globbed = named.find((value) => /[*?[\]{}]/.test(value));
+	if (globbed !== void 0) return `may not use the glob config "${globbed}": name the rule set's path`;
+	const remote = named.find(isRemoteSemgrepConfig);
+	if (remote !== void 0) return `may not use the remote config "${remote}" (a URL, auto, or a p/ r/ s/ registry ruleset); point --config at a local path`;
+	if (metrics !== "off") return `must turn telemetry off with --metrics=off (the last --metrics value counts); found ${metrics === void 0 ? "no --metrics argument" : `--metrics=${metrics}`}`;
+	return null;
+}
+/**
+* [issue:ENG-8225] `ast-grep scan` may quote ONE word: the value of
+* `--inline-rules` (the `{rule}` YAML, which the renderer always
+* single-quotes). Any other quoted, escaped or expanded word could hide a
+* flag the rule refuses (`'-U'`), so it is refused, as `refuseUncheckable`
+* refuses it for the scanners.
+*
+* The value itself must be exactly one quoted word (masked to `""` by
+* `scanShellCommand`), never an unquoted expansion: bash splits a brace
+* expansion (`{'…',-U}`) or a variable (`$X`) AFTER this check, and either
+* can produce a separate `-U` (review F-001). A plain unquoted word with no
+* expansion is left as it is.
+*/
+function astGrepRequiredArgs(rest) {
+	const words = rest.split(/\s+/).filter(Boolean);
+	const uncheckable = (w) => w.includes("\"\"") || w.includes("''") || w.includes("\\") || w.includes("$") || /\{[^{}]*(?:,|\.\.)[^{}]*\}/.test(w) || /[*?[]/.test(w);
+	for (let i = 0; i < words.length; i++) {
+		const w = words[i];
+		if (!uncheckable(w)) continue;
+		const inlineValue = words[i - 1] === "--inline-rules" ? w : w.startsWith("--inline-rules=") ? w.slice(15) : null;
+		if (inlineValue === "\"\"") continue;
+		if (inlineValue !== null) return `--inline-rules must be one quoted word (the rule YAML in quotes), never an expansion; found ${w}`;
+		return `may quote, escape or expand only the --inline-rules value; found ${w}`;
+	}
+	return null;
+}
+const SEMGREP_RULE = {
+	globals: /^/,
+	allowed: new Set(["scan"]),
+	refuseUncheckable: true,
+	forbiddenArgs: [
+		{
+			pattern: flagArg("--output"),
+			name: "--output"
+		},
+		{
+			pattern: shortFlagArg("o", "cfelj"),
+			name: "-o"
+		},
+		{
+			pattern: /(?:^|[\s<>|;&(])--[a-z0-9-]+-output(?![A-Za-z0-9_-])/,
+			name: "--<format>-output"
+		},
+		{
+			pattern: flagArg("--autofix"),
+			name: "--autofix"
+		},
+		{
+			pattern: flagArg("--fix"),
+			name: "--fix"
+		}
+	],
+	requiredArgs: semgrepRequiredArgs
+};
+const SUBCOMMAND_ALLOWLISTS = new Map([
+	["git", {
+		globals: /^(?:(?:-C\s+\S+|--no-pager|--no-optional-locks)\s+)*/,
+		allowed: new Set([
+			"diff",
+			"diff-tree",
+			"diff-index",
+			"diff-files",
+			"log",
+			"shortlog",
+			"show",
+			"show-ref",
+			"status",
+			"ls-files",
+			"ls-tree",
+			"ls-remote",
+			"grep",
+			"rev-parse",
+			"rev-list",
+			"merge-base",
+			"cat-file",
+			"blame",
+			"for-each-ref",
+			"describe",
+			"name-rev",
+			"check-ignore",
+			"check-attr"
+		]),
+		forbiddenArgs: [{
+			pattern: flagArg("--output"),
+			name: "--output (it writes a file)"
+		}]
+	}],
+	["helm", {
+		globals: /^/,
+		allowed: new Set(["lint", "template"])
+	}],
+	["gitleaks", {
+		globals: /^/,
+		allowed: new Set(["dir", "detect"]),
+		refuseUncheckable: true,
+		forbiddenArgs: [
+			{
+				pattern: flagArg("--report-path"),
+				name: "--report-path"
+			},
+			{
+				pattern: flagArg("--diagnostics"),
+				name: "--diagnostics"
+			},
+			{
+				pattern: flagArg("--diagnostics-dir"),
+				name: "--diagnostics-dir"
+			},
+			{
+				pattern: shortFlagArg("r", "cibfls"),
+				name: "-r"
+			}
+		]
+	}],
+	["semgrep", SEMGREP_RULE],
+	["opengrep", SEMGREP_RULE],
+	["ast-grep", {
+		globals: /^/,
+		allowed: new Set(["scan"]),
+		forbiddenArgs: [
+			{
+				pattern: flagArg("--update-all"),
+				name: "--update-all"
+			},
+			{
+				pattern: flagArg("--update"),
+				name: "--update"
+			},
+			{
+				pattern: shortFlagArg("U", "rcjABC"),
+				name: "-U"
+			},
+			{
+				pattern: flagArg("--interactive"),
+				name: "--interactive"
+			},
+			{
+				pattern: shortFlagArg("i", "rcjABC"),
+				name: "-i"
+			}
+		],
+		requiredArgs: astGrepRequiredArgs
+	}],
+	["trivy", {
+		globals: /^/,
+		allowed: new Set(["fs", "config"]),
+		refuseUncheckable: true,
+		forbiddenArgs: [
+			{
+				pattern: flagArg("--output"),
+				name: "--output"
+			},
+			{
+				pattern: shortFlagArg("o", "cfst"),
+				name: "-o"
+			},
+			{
+				pattern: flagArg("--download-db-only"),
+				name: "--download-db-only"
+			},
+			{
+				pattern: flagArg("--download-java-db-only"),
+				name: "--download-java-db-only"
+			},
+			{
+				pattern: flagArg("--server"),
+				name: "--server"
+			},
+			{
+				pattern: flagArg("--cache-dir"),
+				name: "--cache-dir"
+			},
+			{
+				pattern: flagArg("--module-dir"),
+				name: "--module-dir"
+			},
+			{
+				pattern: flagArg("--db-repository"),
+				name: "--db-repository"
+			},
+			{
+				pattern: flagArg("--java-db-repository"),
+				name: "--java-db-repository"
+			},
+			{
+				pattern: flagArg("--checks-bundle-repository"),
+				name: "--checks-bundle-repository"
+			},
+			{
+				pattern: flagArg("--cache-backend"),
+				name: "--cache-backend"
+			},
+			{
+				pattern: /(?:^|[\s<>|;&(])--redis-[a-z-]+(?![A-Za-z0-9_-])/,
+				name: "--redis-*"
+			},
+			{
+				pattern: flagArg("--rekor-url"),
+				name: "--rekor-url"
+			},
+			{
+				pattern: flagArg("--sbom-sources"),
+				name: "--sbom-sources"
+			},
+			{
+				pattern: flagArg("server"),
+				name: "server"
+			}
+		]
+	}]
+]);
+/**
+* ENG-5106 L1 review round 3 F-003 — the utility `xargs` runs: the first word
+* after its options, skipping each option's VALUE (`-n 1`, `-I {}`,
+* `--max-args 1`; attached forms `-n1`, `--max-args=1` carry their own).
+* A prefix regex let `xargs -n 1 test -n` through as a non-`test` command.
+*/
+const XARGS_SHORT_WITH_VALUE = new Set([
+	"a",
+	"d",
+	"E",
+	"I",
+	"L",
+	"n",
+	"P",
+	"s"
+]);
+const XARGS_LONG_WITH_VALUE = new Set([
+	"--arg-file",
+	"--delimiter",
+	"--max-args",
+	"--max-procs",
+	"--max-chars",
+	"--process-slot-var"
+]);
+/**
+* Review round 4 F-004 / F-009 — what `xargs` may run: read-only utilities.
+* Parsing every way to reach `test` (bundled `-rn 1`, quoted `'test'`,
+* `timeout 5 test`, `env test`, `sh -c 'test …'`) was a losing game; live
+* gates use `grep` alone. Anything else is refused.
+*/
+const XARGS_UTILITIES = new Set([
+	"grep",
+	"egrep",
+	"fgrep",
+	"rg",
+	"wc",
+	"cat",
+	"head",
+	"tail",
+	"ls",
+	"basename",
+	"dirname",
+	"stat",
+	"file",
+	"echo",
+	"printf",
+	"sort",
+	"uniq",
+	"cut",
+	"tr",
+	"jq"
+]);
+/**
+* The utility `xargs` runs and that utility's own arguments. Quoted words
+* arrive already masked to `""` by `scanShellCommand`, so a quoted utility
+* is the empty string here — and is refused like any other.
+*/
+function xargsUtility(args) {
+	const words = args.trim().split(/\s+/).filter(Boolean);
+	const at = (k) => k < words.length ? {
+		utility: words[k],
+		rest: words.slice(k + 1).join(" ")
+	} : null;
+	for (let k = 0; k < words.length; k++) {
+		const w = words[k];
+		if (w === "--") return at(k + 1);
+		if (w.startsWith("--")) {
+			if (!w.includes("=") && XARGS_LONG_WITH_VALUE.has(w)) k++;
+			continue;
+		}
+		if (w.startsWith("-") && w.length > 1) {
+			for (let j = 1; j < w.length; j++) if (XARGS_SHORT_WITH_VALUE.has(w[j])) {
+				if (j === w.length - 1) k++;
+				break;
+			}
+			continue;
+		}
+		return at(k);
+	}
+	return null;
+}
+const baseName = (word) => word.slice(word.lastIndexOf("/") + 1);
+function isTestUtility(word) {
+	if (word === null) return false;
+	const base = baseName(word);
+	return base === "test" || base === "[";
+}
+/**
+* The refusal for a subcommand-restricted binary, or null when this use is
+* allowed (or the binary is not restricted).
+*/
+function subcommandRefusal(token, args) {
+	const xargsRuns = token === "xargs" ? xargsUtility(args) : null;
+	if (xargsRuns !== null && isTestUtility(xargsRuns.utility)) return "\"xargs test\" passes on empty input, so this check cannot fail (ENG-4761). Redeploy the gate: current templates test the search result with test -n \"$(…)\"";
+	if (xargsRuns !== null) {
+		const utility = baseName(xargsRuns.utility);
+		if (!XARGS_UTILITIES.has(utility)) return `"xargs" may only run a read-only utility (${[...XARGS_UTILITIES].join(", ")}), not ` + (utility === "\"\"" || utility === "" ? "a quoted word" : `"${utility}"`);
+		return subcommandRefusal(utility, xargsRuns.rest);
+	}
+	if (FORBIDDEN_ARGS.get(token)?.test(args)) return `"${token}" may not edit a file in place (-i / --in-place)`;
+	const rule = SUBCOMMAND_ALLOWLISTS.get(token);
+	if (!rule) return null;
+	const rest = args.replace(rule.globals, "");
+	const sub = rest.split(/\s+/)[0] ?? "";
+	if (!rule.allowed.has(sub)) return `"${token} ${sub || "(no subcommand)"}" is not allowed; ${token} may only run ${[...rule.allowed].join(", ")}`;
+	const words = rest.split(/\s+/).filter(Boolean);
+	const uncheckable = rule.refuseUncheckable ? words.find((w) => {
+		if (w.includes("\"\"") || w.includes("\\") || w.includes("$")) return true;
+		if (/\{[^{}]*(?:,|\.\.)[^{}]*\}/.test(w)) return true;
+		return /[*?[]/.test(w);
+	}) : void 0;
+	if (uncheckable !== void 0) return `"${token} ${sub}" may not quote, escape or expand an argument (${uncheckable}): the word the shell runs could not be checked`;
+	const refusedArg = rule.forbiddenArgs?.find(({ pattern }) => pattern.test(rest));
+	if (refusedArg) return `"${token} ${sub}" may not use ${refusedArg.name}`;
+	const missing = rule.requiredArgs?.(rest);
+	if (missing) return `"${token} ${sub}" ${missing}`;
+	return null;
+}
+/** Interpreters and shells the seeded templates and L3/L4 gates use. */
+const INTERPRETER_BINARIES = [
+	"node",
+	"python3",
+	"python",
+	"bash",
+	"sh",
+	"perl",
+	"ruby",
+	"php"
+];
+/**
+* Package managers, build tools and test runners a command binding may
+* supply — review R4-01. Every toolchain the binding docs and specs name
+* (`running-gates.mdx`, `gate-bindings.tool.spec.ts`,
+* `gate-type-resolver-command-slots.spec.ts`, the toolchain migration).
+*/
+const GATE_TOOLCHAIN_BINARIES = [
+	"yarn",
+	"npx",
+	"npm",
+	"pnpm",
+	"bun",
+	"bunx",
+	"deno",
+	"tsc",
+	"tsgo",
+	"go",
+	"cargo",
+	"pytest",
+	"uv",
+	"poetry",
+	"pipenv",
+	"hatch",
+	"tox",
+	"phpunit",
+	"pest",
+	"composer",
+	"bundle",
+	"rspec",
+	"rake",
+	"mvn",
+	"gradle",
+	"dotnet",
+	"swift",
+	"mix",
+	"make"
+];
+/**
+* Semantic judges (L4), invoked directly or piped into — the binaries of the
+* judge presets, never a list of its own (ENG-8219): claude and grok used to
+* be refused here while the verdict parser read them as judges. A workspace's
+* custom judge is not added: its argv travels in `GATE_JUDGE_ARGV`, which
+* this validator never reads.
+*/
+const GATE_JUDGE_BINARIES = JUDGE_PRESET_BINARIES;
+/**
+* Every binary a gate command may start a command with, in one list — what a
+* refusal message names.
+*/
+const GATE_COMMAND_BINARIES = [
+	...INSPECTION_BINARIES,
+	...INTERPRETER_BINARIES,
+	...GATE_TOOLCHAIN_BINARIES,
+	...GATE_JUDGE_BINARIES
+];
+const ALLOWED_BINARIES = new Set(GATE_COMMAND_BINARIES);
+/**
+* Shell builtins a command may be. `exit`/`true`/`false` end real gates
+* (`…; exit $?`); `set -e`/`set -o pipefail` and `read` are common in
+* multi-line checks; `:` is the no-op. `export` is handled separately (it
+* must only assign).
+*/
+const ALLOWED_BUILTINS = new Set([
+	"exit",
+	"true",
+	"false",
+	"set",
+	"read",
+	":"
+]);
+/**
+* Runners a project installs locally and invokes by path — review R4-01
+* (`./vendor/bin/phpunit` on prod ENG-113..115, `node_modules/.bin/vitest`).
+*/
+const PROJECT_LOCAL_RUNNERS = new Set([
+	"phpunit",
+	"pest",
+	"paratest",
+	"phpstan",
+	"psalm",
+	"rspec",
+	"rake",
+	"vitest",
+	"jest",
+	"playwright",
+	"mocha",
+	"tsc",
+	"tsx",
+	"eslint",
+	"pytest"
+]);
+/**
+* Is `token` a project-local runner (`./vendor/bin/phpunit`,
+* `vendor/bin/pest`, `./node_modules/.bin/vitest`, `bin/rspec`) or a build
+* wrapper checked into the repo (`./gradlew`, `./mvnw`)?
+*/
+function isProjectLocalTool(token) {
+	if (token === "./gradlew" || token === "./mvnw") return true;
+	const m = /^(?:\.\/)?(?:vendor\/bin|node_modules\/\.bin|bin)\/([\w.-]+)$/.exec(token);
+	return m !== null && PROJECT_LOCAL_RUNNERS.has(m[1]);
+}
+/** Binaries `!` may negate — review R4-03. */
+const NEGATABLE_BINARIES = new Set([
+	"grep",
+	"test",
+	"[",
+	"[["
+]);
+function isAllowedBinary(token) {
+	return ALLOWED_BINARIES.has(token) || ALLOWED_BUILTINS.has(token) || token.endsWith("/grep") || isProjectLocalTool(token);
+}
+/**
+* Words after which the next word is again in command position: compound
+* openers and `!`. Review round 4 F-001 added `if`, `while`, `until` and `!`
+* (`if case x in x) touch M ;; esac; then …` slipped past without them).
+*/
+const COMMAND_OPENERS = new Set([
+	"then",
+	"do",
+	"else",
+	"elif",
+	"if",
+	"while",
+	"until",
+	"{",
+	"!"
+]);
+/**
+* Is `s[i]` at the start of a word in COMMAND position — the start of the
+* text (`from`), or after `;` `|` `&` `(` `)` a newline, or after an opener
+* word that is itself in command position? A loop, not recursion (review
+* round 4 F-013: 40 KB of `then ` overflowed the stack).
+*/
+function isInCommandPosition(s, i, from) {
+	let at = i;
+	for (;;) {
+		let p = at - 1;
+		while (p >= from && (s[p] === " " || s[p] === "	")) p--;
+		if (p < from) return true;
+		if (";|&()\n".includes(s[p])) return true;
+		let q = p;
+		while (q >= from && /[a-z{!]/.test(s[q])) q--;
+		const word = s.slice(q + 1, p + 1);
+		if (!(q < from || /[\s;|&()]/.test(s[q])) || !COMMAND_OPENERS.has(word)) return false;
+		if (q < from) return true;
+		at = q + 1;
+	}
+}
+/**
+* Review round 4 (root cause A) — what this scanner does NOT model, it
+* REFUSES rather than guesses. Each of these makes bash read the text
+* differently from `scanShellCommand`, and every one was reproduced
+* running a command the validator never saw:
+*
+*  - `$'…'` anywhere (ANSI-C quoting: `\'` does not end it);
+*  - a heredoc `<<` anywhere (its body is data to bash, commands to us);
+*  - inside a `$( … )`, `<( … )` or `>( … )`: a word-start `#` (a comment
+*    can hide the `)`), a `${` (`${x/)/y}` ends the substitution early for
+*    us), or `case` in command position (its pattern `)`s).
+*
+* Review round 6 F-001: process substitutions are bodies bash runs exactly
+* like `$( )`, so they are read the same way — `grep x <(echo #)` followed
+* by a newline and `touch p` ran the `touch` while this looked only at `$(`.
+*
+* Measured against every live gate step on staging (10,643; 6,217
+* accepted today): none uses any of these.
+*/
+function unmodelledConstruct(t, inSubstitution = false) {
+	let quote = null;
+	for (let i = 0; i < t.length; i++) {
+		const c = t[i];
+		if (quote === "'") {
+			if (c === "'") quote = null;
+			continue;
+		}
+		if (c === "\\") {
+			i++;
+			continue;
+		}
+		if (c === "$" && t[i + 1] === "(") {
+			const close = closeOfParen(t, i + 2);
+			if (close === -1) return null;
+			const inner = unmodelledConstruct(t.slice(i + 2, close - 1), true);
+			if (inner) return inner;
+			i = close - 1;
+			continue;
+		}
+		if (quote === "\"") {
+			if (c === "\"") quote = null;
+			else if (inSubstitution && c === "$" && t[i + 1] === "{") return "`${` inside a substitution";
+			continue;
+		}
+		if ((c === "<" || c === ">") && t[i + 1] === "(") {
+			const close = closeOfParen(t, i + 2);
+			if (close === -1) return null;
+			const inner = unmodelledConstruct(t.slice(i + 2, close - 1), true);
+			if (inner) return inner;
+			i = close - 1;
+			continue;
+		}
+		if (c === "'" || c === "\"") {
+			if (c === "'" && t[i - 1] === "$") return "`$'…'` quoting";
+			quote = c;
+			continue;
+		}
+		if (c === "<" && t[i + 1] === "<" && t[i + 2] !== "<" && t[i - 1] !== "<") return "a heredoc (`<<`)";
+		if (!inSubstitution) continue;
+		if (c === "#" && (i === 0 || /[\s;|&(]/.test(t[i - 1]))) return "a `#` comment inside a substitution";
+		if (c === "$" && t[i + 1] === "{") return "`${` inside a substitution";
+		if (c === "c" && t.startsWith("case", i) && /^(?:\s|$)/.test(t.slice(i + 4, i + 5)) && (i === 0 || /[\s;|&()]/.test(t[i - 1])) && isInCommandPosition(t, i, 0)) return "`case` inside a substitution";
+	}
+	return null;
+}
+/**
+* Index just past the `)` that closes a `(` whose body starts at `from`, or
+* -1. Quote-aware: a `)` inside quotes does not close it.
+*
+* Exported for `splitRespectingQuotes` (ENG-5106 L1 review F-017): the
+* splitter that decides what the executor RUNS must read a substitution
+* exactly as this validator does, so there is one copy.
+*/
+function closeOfParen(s, from) {
+	let depth = 1;
+	let quote = null;
+	const cases = [];
+	const wordAt = (i, word) => s.startsWith(word, i) && /^(?:[\s;|&)]|$)/.test(s.slice(i + word.length, i + word.length + 1)) && isInCommandPosition(s, i, from);
+	for (let i = from; i < s.length; i++) {
+		const c = s[i];
+		if (quote === "'") {
+			if (c === "'") quote = null;
+			continue;
+		}
+		if (c === "\\") {
+			i++;
+			continue;
+		}
+		if (quote === "\"") {
+			if (c === "\"") quote = null;
+			continue;
+		}
+		if (c === "'" || c === "\"") quote = c;
+		else if (c === "c" && wordAt(i, "case")) {
+			cases.push(depth);
+			i += 3;
+		} else if (c === "e" && wordAt(i, "esac") && cases.at(-1) === depth) {
+			cases.pop();
+			i += 3;
+		} else if (c === "(") depth++;
+		else if (c === ")") {
+			if (cases.at(-1) === depth) continue;
+			if (--depth === 0) return i + 1;
+		}
+	}
+	return -1;
+}
+/**
+* Split a command at every top-level shell separator, and collect every
+* substitution the shell would EXECUTE — ENG-5967 F-008, review R4-09.
+*
+* Single quotes are the one context the shell does not look inside, so a
+* `$(` there is literal (the L4 templates' `bash -c '…'` body) and is not
+* collected; in double quotes and bare text it runs, and is. A process
+* substitution (`<( )`, `>( )`) runs only unquoted. `$(( … ))` is arithmetic,
+* not a command: only the substitutions inside it are collected.
+*/
+function scanShellCommand(s) {
+	const segments = [];
+	const substitutions = [];
+	let backtick = false;
+	let unbalanced = false;
+	let cur = "";
+	let quote = null;
+	const cut = (sepAfter) => {
+		segments.push({
+			text: cur,
+			sepAfter
+		});
+		cur = "";
+	};
+	for (let i = 0; i < s.length; i++) {
+		const c = s[i];
+		if (quote === "'") {
+			if (c === "'") quote = null;
+			continue;
+		}
+		if (c === "\\") {
+			if (quote === null) cur += s.slice(i, i + 2);
+			i++;
+			continue;
+		}
+		if (c === "`") {
+			backtick = true;
+			continue;
+		}
+		if (c === "$" && s[i + 1] === "(") {
+			const arithmetic = s[i + 2] === "(";
+			const close = closeOfParen(s, i + 2);
+			if (close === -1) {
+				unbalanced = true;
+				break;
+			}
+			const body = s.slice(i + 2, close - 1);
+			if (arithmetic) {
+				const inner = scanShellCommand(body.slice(1, -1));
+				substitutions.push(...inner.substitutions);
+				backtick ||= inner.backtick;
+				unbalanced ||= inner.unbalanced;
+			} else substitutions.push(body);
+			if (quote === null) cur += "\"\"";
+			i = close - 1;
+			continue;
+		}
+		if (quote === "\"") {
+			if (c === "\"") quote = null;
+			continue;
+		}
+		if ((c === "<" || c === ">") && s[i + 1] === "(") {
+			const close = closeOfParen(s, i + 2);
+			if (close === -1) {
+				unbalanced = true;
+				break;
+			}
+			substitutions.push(s.slice(i + 2, close - 1));
+			cur += "\"\"";
+			i = close - 1;
+			continue;
+		}
+		if (c === "'" || c === "\"") {
+			quote = c;
+			cur += "\"\"";
+			continue;
+		}
+		if (c === ";" || c === "\n") {
+			cut(";");
+			continue;
+		}
+		if (c === "|") {
+			if (s[i + 1] === "|") {
+				i++;
+				cut("||");
+			} else cut("|");
+			continue;
+		}
+		if (c === "&") {
+			const prev = s[i - 1];
+			if (prev === ">" || prev === "<" || s[i + 1] === ">") {
+				cur += c;
+				continue;
+			}
+			if (s[i + 1] === "&") {
+				i++;
+				cut("&&");
+			} else cut("&");
+			continue;
+		}
+		cur += c;
+	}
+	if (quote !== null) unbalanced = true;
+	cut(null);
+	return {
+		segments,
+		substitutions,
+		backtick,
+		unbalanced
+	};
+}
+/** Reserved words that OPEN or CONTINUE a compound command before a command. */
+const LEADING_RESERVED = /^(?:if|then|elif|else|do|while|until)(?=\s|$)\s*/;
+/** Words that CLOSE a compound command; nothing runs from them. */
+const CLOSING_WORDS = /^(?:fi|done|esac|\}|\)+)(?=\s|$|\)|;)/;
+const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*(?:\[[^\]]*\])?\+?=\S*(?:\s+|$)/;
+/**
+* [issue:ENG-7618 review N1] A scanner reads every option it has from an
+* environment variable too (`TRIVY_OUTPUT`, `TRIVY_CACHE_DIR`,
+* `TRIVY_DB_REPOSITORY`, …), so a gate setting one reaches each option the
+* scanner rules refuse without ever typing the flag. A gate command may not
+* set any variable in a scanner's namespace, by assignment, `export` or `env`.
+*/
+const SCANNER_ENV_NAME = /^(?:TRIVY|SEMGREP|GITLEAKS)_/;
+const SCANNER_ENV_REFUSAL = "may not set a scanner's environment variables (TRIVY_*, SEMGREP_*, GITLEAKS_*): each reaches an option the scanner rules refuse";
+const SCANNER_TOKENS = new Set([
+	"trivy",
+	"semgrep",
+	"opengrep",
+	"gitleaks"
+]);
+/** A scanner's config and ignore files, which a gate must not write. */
+const SCANNER_CONFIG_FILE = /(?:^|\/)(?:trivy\.ya?ml|\.trivy[^\s/]*|\.gitleaks[^\s/]*|\.semgrep[^\s/]*)$/;
+/**
+* [issue:ENG-7618 review round 3] Checks for a command that runs a scanner,
+* over the routes that reach a refused option without typing its flag. They
+* are DEFENCE IN DEPTH, not the boundary: a command slot is supplied only by
+* an Owner or Admin (the gate-impl capability, GateImplPolicyService), and a
+* text checker cannot model everything bash can do. What is refused:
+* - `set -a` / `set -o allexport`, under which `read` and `printf -v`
+*   export what they assign (F1); and `read` / `printf -v` into a scanner
+*   variable anywhere (F1);
+* - writing a scanner config or ignore file by redirect or `tee`: trivy loads
+*   `trivy.yaml` from the working directory unasked (F2);
+* - a `--config` / `-c` that is absolute or climbs out with `..` (F2);
+* - setting HOME, TMPDIR, XDG_* or a proxy variable, which move trivy's cache
+*   and route its downloads (F3).
+*/
+function scannerCommandRefusal(command) {
+	const words = command.split(/[\s;&|()]+/).filter(Boolean);
+	if (/(?:^|[\s;&|(])(?:read|printf)\b[^;&|]*?\b(?:TRIVY|SEMGREP|GITLEAKS)_/.test(command)) {
+		if (/(?:^|[\s;&|(])read\s(?:[^;&|]*\s)?(?:TRIVY|SEMGREP|GITLEAKS)_\w*/.test(command) || /(?:^|[\s;&|(])printf\s+(?:-\S+\s+)*-v\s*(?:TRIVY|SEMGREP|GITLEAKS)_/.test(command)) return SCANNER_ENV_REFUSAL;
+	}
+	if (!words.some((w) => SCANNER_TOKENS.has(w))) return null;
+	if (/(?:^|[\s;&|(])set\s+(?:-o\s+allexport\b|(?:\S+\s+)*-[A-Za-z]*a[A-Za-z]*(?:\s|$))/.test(command) || /(?:^|[\s;&|(])set\s+(?:\S+\s+)*-o\s+allexport\b/.test(command)) return "may not turn on `set -a` / `set -o allexport` in a command that runs a scanner: what it assigns reaches the scanner as environment variables";
+	const redirected = [...command.matchAll(/>{1,2}\|?\s*(['"]?)([^\s;&|<>'"]+)\1/g)].map((m) => m[2]);
+	const teed = [...command.matchAll(/(?:^|[\s;&|(])tee\s+((?:-\S+\s+)*)([^\s;&|<>]+)/g)].map((m) => m[2]);
+	const written = [...redirected, ...teed].find((t) => SCANNER_CONFIG_FILE.test(t));
+	if (written) return `may not write the scanner config file ${written}: a scanner reads it as its options`;
+	for (const m of command.matchAll(/(?:^|[\s;&|(])(?:--config(?:=|\s+)|-c\s*=?\s*)(['"]?)([^\s;&|<>'"]+)\1/g)) {
+		const value = m[2];
+		if (value.startsWith("//") || value.includes("://")) continue;
+		if (value.startsWith("/") || value.startsWith("~") || /(?:^|\/)\.\.(?:\/|$)/.test(value)) return `a scanner --config must be a path inside the repository (no leading /, ~ or ..); got ${value}`;
+	}
+	if (/(?:^|[\s;&|(])(?:export\s+(?:\S+\s+)*|env\s+(?:\S+\s+)*)?(?:HOME|TMPDIR|XDG_[A-Z_]+|(?:HTTPS?|ALL|NO|FTP)_PROXY|(?:https?|all|no|ftp)_proxy)\+?=/.test(command)) return "may not set HOME, TMPDIR, XDG_* or a proxy variable in a command that runs a scanner: they move its cache and route its downloads";
+	return null;
+}
+const ENV_WRAPPER = /^env(?:\s+(?:-i|-0|--ignore-environment|--null|-u\s+\S+|--unset=\S+|[A-Za-z_][A-Za-z0-9_]*=\S*))*\s+(?=\S)/;
+const FUNCTION_DEF = /^(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\s*\)\s*/;
+/**
+* Read one top-level segment: strip the shell grammar in front of its command
+* and say which binary it runs (or that it runs nothing).
+*/
+function readSegment(segment, state) {
+	let p = segment.trim();
+	let negated = false;
+	for (let guard = 0; guard < 64; guard++) {
+		if (!p) return { kind: "skip" };
+		if (state.inCase) {
+			if (/^esac(?=\s|$|;|\))/.test(p)) {
+				state.inCase = false;
+				p = p.slice(4).trim();
+				continue;
+			}
+			const arm = /^\(?[^\s()]*\)\s*/.exec(p);
+			if (arm) {
+				p = p.slice(arm[0].length);
+				continue;
+			}
+			if (/^[^\s()]+$/.test(p)) return { kind: "skip" };
+		}
+		const caseHead = /^case\s+\S+\s+in(?=\s|$)\s*/.exec(p);
+		if (caseHead) {
+			state.inCase = true;
+			p = p.slice(caseHead[0].length);
+			continue;
+		}
+		if (/^for(?=\s|\(\()/.test(p)) return { kind: "skip" };
+		if (CLOSING_WORDS.test(p)) return { kind: "skip" };
+		const reserved = LEADING_RESERVED.exec(p);
+		if (reserved) {
+			p = p.slice(reserved[0].length);
+			continue;
+		}
+		if (p.startsWith("{") && (p.length === 1 || /\s/.test(p[1]))) {
+			p = p.slice(1).trim();
+			continue;
+		}
+		if (p.startsWith("(") && !p.startsWith("((")) {
+			p = p.slice(1).trim();
+			continue;
+		}
+		if (p.startsWith("((")) return { kind: "skip" };
+		if (/^!(?=\s|$)/.test(p)) {
+			negated = true;
+			p = p.slice(1).trim();
+			if (!p) return {
+				kind: "invalid",
+				reason: "a bare `!` negates nothing"
+			};
+			continue;
+		}
+		const fn = FUNCTION_DEF.exec(p);
+		if (fn) {
+			state.functions.add(fn[1]);
+			p = p.slice(fn[0].length);
+			continue;
+		}
+		const assignment = ASSIGNMENT.exec(p);
+		if (assignment) {
+			if (SCANNER_ENV_NAME.test(assignment[0])) return {
+				kind: "invalid",
+				reason: SCANNER_ENV_REFUSAL
+			};
+			p = p.slice(assignment[0].length);
+			if (!p) return { kind: "skip" };
+			continue;
+		}
+		const env = ENV_WRAPPER.exec(p);
+		if (env) {
+			if (env[0].split(/\s+/).some((w) => w.includes("=") && SCANNER_ENV_NAME.test(w))) return {
+				kind: "invalid",
+				reason: SCANNER_ENV_REFUSAL
+			};
+			p = p.slice(env[0].length);
+			continue;
+		}
+		break;
+	}
+	if (!p) return { kind: "skip" };
+	const token = p.split(/\s+/)[0].replace(/\)+$/, "");
+	if (!token) return { kind: "skip" };
+	if (token === "export") {
+		const args$1 = p.split(/\s+/).slice(1);
+		if (!args$1.every((a) => /^[A-Za-z_][A-Za-z0-9_]*(?:=\S*)?$/.test(a))) return {
+			kind: "invalid",
+			reason: "`export` may only name or assign variables"
+		};
+		if (args$1.some((a) => SCANNER_ENV_NAME.test(a))) return {
+			kind: "invalid",
+			reason: SCANNER_ENV_REFUSAL
+		};
+		return { kind: "skip" };
+	}
+	const args = p.slice(p.split(/\s+/)[0].length).trim();
+	if (token === "timeout") {
+		const wrapped = timeoutCommand(args);
+		if (wrapped === null) return {
+			kind: "invalid",
+			reason: "`timeout` must name the command it runs"
+		};
+		const inner = readSegment(wrapped, state);
+		return inner.kind === "command" ? {
+			...inner,
+			negated
+		} : inner;
+	}
+	return {
+		kind: "command",
+		token,
+		negated,
+		args
+	};
+}
+/**
+* The command `timeout` runs: what follows its options and its DURATION
+* (GNU and BSD `timeout`: `-s SIG`, `-k DUR`, `--signal=SIG`,
+* `--kill-after=DUR`, `--preserve-status`, `--foreground`, `-v`), or null
+* when there is none.
+*/
+function timeoutCommand(args) {
+	const words = args.split(/\s+/).filter(Boolean);
+	let k = 0;
+	while (k < words.length) {
+		const w = words[k];
+		if (w === "--") {
+			k++;
+			break;
+		}
+		if (w === "-s" || w === "-k" || w === "--signal" || w === "--kill-after") {
+			k += 2;
+			continue;
+		}
+		if (w.startsWith("-")) {
+			k++;
+			continue;
+		}
+		break;
+	}
+	const rest = words.slice(k + 1);
+	return rest.length > 0 ? rest.join(" ") : null;
+}
+/**
+* Validates that a gate command is well-constructed. Returns null when it may
+* be handed out and run, or the reason it may not.
+*/
+function validateGateCommand(command, technique) {
+	const who = technique ? `${technique} command` : "Gate command";
+	const trimmed = command.trim();
+	if (trimmed.startsWith("@api:")) return null;
+	if (!trimmed) return null;
+	const unmodelled = unmodelledConstruct(trimmed);
+	if (unmodelled) return `${who} uses ${unmodelled}, which this checker cannot read the way bash does; rewrite it without`;
+	const scanned = scanShellCommand(trimmed);
+	if (scanned.backtick) return `${who} uses a backtick command substitution; write $( … ) so its command can be checked`;
+	if (scanned.unbalanced) return `${who} has an unterminated quote or substitution`;
+	const scannerRefusal = scannerCommandRefusal(trimmed);
+	if (scannerRefusal) return `${who}: ${scannerRefusal}`;
+	const state = {
+		inCase: false,
+		functions: /* @__PURE__ */ new Set()
+	};
+	const reads = scanned.segments.map((segment) => segment.text.trim().startsWith("@api:") ? { kind: "skip" } : readSegment(segment.text, state));
+	for (let i = 0; i < reads.length; i++) {
+		const read = reads[i];
+		if (read.kind === "skip") continue;
+		if (read.kind === "invalid") return `${who}: ${read.reason}`;
+		const { token, negated } = read;
+		const refusedUse = subcommandRefusal(token, read.args);
+		if (refusedUse !== null) return `${who}: ${refusedUse}`;
+		if (!isAllowedBinary(token) && !SUBCOMMAND_ALLOWLISTS.has(token) && !state.functions.has(token)) return `${who} uses disallowed binary "${token}". Allowed: ${GATE_COMMAND_BINARIES.join(", ")}; and with read-only subcommands only: ${[...SUBCOMMAND_ALLOWLISTS.keys()].join(", ")}`;
+		if (negated) {
+			let last = i;
+			while (scanned.segments[last].sepAfter === "|" && last + 1 < reads.length) last++;
+			const tail = reads[last];
+			const tailToken = tail.kind === "command" ? tail.token : token;
+			if (!NEGATABLE_BINARIES.has(tailToken) && !tailToken.endsWith("/grep")) return `${who} negates "${tailToken}" with \`!\`; only grep and test may be negated — a negated test runner or typecheck turns a failure into exit 0`;
+		}
+	}
+	for (const inner of scanned.substitutions) {
+		if (!inner.trim()) return `${who} has an empty substitution`;
+		const problem = validateGateCommand(inner, technique);
+		if (problem) return `${problem} (inside a $( ), <( ) or >( ) substitution)`;
+	}
+	return null;
+}
+
+//#endregion
+//#region ../shared/dist/runs/gate-verdict.js
+/**
+* Wrapper commands that run the command after them — ENG-5967 review R3-03.
+* `time yarn test`, `env CI=1 yarn test`, `nice -n 5 yarn test`,
+* `exec yarn test`, `timeout 60 yarn test`, `… | xargs yarn test` all RUN
+* `yarn test`; matched before stripping, a runner behind one was plain shell
+* output and a run that ran nothing passed.
+*/
+const WRAPPER_PREFIX_RE = /* @__PURE__ */ new RegExp("^(?:" + [
+	String.raw`timeout(?:\s+(?:-[sk]\s*\S+|--\S+|-[A-Za-z]+))*(?:\s+\d+(?:\.\d+)?[smhd]?)?`,
+	String.raw`time(?:\s+-p)?`,
+	String.raw`(?:(?:\/usr)?\/bin\/)?env(?:\s+(?:-i|-u\s*\S+|--ignore-environment|--unset=\S+|-))*`,
+	String.raw`command`,
+	String.raw`stdbuf(?:\s+-[ioe]\s*\S+)*`,
+	String.raw`nice(?:\s+(?:-n\s*-?\d+|-\d+|--adjustment=-?\d+))?`,
+	String.raw`exec(?:\s+-[cl]+)*`,
+	String.raw`nohup`,
+	String.raw`xargs(?:\s+(?:-[ILnPsdE]\s*\S+|--\S+|-[A-Za-z0-9]+))*`
+].join("|") + String.raw`)\s+`);
+/**
+* Any `test*` script counts, not a fixed alternation — `test:behavioral`,
+* `test:integration`, `test:cov` and future names must all be authoritative.
+* Also covers the workspace-dispatch forms (`yarn workspace <pkg> <script>`,
+* `yarn --cwd <dir> <script>`) and the npm/npx equivalents.
+*/
+const TEST_RUNNER_RE = new RegExp([
+	String.raw`^yarn(?:\s+(?:-s|--silent|--verbose|--offline|--frozen-lockfile|--immutable|workspace\s+\S+|--cwd\s+\S+))*\s+(?:run\s+)?(?:test(?::[\w-]+)?\b|vitest\b|jest\b)`,
+	String.raw`^yarn\s+workspaces\s+foreach(?:\s+(?:--(?:include|exclude|from|jobs)(?:=\S+|\s+[^-\s]\S*)|-j\s+[^-\s]\S*|-[A-Za-z]+|--[\w-]+(?:=\S+)?))*\s+(?:run\s+)?test(?::[\w-]+)?\b`,
+	String.raw`^npm\s+(?:run\s+)?test(?::[\w-]+)?\b`,
+	String.raw`^pnpm\s+(?:(?:--filter|-F|--dir|-C)\s+\S+\s+|(?:-r|--recursive)\s+)*(?:run\s+)?test(?::[\w-]+)?\b`,
+	String.raw`^pnpm\s+(?:exec\s+|dlx\s+)?(?:vitest|jest|playwright)\b`,
+	String.raw`^npx\s+(?:(?:--yes|-y|--no-install|--no|--quiet|-q|-p\s+\S+|--package(?:=|\s+)\S+)\s+)*(?:vitest|jest|playwright)\b`,
+	String.raw`^node\s+(?:-\S+\s+)*\S*\b(?:vitest|jest|playwright|mocha|_mocha)\b\S*(?:\s|$)`,
+	String.raw`^(?:(?:\.\/)?node_modules\/\.bin\/)?(?:vitest|jest|playwright)(?:\s|$)`,
+	String.raw`^(?:php\s+(?:-d\s*\S+\s+)*)?(?:\.\/)?(?:vendor\/bin\/|bin\/)?(?:phpunit|pest|paratest)(?:\s|$)`,
+	String.raw`^php\s+artisan\s+test(?:\s|$)`,
+	String.raw`^composer\s+(?:run(?:-script)?\s+)?test(?:[:-][\w-]+)?(?:\s|$)`,
+	String.raw`^(?:(?:uv|poetry|pipenv|hatch)\s+run\s+)?(?:python[\d.]*\s+-m\s+)?(?:py\.test|pytest)(?:\s|$)`,
+	String.raw`^go\s+test(?:\s|$)`,
+	String.raw`^cargo\s+(?:\+\S+\s+)?(?:test|nextest)(?:\s|$)`,
+	String.raw`^(?:\.\/)?mvnw?(?:\s+\S+)*?\s+(?:test|verify|integration-test)(?:\s|$)`,
+	String.raw`^(?:\.\/)?gradlew?(?:\s+\S+)*?\s+(?:\S*:)?(?:test|check)(?:\s|$)`,
+	String.raw`^dotnet\s+test(?:\s|$)`,
+	String.raw`^(?:bundle\s+exec\s+)?(?:bin\/)?rspec(?:\s|$)`,
+	String.raw`^(?:npx\s+(?:(?:--yes|-y|--no-install|--no|-p\s+\S+|--package(?:=|\s+)\S+)\s+)*|yarn\s+(?:run\s+)?|pnpm\s+(?:exec\s+)?|(?:\.\/)?node_modules\/\.bin\/)?mocha(?:\s|$)`,
+	String.raw`^(?:(?:\S*\/)?node|(?:(?:npx(?:\s+(?:--yes|-y))*|pnpm(?:\s+exec)?|yarn)\s+)?(?:\S*\/)?tsx)\s+(?:(?:--(?:import|require|loader|experimental-loader|test-reporter|test-reporter-destination|test-name-pattern|test-skip-pattern|test-concurrency|test-timeout|test-shard|test-isolation|test-global-setup|test-coverage-exclude|test-coverage-include|test-coverage-branches|test-coverage-functions|test-coverage-lines|env-file|env-file-if-exists|watch-path|disable-warning|experimental-config-file|tsconfig|conditions|input-type|title)|-r|-C)\s+[^-\s]\S*\s+|-\S+\s+)*?--test(?:\s|$)`,
+	String.raw`^(?:(?:uv|poetry|pipenv|hatch)\s+run\s+)?(?:\S*\/)?python[\d.]*\s+(?:-[WX]\s+[^-\s]\S*\s+|-[A-Za-z]+\s+)*-m\s+unittest(?:\s|$)`,
+	String.raw`^(?:(?:uv|poetry|pipenv|hatch)\s+run\s+)?(?:(?:\S*\/)?python[\d.]*\s+-m\s+)?coverage\s+run\s+(?:--(?:source|rcfile|include|omit|data-file|context|concurrency)\s+[^-\s]\S*\s+|-\S+\s+)*?-m\s+unittest(?:\s|$)`,
+	String.raw`^yarn\s+playwright\s+test(?:\s|$)`
+].join("|"));
+/**
+* The CLIs whose answer IS a gate's verdict. One list feeds both regexes
+* below, so a judge recognised on the non-zero branch is also read on exit 0.
+* ENG-7698: grok was missing, so a grok `{"result": "pass", …}` whose reason
+* said "fail closed" went to the generic shell scan and recorded a fail.
+* ENG-8219: derived from `JUDGE_PRESETS`, so no list here can drift from the
+* validator's or technique inference's again (claude was missing from all).
+*/
+const JUDGE_BINARIES = JUDGE_PRESET_BINARIES.map((b) => b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+/**
+* Semantic judges, matched anywhere in the segment — L4 templates invoke them
+* after a pipe (`echo "..." | agy -p`) or inside a wrapper
+* (`timeout 120 bash -c '... | agy ...'`), so an anchored test would miss them.
+*/
+const SEMANTIC_RUNNER_RE = /* @__PURE__ */ new RegExp(`(?:^|[\\s|;&(])(?:${JUDGE_BINARIES})(?:\\s|$)`);
+/**
+* A judge INVOKED in command position — `agy …`, `| agy …`, `$(agy …`,
+* `timeout 120 agy …`, `bash -c '… $(agy …) …'` — ENG-5967 B.
+*
+* Narrower than `isSemanticVerdictAuthoritative` on purpose. That one decides
+* what a NON-zero exit means, where a false positive only costs a soft-pass
+* nobody should have had. This one decides that an EXIT-0 step's verdict is
+* the judge's stated answer, overriding the expectation — so `grep gemini
+* src/x.ts`, which mentions a judge without running one, must not match.
+*
+* Review R3-07: decided on the command's STRUCTURE, never on its text. A
+* regex over the raw string matched `grep -Fc '$(agy --model' template.ts`
+* — single-quoted, so `$(` is literal and nothing runs — and a green
+* presence check on a judge template read `SEMANTIC_UNKNOWN`. Every command
+* the shell would run (each list command and pipe stage, every `$( … )` /
+* backtick body outside single quotes, the script of `bash|sh -c`, behind
+* any wrapper) is a candidate; a judge is one whose FIRST word is the binary.
+*/
+const JUDGE_COMMAND_RE = /* @__PURE__ */ new RegExp(`^(?:${JUDGE_BINARIES})(?:\\s|$)`);
+/**
+* Commands that build, install or tear down around a run, by shape — review
+* round 3 (CRA F-007). Taken for the run, a `yarn build` that printed `Done
+* in 2.1s` stood in for a silent `make test` beside it. Maven and Gradle
+* lifecycles (`mvn install`, `gradle build`) run the tests, so they are not
+* listed; and a segment a runner rule recognises is never one of these.
+*/
+const BUILD_OR_TEARDOWN_RE = new RegExp([
+	String.raw`^(?:yarn|npm|pnpm|bun)(?:\s+run)?\s+(?:build|install|ci|i|add|lint|format|typecheck|tsc|prepare|compile|codegen|generate)(?::[\w-]+)?(?:\s|$)`,
+	String.raw`^(?:yarn|pnpm|bun)$`,
+	String.raw`^(?:(?:\S*\/)?python[\d.]*\s+-m\s+)?pip[\d.]*\s+install(?:\s|$)`,
+	String.raw`^(?:\S*\/)?tsc(?:\s|$)`,
+	String.raw`^cargo\s+(?:\+\S+\s+)?(?:build|check|fetch)(?:\s|$)`,
+	String.raw`^go\s+(?:build|mod|generate|vet|install)(?:\s|$)`,
+	String.raw`^docker(?:-compose|\s+compose)?(?:\s+-\S+(?:\s+[^-\s]\S*)?)*\s+(?:build|up|down|stop|pull|start|rm|kill|restart)(?:\s|$)`,
+	String.raw`^(?:bundle|composer)\s+install(?:\s|$)`,
+	String.raw`^dotnet\s+(?:build|restore)(?:\s|$)`
+].join("|"));
+
+//#endregion
+//#region ../shared/dist/runs/judge-setup-prompt.js
+/** The three judge gate types, each of which needs a `judge` binding. */
+const JUDGE_GATE_KEYS = [
+	"spec_conformance",
+	"behavioral_intent",
+	"edge_case_coverage"
+];
+/** The placeholder the example config carries when no judge was found. */
+const PRESET_PLACEHOLDER = "<preset id>";
+/** The presets found, preset ids only, first occurrence kept. */
+function detectedPresets(detected) {
+	const found = [];
+	for (const name of detected) if (isJudgePresetId(name) && !found.includes(name)) found.push(name);
+	return found;
+}
+/** What was found, and what the agent must ask the user. */
+function choiceLines(found) {
+	const presets = JUDGE_PRESET_IDS.join(", ");
+	if (found.length === 0) return ["No judge CLI was found on this machine.", `Ask the user which judge to use: a preset (${presets}), installed on each member's machine, or a custom judge (step 4).`];
+	if (found.length === 1) return [`One judge CLI was found on this machine: ${found[0]}.`, `Ask the user to confirm ${found[0]} before you bind it. The presets are ${presets}.`];
+	return [`These judge CLIs were found on this machine: ${found.join(", ")}.`, "Ask the user which one to bind; do not pick for them."];
+}
+/**
+* The prompt the CLI prints when no judge is configured.
+*
+* @param input.detected the judge CLIs found on this machine
+*/
+function buildJudgeSetupPrompt(input) {
+	const found = detectedPresets(input.detected);
+	const config = `{ "judge": "${found[0] ?? PRESET_PLACEHOLDER}" }`;
+	return [
+		`Levr judge gates (${JUDGE_GATE_KEYS.join(", ")}) have no judge configured, so they are advisory and run nothing.`,
+		"",
+		...choiceLines(found),
+		"",
+		"Set up a judge:",
+		"1. Read the setup guide: search_help_docs(\"judge setup\").",
+		"2. Bind the chosen judge on each of the three judge gate keys. The config is nested under \"judge\"; a dotted top-level key is rejected:",
+		...JUDGE_GATE_KEYS.map((key) => `   manage_gate_bindings(action: "create", gate_key: "${key}", config: ${config})`),
+		`   If a binding for a key already exists, update it instead: manage_gate_bindings(action: "update", id: "<binding id>", config: ${config}).`,
+		"3. Add repo_key: \"<owner/repo>\" to bind a judge for one repository only; leave it out to bind it for the whole workspace. A repository binding overrides the workspace one.",
+		"4. A judge the presets do not cover is a custom judge: config: { \"judge\": { \"name\": \"my-judge\", \"argv\": [\"my-judge\", \"--strict\"], \"prompt_via\": \"stdin\", \"output\": \"text\" } }. It prints PASS or FAIL (or {\"result\": \"pass\"} JSON with \"output\": \"json\"). Registering one needs an Owner or Admin.",
+		"5. If judge gates do not apply here, switch each off instead: manage_gate_bindings(action: \"create\", gate_key: \"<judge gate key>\", enabled: false).",
+		"",
+		"Or run `levr gates setup` in the repository: it detects the judges and writes the bindings after the user confirms."
+	].join("\n");
+}
+
+//#endregion
+//#region ../shared/dist/runs/gate-binding-config.js
+/**
+* The binding param defaults each RESOLVER reads, from
+* `params.<the binding's gate key>`. A param not listed here would be stored
+* and ignored, so it is refused at write.
+*/
+const BINDING_PARAM_DEFAULTS = {
+	ast_pattern: ["language"],
+	symbol_referenced: ["language"]
+};
+const CONFIG_ROOTS = new Set([
+	"cmd",
+	"impl",
+	"params",
+	"judge"
+]);
+/** The keys a custom judge object may carry; anything else is refused. */
+const CUSTOM_JUDGE_KEYS = new Set([
+	"name",
+	"argv",
+	"prompt_via",
+	"output"
+]);
+/** A malformed binding config. `path` names the offending node. */
+var GateBindingConfigError = class extends Error {
+	path;
+	constructor(message, path = null) {
+		super(message);
+		this.name = "GateBindingConfigError";
+		this.path = path;
+	}
+};
+/** An object with an `argv` array is one slot leaf, not a path-prefix map. */
+function isArgvLeaf(value) {
+	if (value == null || typeof value !== "object" || Array.isArray(value)) return false;
+	return Array.isArray(value.argv);
+}
+/** `{ legacy: command }` is one slot leaf. */
+function isLegacyLeaf(value) {
+	if (value == null || typeof value !== "object" || Array.isArray(value)) return false;
+	return typeof value.legacy === "string";
+}
+function isPlainObject$1(value) {
+	return value != null && typeof value === "object" && !Array.isArray(value);
+}
+/**
+* Throws `GateBindingConfigError` when `config` is not a well-formed gate
+* binding config. `null`/`undefined` is "no config" and passes.
+*/
+function assertWellFormedGateBindingConfig(config, gateKey, resolver) {
+	if (config == null) return;
+	if (!isPlainObject$1(config)) throw new GateBindingConfigError("config must be a JSON object.");
+	for (const root of Object.keys(config)) {
+		if (CONFIG_ROOTS.has(root)) continue;
+		const dotted = /^(cmd|impl|params|judge)\./.exec(root);
+		throw new GateBindingConfigError(dotted ? `config key "${root}" is the flat form; nest it instead ({ "${dotted[1]}": { ... } }). A flat key is never read.` : `config key "${root}" is not a binding root; use cmd, impl, params or judge.`, root);
+	}
+	for (const slotRoot of ["cmd", "impl"]) {
+		const tree = config[slotRoot];
+		if (tree === void 0) continue;
+		assertSlotTree(tree, slotRoot);
+	}
+	if (config.params !== void 0) assertParamsRoot(config.params, gateKey, resolver);
+	if (config.judge !== void 0) assertJudgeRoot(config.judge);
+}
+function assertSlotTree(node, pathSoFar) {
+	if (typeof node === "string") {
+		if (node.trim().length === 0) throw new GateBindingConfigError(`config slot "${pathSoFar}" is a blank string — an empty command is treated as unbound; omit it instead.`, pathSoFar);
+		return;
+	}
+	if (isArgvLeaf(node)) {
+		assertArgvLeaf(node, pathSoFar);
+		return;
+	}
+	if (isLegacyLeaf(node)) {
+		assertLegacyLeaf(node, pathSoFar);
+		return;
+	}
+	if (isPlainObject$1(node)) {
+		for (const [key, child] of Object.entries(node)) {
+			if (key === "argv" || key === "cwd") throw new GateBindingConfigError(`config slot "${pathSoFar}.${key}" uses "${key}" as a path-prefix key. Those names are argv-leaf fields; put the command in { cwd, argv }.`, `${pathSoFar}.${key}`);
+			assertSlotTree(child, `${pathSoFar}.${key}`);
+		}
+		return;
+	}
+	throw new GateBindingConfigError(`config slot "${pathSoFar}" must be a command string, an argv leaf { cwd, argv }, a { legacy } command, or a nested object of them (got ${Array.isArray(node) ? "array" : typeof node}).`, pathSoFar);
+}
+function assertArgvLeaf(node, pathSoFar) {
+	const extra = Object.keys(node).filter((key) => key !== "cwd" && key !== "argv");
+	if (extra.length > 0) throw new GateBindingConfigError(`config slot "${pathSoFar}" is an argv leaf with extra keys (${extra.join(", ")}). An argv leaf is only { cwd, argv }.`, pathSoFar);
+	if (node.argv.length === 0) throw new GateBindingConfigError(`config slot "${pathSoFar}" has an empty argv — an empty command is treated as unbound; omit it instead.`, pathSoFar);
+	if (node.argv.some((element) => typeof element !== "string" || element.length === 0)) throw new GateBindingConfigError(`config slot "${pathSoFar}" argv must be non-empty strings.`, pathSoFar);
+	if (node.cwd !== void 0 && (typeof node.cwd !== "string" || node.cwd.length === 0)) throw new GateBindingConfigError(`config slot "${pathSoFar}" cwd must be a non-empty string.`, pathSoFar);
+}
+function assertLegacyLeaf(node, pathSoFar) {
+	const extra = Object.keys(node).filter((key) => key !== "legacy");
+	if (extra.length > 0) throw new GateBindingConfigError(`config slot "${pathSoFar}" is a legacy leaf with extra keys (${extra.join(", ")}).`, pathSoFar);
+	if (node.legacy.trim().length === 0) throw new GateBindingConfigError(`config slot "${pathSoFar}" is a blank legacy command — an empty command is treated as unbound; omit it instead.`, pathSoFar);
+}
+/**
+* `params.<gate_key>.<param>`: exactly two levels of objects, then a
+* non-blank string. No slot maps and no argv leaves — a param default is a
+* value the resolver substitutes, never a command.
+*/
+function assertParamsRoot(node, bindingGateKey, resolver) {
+	if (!isPlainObject$1(node)) throw new GateBindingConfigError(`config "params" must be an object of gate keys (got ${Array.isArray(node) ? "array" : typeof node}).`, "params");
+	for (const [gateKey, perGate] of Object.entries(node)) {
+		const gatePath = `params.${gateKey}`;
+		if (bindingGateKey !== void 0 && gateKey !== bindingGateKey) throw new GateBindingConfigError(`config "${gatePath}" is on a "${bindingGateKey}" binding; params for "${gateKey}" are read only from a "${gateKey}" binding.`, gatePath);
+		const readable = resolver === void 0 ? BINDING_PARAM_DEFAULTS[gateKey] : resolver ? BINDING_PARAM_DEFAULTS[resolver] : void 0;
+		if (!readable) throw new GateBindingConfigError(`config "${gatePath}": "${gateKey}" reads no binding params (resolvers that do: ${Object.keys(BINDING_PARAM_DEFAULTS).join(", ")}).`, gatePath);
+		if (!isPlainObject$1(perGate)) throw new GateBindingConfigError(`config "${gatePath}" must be an object of param defaults (got ${Array.isArray(perGate) ? "array" : typeof perGate}).`, gatePath);
+		for (const [param, value] of Object.entries(perGate)) {
+			const paramPath = `${gatePath}.${param}`;
+			if (!readable.includes(param)) throw new GateBindingConfigError(`config "${paramPath}": "${gateKey}" reads only ${readable.join(", ")} from a binding.`, paramPath);
+			if (typeof value !== "string") throw new GateBindingConfigError(`config "${paramPath}" must be a string (got ${Array.isArray(value) ? "array" : value === null ? "null" : typeof value}).`, paramPath);
+			if (value.trim().length === 0) throw new GateBindingConfigError(`config "${paramPath}" is a blank string; omit it instead.`, paramPath);
+		}
+	}
+}
+/**
+* `config.judge`: a preset id, or a custom judge
+* `{ name, argv: string[], prompt_via: "stdin" | "arg", output?: "text" | "json" }`.
+*
+* There is NO binary allowlist and no check that `argv[0]` exists: the
+* backender's environment says nothing about the machine a member runs the
+* gate on, and registering a judge is an Owner/Admin write (CASL `gate-impl`),
+* the same trust model as a `cmd` slot. What IS refused is an argv that hands
+* an interpreter inline code (`isInlineCodeArgv`), a NUL or line break in an
+* element (the renderer ships the argv one element per line), and a name that
+* would pass for a preset.
+*/
+function assertJudgeRoot(node) {
+	if (typeof node === "string") {
+		if (!isJudgePresetId(node)) throw new GateBindingConfigError(`config "judge" names no preset: ${JSON.stringify(node)}. Use one of ${JUDGE_PRESET_IDS.join(", ")}, or a custom judge { name, argv, prompt_via, output }.`, "judge");
+		return;
+	}
+	if (!isPlainObject$1(node)) throw new GateBindingConfigError(`config "judge" must be a preset id or a custom judge object { name, argv, prompt_via, output } (got ${Array.isArray(node) ? "array" : node === null ? "null" : typeof node}).`, "judge");
+	const extra = Object.keys(node).filter((key) => !CUSTOM_JUDGE_KEYS.has(key));
+	if (extra.length > 0) throw new GateBindingConfigError(`config "judge" has keys a custom judge does not read (${extra.join(", ")}); a custom judge is only { name, argv, prompt_via, output }.`, "judge");
+	const { name, argv, prompt_via: promptVia, output } = node;
+	if (typeof name !== "string") throw new GateBindingConfigError("config \"judge.name\" must be a string.", "judge.name");
+	const nameRefusal = customJudgeNameRefusal(name);
+	if (nameRefusal) throw new GateBindingConfigError(`config "judge.name": ${nameRefusal}.`, "judge.name");
+	if (!Array.isArray(argv) || argv.length === 0) throw new GateBindingConfigError("config \"judge.argv\" must be a non-empty array of strings: the judge program, then its arguments.", "judge.argv");
+	for (const element of argv) {
+		if (typeof element !== "string" || element.length === 0) throw new GateBindingConfigError("config \"judge.argv\" elements must be non-empty strings.", "judge.argv");
+		if (/[\0\n\r]/.test(element)) throw new GateBindingConfigError(`config "judge.argv" element ${JSON.stringify(element)} contains a NUL or a line break; each element must be one line.`, "judge.argv");
+	}
+	if (isInlineCodeArgv(argv)) throw new GateBindingConfigError(`config "judge.argv" (${argv.join(" ")}) hands an interpreter inline code, or no script at all. A judge must be a program or a script file: put the code in a file and name it.`, "judge.argv");
+	if (promptVia !== "stdin" && promptVia !== "arg") throw new GateBindingConfigError("config \"judge.prompt_via\" must be \"stdin\" or \"arg\".", "judge.prompt_via");
+	if (output !== void 0 && output !== "text" && output !== "json") throw new GateBindingConfigError("config \"judge.output\" must be \"text\" or \"json\".", "judge.output");
+}
+/** Shells: inline code is a short-flag cluster containing `c`. */
+const SHELLS = new Set([
+	"sh",
+	"bash",
+	"zsh",
+	"dash",
+	"ksh",
+	"fish"
+]);
+const NODE_LIKE = new Set([
+	"node",
+	"nodejs",
+	"bun"
+]);
+const POWERSHELL = new Set(["pwsh", "powershell"]);
+const OTHER_INTERPRETERS = new Set([
+	"deno",
+	"perl",
+	"ruby",
+	"php",
+	"lua"
+]);
+const PYTHON = /^python(\d+(\.\d+)?)?$/;
+/** Launchers that run the command after their own options. */
+const LAUNCHERS = new Set([
+	"env",
+	"timeout",
+	"nice",
+	"nohup",
+	"command",
+	"exec"
+]);
+function basenameOf(element) {
+	const parts = element.split("/");
+	return parts[parts.length - 1] ?? element;
+}
+function isInterpreter(name) {
+	return SHELLS.has(name) || NODE_LIKE.has(name) || POWERSHELL.has(name) || OTHER_INTERPRETERS.has(name) || PYTHON.test(name);
+}
+/** A short-option element: `-x`, `-abc`, never `--long` or a bare `-`. */
+function shortCluster(element) {
+	return element.length > 1 && element[0] === "-" && element[1] !== "-" ? element.slice(1) : null;
+}
+/**
+* The letters of a short cluster up to the first option that takes a value
+* (its value is attached, so the rest of the cluster is data, not flags).
+*/
+function flagLetters(cluster, takesValue) {
+	let out = "";
+	for (const ch of cluster) {
+		out += ch;
+		if (takesValue.includes(ch)) break;
+	}
+	return out;
+}
+/** `env -S` / `--split-string`, separate, attached or clustered. */
+function isEnvSplitString(element) {
+	if (element === "--split-string" || element.startsWith("--split-string=")) return true;
+	const cluster = shortCluster(element);
+	if (!cluster) return false;
+	return flagLetters(cluster, "uC").includes("S");
+}
+/**
+* Index of the interpreter (or program) after any launcher prefix, or -1
+* when the argv is only a launcher. Throws `'split-string'` for `env -S`.
+*/
+function programIndex(argv) {
+	let i = 0;
+	while (i < argv.length && LAUNCHERS.has(basenameOf(argv[i]))) {
+		const launcher = basenameOf(argv[i]);
+		i++;
+		if (launcher === "env") while (i < argv.length) {
+			const element = argv[i];
+			if (isEnvSplitString(element)) return "split-string";
+			if (element === "--") {
+				i++;
+				break;
+			}
+			if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(element)) {
+				i++;
+				continue;
+			}
+			if (!element.startsWith("-")) break;
+			i += element === "-u" || element === "-C" ? 2 : 1;
+		}
+		else if (launcher === "timeout") {
+			while (i < argv.length && argv[i].startsWith("-")) {
+				const element = argv[i];
+				i += element === "-s" || element === "-k" ? 2 : 1;
+				if (element === "--") break;
+			}
+			i++;
+		} else if (launcher === "nice") while (i < argv.length && argv[i].startsWith("-")) i += argv[i] === "-n" ? 2 : 1;
+		else if (launcher === "command" || launcher === "exec") while (i < argv.length && argv[i].startsWith("-")) i += argv[i] === "-a" ? 2 : 1;
+	}
+	return i < argv.length ? i : -1;
+}
+/** Does this interpreter option carry inline code? */
+function optionCarriesCode(interpreter, element) {
+	const cluster = shortCluster(element);
+	if (SHELLS.has(interpreter)) return cluster != null && /^[A-Za-z]+$/.test(cluster) && cluster.includes("c");
+	if (PYTHON.test(interpreter)) return cluster != null && flagLetters(cluster, "WXm").includes("c");
+	if (interpreter === "perl") return cluster != null && /[eE]/.test(flagLetters(cluster, "IMmxid0CDlF"));
+	if (interpreter === "ruby") return cluster != null && flagLetters(cluster, "IrCExFWKT0").includes("e");
+	if (NODE_LIKE.has(interpreter)) {
+		if (element === "--eval" || element === "--print" || element.startsWith("--eval=") || element.startsWith("--print=")) return true;
+		if (cluster == null) return false;
+		return /^[ep]/.test(cluster) || /^[a-z]+$/.test(cluster) && /[ep]/.test(cluster);
+	}
+	if (interpreter === "php") return cluster != null && cluster.startsWith("r");
+	if (interpreter === "lua") return cluster != null && cluster.startsWith("e");
+	if (POWERSHELL.has(interpreter)) {
+		const option = element.replace(/^-{1,2}/, "").toLowerCase();
+		if (option.length === 0 || option === element.toLowerCase()) return false;
+		return "command".startsWith(option) || "encodedcommand".startsWith(option) || option === "ec";
+	}
+	return false;
+}
+/**
+* Does `argv` hand an interpreter inline code, or no script at all?
+*
+* Best-effort, by design (plan ENG-8199 D2, Review R4 C12): it reads ONLY the
+* interpreter's own options.
+*
+* 1. The interpreter is `argv[0]`, or the first element after a launcher
+*    prefix (`env` with its options and `VAR=value` assignments, `timeout`
+*    with its options and duration, `nice -n N`, `nohup`, `command`, `exec`).
+*    An element that is not a known interpreter (`my-judge`, `codex`) has
+*    nothing to check.
+* 2. Its options are the elements after it that start with `-`, up to the
+*    first that does not (the script path) or `--`. The script's own
+*    arguments are never read: `python3 judge.py -c config.yaml` is fine.
+* 3. Inline code among those options is refused, separate, attached or
+*    clustered (`bash -lc`, `python3 -Ic`, `python3 -cimport os`, `perl -we`,
+*    `node --eval=…`, `deno eval`, `php -r`, `lua -e`, `pwsh -Command`).
+* 4. `env -S` / `--split-string` is refused: one argument becomes a command.
+* 5. A bare interpreter (no script operand, or `-` as the script) is refused:
+*    with `prompt_via: "stdin"` it would run the prompt, which embeds the
+*    judged file, as code.
+*
+* A runner that takes code without a flag (`awk 'BEGIN{…}'`) gets through,
+* and so does an option that takes a value before `-c` (`python3 -X dev -c`
+* stops at `dev`). Owner/Admin registration is the real approval.
+*/
+function isInlineCodeArgv(argv) {
+	const index = programIndex(argv);
+	if (index === "split-string") return true;
+	if (index < 0) return false;
+	const interpreter = basenameOf(argv[index]);
+	if (!isInterpreter(interpreter)) return false;
+	let j = index + 1;
+	while (j < argv.length) {
+		const element = argv[j];
+		if (element === "-") return true;
+		if (element === "--") {
+			j++;
+			break;
+		}
+		if (!element.startsWith("-")) break;
+		if (optionCarriesCode(interpreter, element)) return true;
+		j++;
+	}
+	if (j >= argv.length || argv[j] === "-") return true;
+	if (interpreter === "deno" && argv[j] === "eval") return true;
+	return false;
+}
+
+//#endregion
+//#region ../shared/dist/runs/binding-command-migration.js
+/** An object with an `argv` array is one slot leaf, not a path-prefix map. */
+function isArgvSlotValue(value) {
+	if (value == null || typeof value !== "object" || Array.isArray(value)) return false;
+	return Array.isArray(value.argv);
+}
+/** `{ legacy: command }` is one slot leaf. */
+function isLegacySlotValue(value) {
+	if (value == null || typeof value !== "object" || Array.isArray(value)) return false;
+	return typeof value.legacy === "string";
+}
+/** Shell text of a resolved slot, placeholders left unquoted. */
+function resolvedSlotText(slot) {
+	if (slot.kind === "legacy") return slot.command ?? "";
+	const argv = (slot.argv ?? []).join(" ");
+	if (!slot.cwd || slot.cwd === ".") return argv;
+	return `cd ${slot.cwd} && ${argv}`;
+}
+
+//#endregion
+//#region ../shared/dist/runs/gate-command-authoring.js
+/**
+* Write-time validation of a rendered gate command (ENG-6176).
+*
+* Pure domain: no NestJS and no database. Callers turn a refusal into a
+* 400 `GATE_COMMAND_REFUSED` and write nothing.
+*
+* `fail_closed`: a command the validator refuses is never written, deployed,
+* or issued. An unknown placeholder type gets a generic sample and is
+* validated. It is never skipped.
+*/
+const GATE_COMMAND_REFUSED = "GATE_COMMAND_REFUSED";
+const PLACEHOLDER = /\{([^{}]+)\}/g;
+/**
+* One sample per `{placeholder}` in `template`.
+*
+* Named samples win over the declared type: `{workspace_dir}` is
+* `apps/sample` and `{test_file}` is `src/sample.spec.ts`. A declared
+* `path` is `src/sample.ts` and a declared `string` is `sample`. Anything
+* else, including a placeholder with no declaration, is the generic
+* `sample` (`fail_closed`).
+*/
+function samplePlaceholderValues(template, paramSchema = {}) {
+	const values = {};
+	for (const match of template.matchAll(PLACEHOLDER)) {
+		const name = match[1];
+		if (!name || values[name] !== void 0) continue;
+		values[name] = sampleFor(name, paramSchema[name]?.type);
+	}
+	return values;
+}
+function sampleFor(name, declaredType) {
+	if (name === "workspace_dir") return "apps/sample";
+	if (name === "test_file") return "src/sample.spec.ts";
+	if (declaredType === "path") return "src/sample.ts";
+	if (declaredType === "string") return "sample";
+	return "sample";
+}
+function renderGateCommandTemplate(template, values) {
+	return template.replace(PLACEHOLDER, (whole, name) => Object.prototype.hasOwnProperty.call(values, name) ? values[name] : whole);
+}
+/**
+* Every command under `config.cmd` and `config.impl`.
+*
+* A path-prefix map is a command per prefix. An argv leaf is one command:
+* its unquoted `cd <cwd> && argv` text, so the allowlist sees the same
+* shape a string slot used to store. A `{ legacy }` leaf is that string.
+* The slot key is the path (`cmd.typecheck`, or `cmd.test.unit.scripts/`
+* for a map). `sandbox_policy` is not a command template.
+*/
+function commandSlotsInBindingConfig(config) {
+	if (config == null || typeof config !== "object" || Array.isArray(config)) return [];
+	const record = config;
+	const slots = [];
+	collectCommandStrings(record.cmd, "cmd", slots);
+	collectCommandStrings(record.impl, "impl", slots);
+	return slots;
+}
+/**
+* `resolver_template.template`, when the payload sets one.
+* Slot key is `resolver_template.template`. Declared param types drive samples.
+*/
+function commandSlotInResolverTemplate(resolverTemplate) {
+	if (resolverTemplate == null || typeof resolverTemplate !== "object" || Array.isArray(resolverTemplate)) return null;
+	const record = resolverTemplate;
+	if (typeof record.template !== "string") return null;
+	const template = record.template.trim();
+	if (template.length === 0) return null;
+	return {
+		slotKey: "resolver_template.template",
+		template,
+		paramSchema: paramSchemaOf(record.param_schema)
+	};
+}
+/**
+* Every command a `resolver_template` carries: its shell `template` and an
+* argv `op_template` (ENG-6180 review). The op_template is what the renderer
+* issues, so it is validated at write time exactly like the template string,
+* as its unquoted `cd <cwd> && argv` text. Slot keys are
+* `resolver_template.template` and `resolver_template.op_template`.
+*/
+function commandSlotsInResolverTemplate(resolverTemplate) {
+	const slots = [];
+	const templateSlot = commandSlotInResolverTemplate(resolverTemplate);
+	if (templateSlot) slots.push(templateSlot);
+	if (resolverTemplate == null || typeof resolverTemplate !== "object" || Array.isArray(resolverTemplate)) return slots;
+	const record = resolverTemplate;
+	const op = record.op_template;
+	if (op == null || typeof op !== "object" || Array.isArray(op)) return slots;
+	const opRecord = op;
+	if (opRecord.op !== "argv") return slots;
+	const argv = opRecord.argv;
+	if (!Array.isArray(argv) || argv.length === 0 || argv.some((element) => typeof element !== "string" || element.length === 0)) {
+		slots.push({
+			slotKey: "resolver_template.op_template",
+			template: "",
+			paramSchema: paramSchemaOf(record.param_schema)
+		});
+		return slots;
+	}
+	const cwdRaw = opRecord.cwd;
+	const cwd = typeof cwdRaw === "string" && cwdRaw.length > 0 ? cwdRaw : ".";
+	slots.push({
+		slotKey: "resolver_template.op_template",
+		template: resolvedSlotText({
+			kind: "argv",
+			cwd,
+			argv
+		}),
+		paramSchema: paramSchemaOf(record.param_schema)
+	});
+	return slots;
+}
+function collectCommandStrings(value, path, slots) {
+	if (typeof value === "string") {
+		const template = value.trim();
+		if (template.length > 0) slots.push({
+			slotKey: path,
+			template
+		});
+		return;
+	}
+	if (isArgvSlotValue(value)) {
+		if (value.argv.length === 0 || value.argv.some((element) => typeof element !== "string")) return;
+		const cwdRaw = value.cwd;
+		const template = resolvedSlotText({
+			kind: "argv",
+			cwd: typeof cwdRaw === "string" && cwdRaw.length > 0 ? cwdRaw : ".",
+			argv: value.argv
+		});
+		if (template.trim().length > 0) slots.push({
+			slotKey: path,
+			template
+		});
+		return;
+	}
+	if (isLegacySlotValue(value)) {
+		if (value.legacy.trim().length > 0) slots.push({
+			slotKey: path,
+			template: value.legacy
+		});
+		return;
+	}
+	if (value != null && typeof value === "object" && !Array.isArray(value)) for (const [key, child] of Object.entries(value)) collectCommandStrings(child, `${path}.${key}`, slots);
+}
+function paramSchemaOf(value) {
+	if (value == null || typeof value !== "object" || Array.isArray(value)) return;
+	const schema = {};
+	for (const [key, decl] of Object.entries(value)) if (decl != null && typeof decl === "object" && !Array.isArray(decl)) {
+		const type = decl.type;
+		schema[key] = { type: typeof type === "string" ? type : void 0 };
+	}
+	return schema;
+}
+/**
+* Render `template` with real values when they were given, otherwise with
+* typed samples, then run `validate`. A refusal names the slot, the rendered
+* command, and the validator's reason.
+*/
+function validateRenderedSlotCommand(input) {
+	const values = input.paramValues ?? samplePlaceholderValues(input.template, input.paramSchema ?? {});
+	const rendered = renderGateCommandTemplate(input.template, values);
+	const reason = rendered.trim().length === 0 ? "fail_closed: the command is empty" : input.validate(rendered);
+	if (reason == null) return {
+		ok: true,
+		rendered
+	};
+	return {
+		ok: false,
+		code: GATE_COMMAND_REFUSED,
+		rendered,
+		reason: `${GATE_COMMAND_REFUSED}: slot ${input.slotKey} rendered \`${rendered}\`: ${reason}`
+	};
+}
+
+//#endregion
+//#region ../shared/dist/runs/verification-technique.js
+/**
+* The six techniques, in DISPLAY order. The order is not a ranking: a
+* Semantic check is not "deeper" than a Presence check, and no code may treat
+* a later entry as stronger than an earlier one.
+*/
+const VERIFICATION_TECHNIQUES = [
+	"presence",
+	"pattern",
+	"structure",
+	"semantic",
+	"execution",
+	"state"
+];
+const VerificationTechniqueSchema = z.enum(VERIFICATION_TECHNIQUES);
+function isVerificationTechnique(value) {
+	return typeof value === "string" && VERIFICATION_TECHNIQUES.includes(value);
+}
+/**
+* Profiles as explicit technique sets. `full` is the only profile that
+* verifies everything; `quick` and `standard` are fix-loop aids. A gate's
+* profile follows its DEFINITION's technique, never a step's label.
+*/
+const PROFILE_TECHNIQUES = {
+	quick: new Set([
+		"presence",
+		"pattern",
+		"state"
+	]),
+	standard: new Set([
+		"presence",
+		"pattern",
+		"state",
+		"structure"
+	]),
+	full: new Set(VERIFICATION_TECHNIQUES)
+};
+
+//#endregion
+//#region ../shared/dist/runs/gate-bindings-payload.js
+/** A file, binding, config or command the import refuses. */
+var PayloadError = class extends Error {
+	constructor(message) {
+		super(message);
+		this.name = "PayloadError";
+	}
+};
+const TOP_KEYS = new Set([
+	"description",
+	"definitions",
+	"bindings"
+]);
+const BINDING_KEYS = new Set([
+	"gate_key",
+	"repo_key",
+	"path_prefix",
+	"enabled",
+	"config",
+	"note",
+	"delete"
+]);
+const DELETE_ENTRY_KEYS = new Set([
+	"gate_key",
+	"repo_key",
+	"path_prefix",
+	"note",
+	"delete"
+]);
+const DEFINITION_KEYS = new Set([
+	"key",
+	"name",
+	"description",
+	"technique",
+	"category",
+	"resolver_template"
+]);
+const DEFINITION_KEY_RE = /^[a-z0-9_]+$/;
+function isPlainObject(value) {
+	return value != null && typeof value === "object" && !Array.isArray(value);
+}
+function optionalTierValue(entry, field, at) {
+	const value = entry[field];
+	if (value === void 0 || value === null) return null;
+	if (typeof value !== "string" || value.trim() === "") throw new PayloadError(`${at}.${field} must be a non-empty string or null`);
+	return value;
+}
+/** The key a binding's tier is matched on. */
+function bindingTierKey(b) {
+	return JSON.stringify([
+		b.gate_key,
+		b.repo_key ?? null,
+		b.path_prefix ?? null
+	]);
+}
+function parseBinding(entry, at) {
+	if (!isPlainObject(entry)) throw new PayloadError(`${at} is not an object`);
+	for (const key of Object.keys(entry)) if (!BINDING_KEYS.has(key)) throw new PayloadError(`${at}: unknown field "${key}"`);
+	const gateKey = entry.gate_key;
+	if (typeof gateKey !== "string" || gateKey.trim() === "") throw new PayloadError(`${at}.gate_key must be a non-empty string`);
+	if (entry.note !== void 0 && typeof entry.note !== "string") throw new PayloadError(`${at}.note must be a string`);
+	if (entry.delete !== void 0 && typeof entry.delete !== "boolean") throw new PayloadError(`${at}.delete must be a boolean`);
+	const tier = {
+		gate_key: gateKey,
+		repo_key: optionalTierValue(entry, "repo_key", at),
+		path_prefix: optionalTierValue(entry, "path_prefix", at)
+	};
+	const note = entry.note ? { note: entry.note } : {};
+	if (entry.delete === true) {
+		for (const key of Object.keys(entry)) if (!DELETE_ENTRY_KEYS.has(key)) throw new PayloadError(`${at}: a "delete": true entry names the binding to delete and nothing else; remove "${key}"`);
+		return {
+			...tier,
+			enabled: false,
+			config: {},
+			...note,
+			delete: true
+		};
+	}
+	const config = entry.config ?? {};
+	if (!isPlainObject(config)) throw new PayloadError(`${at}.config must be an object`);
+	if (entry.enabled !== void 0 && typeof entry.enabled !== "boolean") throw new PayloadError(`${at}.enabled must be a boolean`);
+	return {
+		...tier,
+		enabled: entry.enabled !== false,
+		config,
+		...note
+	};
+}
+function parseDefinition(entry, at) {
+	if (!isPlainObject(entry)) throw new PayloadError(`${at} is not an object`);
+	if ("delete" in entry) throw new PayloadError(`${at}: a definition cannot be deleted by import (that removes every gate of the type); delete it on purpose instead`);
+	for (const key$1 of Object.keys(entry)) if (!DEFINITION_KEYS.has(key$1)) throw new PayloadError(`${at}: unknown field "${key$1}"`);
+	const key = entry.key;
+	if (typeof key !== "string" || !DEFINITION_KEY_RE.test(key)) throw new PayloadError(`${at}.key must be lowercase snake_case`);
+	if (typeof entry.name !== "string" || entry.name.trim() === "") throw new PayloadError(`${at}.name must be a non-empty string`);
+	for (const field of ["description", "category"]) {
+		const v = entry[field];
+		if (v !== void 0 && v !== null && typeof v !== "string") throw new PayloadError(`${at}.${field} must be a string or null`);
+	}
+	if (entry.technique !== void 0 && !isVerificationTechnique(entry.technique)) throw new PayloadError(`${at}.technique "${String(entry.technique)}" is not a verification technique`);
+	const template = entry.resolver_template;
+	if (template !== void 0 && template !== null && !isPlainObject(template)) throw new PayloadError(`${at}.resolver_template must be an object or null`);
+	const def = {
+		key,
+		name: entry.name
+	};
+	if (entry.description !== void 0) def.description = entry.description;
+	if (entry.technique !== void 0) def.technique = entry.technique;
+	if (entry.category !== void 0) def.category = entry.category;
+	if (template !== void 0) def.resolver_template = template;
+	return def;
+}
+/** Parse and shape-check a gate configuration file. Throws `PayloadError`. */
+function parsePayload(raw) {
+	if (!isPlainObject(raw) || !Array.isArray(raw.bindings)) throw new PayloadError("the file must be an object with a \"bindings\" array");
+	for (const key of Object.keys(raw)) if (!TOP_KEYS.has(key)) throw new PayloadError(`unknown field "${key}"`);
+	if (raw.description !== void 0 && typeof raw.description !== "string") throw new PayloadError("\"description\" must be a string");
+	if (raw.definitions !== void 0 && !Array.isArray(raw.definitions)) throw new PayloadError("\"definitions\" must be an array");
+	const seenTier = /* @__PURE__ */ new Set();
+	const bindings = raw.bindings.map((entry, i) => {
+		const b = parseBinding(entry, `bindings[${i}]`);
+		const tier = bindingTierKey(b);
+		if (seenTier.has(tier)) throw new PayloadError(`bindings[${i}]: the tier (gate_key "${b.gate_key}", repo_key ${b.repo_key ?? "null"}, path_prefix ${b.path_prefix ?? "null"}) appears twice`);
+		seenTier.add(tier);
+		return b;
+	});
+	const seenKey = /* @__PURE__ */ new Set();
+	const definitions = (raw.definitions ?? []).map((entry, i) => {
+		const d = parseDefinition(entry, `definitions[${i}]`);
+		if (seenKey.has(d.key)) throw new PayloadError(`definitions[${i}]: key "${d.key}" appears twice`);
+		seenKey.add(d.key);
+		return d;
+	});
+	return {
+		...typeof raw.description === "string" ? { description: raw.description } : {},
+		definitions,
+		bindings
+	};
+}
+/** Every command a config issues, with the slot path it sits at. */
+function commandLeaves(config) {
+	const out = [];
+	const walk = (node, at, key) => {
+		if (typeof node === "string") {
+			out.push({
+				path: at,
+				command: node,
+				...key ? { key } : {}
+			});
+			return;
+		}
+		if (!isPlainObject(node)) return;
+		if (Array.isArray(node.argv)) {
+			out.push({
+				path: at,
+				command: node.argv.map(String).join(" "),
+				...key ? { key } : {}
+			});
+			return;
+		}
+		if (typeof node.legacy === "string") {
+			out.push({
+				path: at,
+				command: node.legacy,
+				...key ? { key } : {}
+			});
+			return;
+		}
+		for (const [k, child] of Object.entries(node)) walk(child, `${at}.${k}`, k);
+	};
+	for (const root of ["cmd", "impl"]) if (config[root] !== void 0) walk(config[root], root);
+	return out;
+}
+/**
+* Every check that needs no network or database: each binding config's shape
+* and each command slot, rendered with typed samples and run through the
+* gate command allowlist exactly as the server checks it at write time; and
+* each definition's resolver template commands. Throws `PayloadError` naming
+* the entry. Delete entries carry no config and are not checked.
+*
+* Which `params` a binding may carry depends on its definition's resolver.
+* Locally that is known for a definition in the file and for the system gate
+* types (the key is the resolver); for any other key the `params` subtree is
+* left to the server, which checks every row against the stored definition,
+* so a valid file is never refused here. The server passes
+* `{ configShape: false }` and runs that per-row check itself.
+*/
+function validatePayload(payload, opts = {}) {
+	const fileResolver = new Map(payload.definitions.map((d) => {
+		const r = d.resolver_template?.resolver;
+		return [d.key, typeof r === "string" ? r : null];
+	}));
+	for (const def of payload.definitions) for (const slot of commandSlotsInResolverTemplate(def.resolver_template ?? null)) {
+		const result = validateRenderedSlotCommand({
+			slotKey: slot.slotKey,
+			template: slot.template,
+			paramSchema: slot.paramSchema,
+			validate: validateGateCommand
+		});
+		if (!result.ok) throw new PayloadError(`definition ${def.key}: ${result.reason}`);
+	}
+	for (const binding of payload.bindings) {
+		if (binding.delete) continue;
+		try {
+			if (opts.configShape !== false) {
+				const key = binding.gate_key;
+				if (fileResolver.has(key)) assertWellFormedGateBindingConfig(binding.config, key, fileResolver.get(key));
+				else if (Object.prototype.hasOwnProperty.call(BINDING_PARAM_DEFAULTS, key)) assertWellFormedGateBindingConfig(binding.config, key);
+				else {
+					const { params: _left,...rest } = binding.config;
+					assertWellFormedGateBindingConfig(rest, key);
+				}
+			}
+		} catch (e) {
+			if (e instanceof GateBindingConfigError) throw new PayloadError(`${binding.gate_key}: ${e.message}`);
+			throw e;
+		}
+		for (const slot of commandSlotsInBindingConfig(binding.config)) {
+			const result = validateRenderedSlotCommand({
+				slotKey: slot.slotKey,
+				template: slot.template,
+				paramSchema: slot.paramSchema,
+				validate: validateGateCommand
+			});
+			if (!result.ok) throw new PayloadError(`${binding.gate_key}: ${result.reason}`);
+		}
+	}
+}
+/**
+* The files a file's lanes name, repository-relative: script paths in a
+* command, `tests/<name>.rs` for each `--test <name>`, and path-prefix keys
+* that name a file. Placeholders (`{path}`) are not files.
+*/
+function namedFiles(payload) {
+	const files = /* @__PURE__ */ new Set();
+	for (const binding of payload.bindings) for (const leaf of commandLeaves(binding.config)) {
+		const words = leaf.command.split(/\s+/);
+		words.forEach((word, i) => {
+			if (word === "--test" && words[i + 1] && !words[i + 1].includes("{")) files.add(`tests/${words[i + 1]}.rs`);
+			else if (/^[\w.-]+(?:\/[\w.-]+)+\.[A-Za-z0-9]+$/.test(word) && !word.startsWith("@")) files.add(word);
+		});
+		if (leaf.key && /\.[A-Za-z0-9]+$/.test(leaf.key) && leaf.key.includes("/")) files.add(leaf.key);
+	}
+	return [...files].sort();
+}
+/** `namedFiles` for which `exists(relativePath)` is false. */
+function missingFiles(payload, exists) {
+	return namedFiles(payload).filter((f) => !exists(f));
+}
+/** Structural equality over JSON values; key order does not matter. */
+function jsonEqual(a, b) {
+	if (a === b) return true;
+	if (Array.isArray(a) || Array.isArray(b)) {
+		if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+		return a.every((v, i) => jsonEqual(v, b[i]));
+	}
+	if (isPlainObject(a) && isPlainObject(b)) {
+		const ka = Object.keys(a).filter((k) => a[k] !== void 0);
+		const kb = Object.keys(b).filter((k) => b[k] !== void 0);
+		if (ka.length !== kb.length) return false;
+		return ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && jsonEqual(a[k], b[k]));
+	}
+	return false;
+}
+
+//#endregion
+//#region ../shared/dist/runs/gate-expectations.js
+/** The branch names a positive grep count may be judged by. */
+const POSITIVE_COUNT = [
+	"count OP N",
+	">= N",
+	">= N each",
+	"both >= N",
+	"PASS"
+];
+/** The branch names a NEGATIVE grep count may be judged by. */
+const NEGATIVE_COUNT = ["zero", "count OP N"];
+const expect = (defaultExpected, accepts) => ({
+	defaultExpected,
+	verdictSource: "expectation",
+	...accepts ? { accepts } : {}
+});
+const RUNNER = {
+	defaultExpected: null,
+	verdictSource: "runner"
+};
+const JUDGE = {
+	defaultExpected: null,
+	verdictSource: "judge"
+};
+/**
+* Every system gate type's expectation contract — ENG-5967 A.
+*
+* The user-decided defaults (binding): `file_exists` EXISTS, `file_not_exists`
+* NOT_EXISTS, `file_contains`/`module_imports` `>= 1`, `file_not_contains`/
+* `no_stubs` `0`, `done_criteria_check` `all met`, `shell` `exit 0`. The rest
+* follow the same reading of their own templates: a grep count asks `>= 1`
+* (or `0` when it is a prohibition), a script whose exit code is its verdict
+* asks `exit 0`, and a check that prints one token asks for that token.
+*
+* `seed_data_count` deliberately has NO default: "there should be exactly N"
+* has no N anyone but the author knows, so deploy refuses it without one.
+*/
+const GATE_TYPE_EXPECTATIONS = {
+	file_exists: expect("EXISTS", [
+		"EXISTS",
+		"exit 0",
+		"contains:"
+	]),
+	entity_generated: expect("EXISTS", [
+		"EXISTS",
+		"exit 0",
+		"contains:"
+	]),
+	file_not_exists: expect("NOT_EXISTS", [
+		"NOT_EXISTS",
+		"exit 0",
+		"contains:"
+	]),
+	file_contains: expect(">= 1", POSITIVE_COUNT),
+	module_imports: expect(">= 1", POSITIVE_COUNT),
+	schema_has_field: expect(">= 1", POSITIVE_COUNT),
+	entity_has_column: expect(">= 1", POSITIVE_COUNT),
+	service_has_method: expect(">= 1", POSITIVE_COUNT),
+	assertion_floor: expect(">= 1", POSITIVE_COUNT),
+	seed_data_count: {
+		defaultExpected: null,
+		verdictSource: "expectation",
+		accepts: POSITIVE_COUNT.concat(["zero"])
+	},
+	file_not_contains: expect("0", NEGATIVE_COUNT),
+	no_stubs: expect("0", NEGATIVE_COUNT),
+	symbol_removed: expect("0", NEGATIVE_COUNT),
+	done_criteria_check: expect("all met", [
+		"all met",
+		"exit 0",
+		"contains:"
+	]),
+	schema_registered: expect("PASS", ["PASS", "contains:"]),
+	shell: expect("exit 0"),
+	typecheck: expect("exit 0"),
+	lint: expect("exit 0"),
+	changed_line_coverage: expect("exit 0"),
+	secret_scan: expect("exit 0"),
+	security_testing: expect("exit 0"),
+	iac_misconfig: expect("exit 0"),
+	dependency_audit: expect("exit 0"),
+	symbol_referenced: expect("exit 0"),
+	ast_pattern: expect("exit 0"),
+	schema_column_set: expect("exit 0"),
+	migration_revert_scope: expect("exit 0"),
+	migration_contains: expect("exit 0"),
+	unit_test_pass: RUNNER,
+	e2e_test_pass: RUNNER,
+	spec_conformance: JUDGE,
+	behavioral_intent: JUDGE,
+	edge_case_coverage: JUDGE,
+	guided: {
+		defaultExpected: null,
+		verdictSource: "observation"
+	}
+};
+
+//#endregion
+//#region ../shared/dist/schemas/test-data.zod.js
+const GherkinKeywordSchema = z.enum([
+	"Given",
+	"When",
+	"Then",
+	"And",
+	"But",
+	"*"
+]);
+const DataTableDataSchema = z.object({ rows: z.array(z.array(z.string())).describe("") }).describe("");
+/**
+* A GUIDED step — plan ENG-4825 D-F / R7.1, R7.2, R7.8.
+*
+* A gate a human *or an agent* performs: an instruction and what should be
+* true afterwards. It is the third step shape, alongside the legacy shell
+* (`method`) and the declarative (`type` + `params`) forms.
+*
+* ## Why `guided` and not `manual`
+*
+* Seven real manual tests in the corpus already carry `type: 'manual'` on
+* their steps. Reusing that marker would retroactively turn them into gates an
+* agent is expected to perform and record per-step results for, which is not
+* what their authors wrote. A new word costs nothing and cannot collide.
+*
+* ## Why the field is `step` and not `method`
+*
+* `method` means "a shell command to run". A guided step is an instruction to
+* follow, and calling it `method` would invite every executor that shells out
+* on `method` to try. The normaliser must NOT rename it — see
+* `test.service.ts`.
+*
+* ## Ordering matters — this arm goes FIRST in every union
+*
+* The competitor is the DECLARATIVE arm, which accepts any `type` string and
+* has no `step` field: under `.strict()` it rejects, but under `.passthrough()`
+* a guided step matching it would keep `step` only by accident of the
+* passthrough, and a later `.strict()` consumer would silently drop the
+* instruction. First place makes the match deterministic instead.
+*/
+const GuidedStepItemSchema = z.object({
+	id: z.string().uuid().optional(),
+	type: z.literal("guided"),
+	step: z.string().describe(""),
+	expected_result: z.string().optional().describe(""),
+	result: z.string().optional().describe(""),
+	technique: VerificationTechniqueSchema.optional().describe("")
+});
+const StepItemSchema = z.object({
+	id: z.string().uuid().optional(),
+	method: z.string(),
+	expected_result: z.string().optional(),
+	shared_step_id: z.string().uuid().optional(),
+	keyword: GherkinKeywordSchema.optional(),
+	data_table: DataTableDataSchema.optional().describe(""),
+	technique: VerificationTechniqueSchema.optional().describe("")
+});
+const PreconditionItemSchema = z.object({
+	id: z.string().uuid().optional(),
+	condition: z.string(),
+	shared_precondition_id: z.string().uuid().optional(),
+	keyword: GherkinKeywordSchema.optional(),
+	data_table: DataTableDataSchema.optional().describe("")
+});
+/**
+* Strict test data schema for MCP tools.
+* Rejects unknown fields so LLMs receive clear schema guidance.
+*/
+const TestDataSchemaStrict = z.object({
+	description: z.string().optional().describe(""),
+	shared_precondition_id: z.string().uuid().nullable().optional().describe(""),
+	preconditions: z.array(PreconditionItemSchema).optional().describe(""),
+	steps: z.array(z.union([GuidedStepItemSchema, StepItemSchema])).optional().describe("")
+}).strict().describe("");
+
+//#endregion
+//#region ../shared/dist/schemas/review-loop-events.zod.js
+/**
+* ENG-3822 (D17 of ENG-3320) — wire format for review-loop escape events
+* published by `apps/github-app` to the JetStream subject
+* `jobs.backender.review_loop.event` (BACKENDER_RX stream) and consumed
+* by backender's `ReviewLoopEventConsumer`, which feeds the existing
+* `ReviewLoopEscapeService` (D13). Replaces the retired
+* `POST /v1/internal/github/review-loop/event` internal HTTP endpoint.
+*
+* This is the SINGLE source of truth for the payload shape — both sides
+* parse/build through these schemas; never hand-roll the type on either
+* side (the jira `@levr/jira-shared` payload-schema precedent).
+*
+* ## What the event carries — and deliberately does NOT (dedupe vs DB)
+*
+* github-app persists webhook data to the shared DB BEFORE these events
+* are published (`webhook.service.ts` awaits the persistence handlers
+* first), so the event only carries what the DB does **not** already
+* reliably hold at consume time:
+*
+* - PR `body` / `head_sha` / `merged_at`: NOT carried. Reliably present on
+*   `github_pull_request` (upserted by `PullRequestService.upsertFromWebhook`
+*   before publish; the publisher gates on the same repo-linked +
+*   `pr_sync_enabled` conditions as the upsert). The consumer hydrates them
+*   from the DB row.
+* - PR changed filenames: CARRIED. Nothing persists them; github-app fetches
+*   them (metadata only, never contents) at publish time.
+* - `merge_commit_sha`: CARRIED. `github_pull_request` has no such column.
+* - push commit `{sha, message}` pairs: CARRIED. `github_commit` persistence
+*   is best-effort — capped at 50 commits per push and fail-soft per row
+*   (`CommitService.processCommit` returns null on save failure), so the DB
+*   is NOT a reliable source for the exact commit set of this push.
+*
+* The `event` discriminator values intentionally match the
+* `REVIEW_LOOP_PUSH_EVENT` / `REVIEW_LOOP_PR_MERGED_EVENT` constants in
+* backender's `review-loop-escape.service.ts` (the D13 HTTP contract this
+* transport replaces) so the consumer's event→DTO mapping is 1:1.
+*/
+const REVIEW_LOOP_EVENT_PUSH = "push";
+const REVIEW_LOOP_EVENT_PR_MERGED = "pull_request_merged";
+/** A pushed commit — message is required for `This reverts commit <sha>` detection. */
+const ReviewLoopCommitSchema = z.object({
+	sha: z.string().min(1),
+	message: z.string()
+});
+const ReviewLoopPushEventSchema = z.object({
+	event: z.literal(REVIEW_LOOP_EVENT_PUSH),
+	workspace_id: z.string().uuid(),
+	github_repository_id: z.string().uuid(),
+	repo_full_name: z.string(),
+	ref: z.string(),
+	commits: z.array(ReviewLoopCommitSchema).min(1),
+	producer_id: z.string()
+});
+const ReviewLoopPrMergedEventSchema = z.object({
+	event: z.literal(REVIEW_LOOP_EVENT_PR_MERGED),
+	workspace_id: z.string().uuid(),
+	github_repository_id: z.string().uuid(),
+	repo_full_name: z.string(),
+	installation_id: z.number().int(),
+	pr_number: z.number().int().positive(),
+	merge_commit_sha: z.string().nullable(),
+	changed_files: z.array(z.string()),
+	changed_files_truncated: z.boolean(),
+	producer_id: z.string()
+});
+/**
+* Discriminated union over `event`. An unknown `event` value fails parse —
+* the consumer must treat that as an explicit reject (loud log + term),
+* never a silent ack (the webhook default-throw rule, transposed).
+*/
+const ReviewLoopEventSchema = z.discriminatedUnion("event", [ReviewLoopPushEventSchema, ReviewLoopPrMergedEventSchema]);
+
+//#endregion
+//#region ../shared/dist/issues/next-issue/job-profiles.js
+/** States where a deliverable waits for verification (QA's lead tier). */
+const VERIFICATION_STATE_NAMES = ["In Review", "Gates Pending"];
+/**
+* The state named Review that PM's lead tier admits Proposals and Plans from
+* (a Plan's own `Review` state). A Proposal's `In Review` is a verification
+* name, declared once in VERIFICATION_STATE_NAMES, and is NOT part of this
+* tier; Proposals reach PM through the triage clause instead.
+*/
+const PM_REVIEW_STATE_NAMES = ["Review"];
+/** The dev type order. An untyped or unknown type sorts after the last tier. */
+const DEV_TYPE_TIERS = [
+	["Incident"],
+	["Bug", "Security"],
+	["Deliverable", "Finding"],
+	[
+		"Task",
+		"Feature",
+		"Improvement",
+		"Story",
+		"Chore"
+	],
+	["Doc", "Test"]
+];
+/** Case-insensitive, whitespace-trimmed name match. */
+function nameMatches(name, names) {
+	if (!name) return false;
+	const needle = name.trim().toLowerCase();
+	return names.some((candidate) => candidate.toLowerCase() === needle);
+}
+const DEV_PROFILE = {
+	job: "dev",
+	typeTiers: DEV_TYPE_TIERS,
+	leadTier: null,
+	admittedContainerTypes: [],
+	affinity: null
+};
+/** Move `promoted` types into a new first tier, keeping the rest in dev order. */
+function promoteTypes(tiers, promoted) {
+	const promotedLower = new Set(promoted.map((t) => t.toLowerCase()));
+	return [promoted, ...tiers.map((tier) => tier.filter((t) => !promotedLower.has(t.toLowerCase()))).filter((tier) => tier.length > 0)];
+}
+const QA_VERIFICATION_TIER = {
+	name: "verification",
+	matches: (issue$1) => nameMatches(issue$1.stateName, VERIFICATION_STATE_NAMES),
+	reason: () => "waiting in verification"
+};
+/**
+* PM's lead tier: every triage-type issue (a Decision awaiting an answer is
+* one), plus Proposals and Plans in a state named Review
+* (PM_REVIEW_STATE_NAMES). A Proposal in Triage matches the first clause; a
+* Proposal, Plan or Decision in any other state does not.
+*/
+const PM_TRIAGE_TIER = {
+	name: "triage",
+	matches: (issue$1) => issue$1.stateType === "triage" || nameMatches(issue$1.typeName, ["Proposal", "Plan"]) && nameMatches(issue$1.stateName, PM_REVIEW_STATE_NAMES),
+	reason: (issue$1) => {
+		if (nameMatches(issue$1.typeName, ["Proposal"])) return "proposal awaiting review";
+		if (nameMatches(issue$1.typeName, ["Plan"])) return "plan in review";
+		if (nameMatches(issue$1.typeName, ["Decision"])) return "decision awaiting an answer";
+		return "waiting in triage";
+	}
+};
+const JOB_PROFILES = {
+	dev: DEV_PROFILE,
+	qa: {
+		...DEV_PROFILE,
+		job: "qa",
+		typeTiers: promoteTypes(DEV_PROFILE.typeTiers, [
+			"Bug",
+			"Incident",
+			"Test",
+			"Finding"
+		]),
+		leadTier: QA_VERIFICATION_TIER
+	},
+	pm: {
+		...DEV_PROFILE,
+		job: "pm",
+		leadTier: PM_TRIAGE_TIER,
+		admittedContainerTypes: [
+			"Proposal",
+			"Plan",
+			"Decision"
+		]
+	}
+};
+
+//#endregion
+//#region ../shared/dist/issues/next-issue/rank-next-issues.js
+const DUE_SOON_WINDOW_MS = 10080 * 60 * 1e3;
+
+//#endregion
+//#region ../shared/dist/issues/next-issue/conformance-fixture.js
+/**
+* The conformance fixture for the next-issue ranker (Plan ENG-7779, D1 sub-req 7).
+*
+* Raw `SnapshotRows` plus the EXPECTED full order for each job. The same
+* fixture is asserted by the shared unit tests (D1), by the backend adapter's
+* conformance spec once the rows are round-tripped through Postgres (D2) and by
+* the client mapper (D4): if the two sides ever disagree on the order, this is
+* what they disagree against.
+*
+* The actor is `user-me`, on team `team-1`. The completed issue is ENG-100,
+* a child of plan ENG-90; it was blocking ENG-101 (now free) and ENG-102 (still
+* blocked by ENG-300). `now` is 2026-10-23T12:00:00Z.
+*
+* Coverage checklist (one row per bullet, at least):
+*  - every dev tier: parked, ownership, momentum (unblocked AND sibling), each
+*    state type, each priority value including 0, each deadline bucket, each
+*    type tier, recency and identifier tiebreaks
+*  - a mirrored relation pair (ENG-129 ⇄ ENG-300) counted once
+*  - a hidden blocker (ENG-116 → X-999, absent everywhere)
+*  - an open blocker that exists only in `relationEndStates` (ENG-117 → out-1)
+*  - a closed blocker in the pool (ENG-118 → ENG-119, done) and a closed
+*    `depends_on` (ENG-130 → ENG-119)
+*  - a past snooze (ENG-114) and a future snooze (ENG-113)
+*  - an unassigned in_progress issue (ENG-107) treated as to_do
+*  - the blocking tier (Plan ENG-9686 D1), on five unassigned backlog Tasks
+*    that are otherwise equal (ENG-133..137, so no other pick moves): ENG-134
+*    blocks two open pool issues (ENG-127, ENG-300, one of them through a
+*    mirrored pair) and ranks first; ENG-135 blocks one out-of-pool open end
+*    (out-1); ENG-136 blocks only a hidden end (x-999: a private-team issue
+*    on the server, which reports it open AND uncounted; absent on the
+*    client) and ENG-137 only a done issue (ENG-119), both counting 0 like
+*    ENG-133, which blocks nothing
+*  - excluded rows present for every exclusion: finished (ENG-100, ENG-119,
+*    ENG-128), containers (ENG-90, ENG-123, ENG-124, ENG-126), someone else's
+*    (ENG-120, ENG-121, ENG-127, ENG-300) — the job tests slice the pool down
+*    to fewer survivors than `limit` and assert none of these fill the gap
+*/
+const ME = "user-me";
+const OTHER = "user-other";
+const TEAM = "team-1";
+const S = {
+	triage: "st-triage",
+	backlog: "st-backlog",
+	todo: "st-todo",
+	inProgress: "st-in-progress",
+	inReview: "st-in-review",
+	gatesPending: "st-gates-pending",
+	blocked: "st-blocked",
+	planReview: "st-plan-review",
+	done: "st-done",
+	canceled: "st-canceled"
+};
+const T = {
+	incident: "tl-incident",
+	bug: "tl-bug",
+	security: "tl-security",
+	deliverable: "tl-deliverable",
+	finding: "tl-finding",
+	task: "tl-task",
+	feature: "tl-feature",
+	doc: "tl-doc",
+	test: "tl-test",
+	epic: "tl-epic",
+	plan: "tl-plan",
+	proposal: "tl-proposal",
+	decision: "tl-decision"
+};
+const CYCLE_ACTIVE = "cycle-active";
+const CYCLE_UPCOMING = "cycle-upcoming";
+const day = (d) => `2026-10-${d}T00:00:00.000Z`;
+const issue = (s) => ({
+	id: `i-${s.n}`,
+	identifier: `ENG-${s.n}`,
+	title: s.title ?? `Issue ${s.n}`,
+	team_id: TEAM,
+	project_id: "project-1",
+	parent_id: s.parent ?? null,
+	assignee_id: s.assignee,
+	priority: s.priority,
+	workflow_state_id: s.state,
+	type_label_id: s.type,
+	due_date: s.due ?? null,
+	snoozed_until: s.snoozed ?? null,
+	sla_status: s.sla ?? null,
+	cycle_id: s.cycle ?? null,
+	updated_at: day(s.updated)
+});
+const rel = (issueN, relation_type, relatedN) => ({
+	issue_id: typeof issueN === "number" ? `i-${issueN}` : issueN,
+	related_issue_id: typeof relatedN === "number" ? `i-${relatedN}` : relatedN,
+	relation_type
+});
+/** The blocking-tier rows (Plan ENG-9686 D1), by issue number. */
+const BLOCKING_TIER_TITLES = {
+	133: "Blocks nothing",
+	134: "Blocks two open issues",
+	135: "Blocks an outside-pool issue",
+	136: "Blocks only a hidden issue",
+	137: "Blocks only a done issue"
+};
+const NEXT_ISSUE_CONFORMANCE_FIXTURE = {
+	actorId: ME,
+	teamIds: [TEAM],
+	completedIssueId: "i-100",
+	now: "2026-10-23T12:00:00.000Z",
+	rows: {
+		workflowStates: [
+			{
+				id: S.triage,
+				name: "Triage",
+				type: "triage"
+			},
+			{
+				id: S.backlog,
+				name: "Backlog",
+				type: "backlog"
+			},
+			{
+				id: S.todo,
+				name: "To Do",
+				type: "to_do"
+			},
+			{
+				id: S.inProgress,
+				name: "In Progress",
+				type: "in_progress"
+			},
+			{
+				id: S.inReview,
+				name: "In Review",
+				type: "in_progress"
+			},
+			{
+				id: S.gatesPending,
+				name: "Gates Pending",
+				type: "in_progress"
+			},
+			{
+				id: S.blocked,
+				name: "Blocked",
+				type: "in_progress"
+			},
+			{
+				id: S.planReview,
+				name: "Review",
+				type: "in_progress"
+			},
+			{
+				id: S.done,
+				name: "Done",
+				type: "done"
+			},
+			{
+				id: S.canceled,
+				name: "Canceled",
+				type: "canceled"
+			}
+		],
+		typeLabels: [
+			{
+				id: T.incident,
+				name: "Incident"
+			},
+			{
+				id: T.bug,
+				name: "Bug"
+			},
+			{
+				id: T.security,
+				name: "Security"
+			},
+			{
+				id: T.deliverable,
+				name: "Deliverable"
+			},
+			{
+				id: T.finding,
+				name: "Finding"
+			},
+			{
+				id: T.task,
+				name: "Task"
+			},
+			{
+				id: T.feature,
+				name: "Feature"
+			},
+			{
+				id: T.doc,
+				name: "Doc"
+			},
+			{
+				id: T.test,
+				name: "Test"
+			},
+			{
+				id: T.epic,
+				name: "Epic"
+			},
+			{
+				id: T.plan,
+				name: "Plan"
+			},
+			{
+				id: T.proposal,
+				name: "Proposal"
+			},
+			{
+				id: T.decision,
+				name: "Decision"
+			}
+		],
+		cycles: [{
+			id: CYCLE_ACTIVE,
+			status: "active",
+			starts_at: day("20"),
+			ends_at: day("26")
+		}, {
+			id: CYCLE_UPCOMING,
+			status: "upcoming",
+			starts_at: day("27"),
+			ends_at: "2026-11-02T00:00:00.000Z"
+		}],
+		issues: [
+			issue({
+				n: 90,
+				state: S.inProgress,
+				priority: 2,
+				type: T.plan,
+				assignee: ME,
+				updated: "23",
+				title: "Plan ENG-90"
+			}),
+			issue({
+				n: 100,
+				state: S.done,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "23",
+				parent: "i-90",
+				title: "Completed"
+			}),
+			issue({
+				n: 101,
+				state: S.todo,
+				priority: 3,
+				type: T.task,
+				assignee: null,
+				updated: "20",
+				title: "Unblocked by 100"
+			}),
+			issue({
+				n: 102,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "14",
+				title: "Still blocked"
+			}),
+			issue({
+				n: 103,
+				state: S.todo,
+				priority: 2,
+				type: T.feature,
+				assignee: null,
+				updated: "20",
+				parent: "i-90",
+				title: "Sibling"
+			}),
+			issue({
+				n: 104,
+				state: S.inProgress,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "22",
+				title: "Mine in progress"
+			}),
+			issue({
+				n: 105,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "22",
+				title: "Mine urgent"
+			}),
+			issue({
+				n: 106,
+				state: S.backlog,
+				priority: 2,
+				type: T.task,
+				assignee: ME,
+				updated: "12",
+				due: day("20"),
+				title: "Mine backlog overdue"
+			}),
+			issue({
+				n: 107,
+				state: S.inProgress,
+				priority: 1,
+				type: T.task,
+				assignee: null,
+				updated: "21",
+				title: "Unowned in progress"
+			}),
+			issue({
+				n: 108,
+				state: S.todo,
+				priority: 0,
+				type: T.task,
+				assignee: null,
+				updated: "22",
+				title: "No priority"
+			}),
+			issue({
+				n: 109,
+				state: S.todo,
+				priority: 4,
+				type: T.incident,
+				assignee: null,
+				updated: "21",
+				title: "Low incident"
+			}),
+			issue({
+				n: 110,
+				state: S.todo,
+				priority: 3,
+				type: T.bug,
+				assignee: null,
+				updated: "20",
+				cycle: CYCLE_ACTIVE,
+				title: "In active cycle"
+			}),
+			issue({
+				n: 111,
+				state: S.todo,
+				priority: 3,
+				type: T.doc,
+				assignee: null,
+				updated: "10",
+				title: "Doc"
+			}),
+			issue({
+				n: 112,
+				state: S.todo,
+				priority: 3,
+				type: null,
+				assignee: null,
+				updated: "21",
+				title: "Untyped"
+			}),
+			issue({
+				n: 113,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "14",
+				snoozed: "2026-11-01T00:00:00.000Z",
+				title: "Snoozed"
+			}),
+			issue({
+				n: 114,
+				state: S.todo,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "16",
+				snoozed: day("01"),
+				title: "Snooze expired"
+			}),
+			issue({
+				n: 115,
+				state: S.blocked,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "19",
+				title: "Blocked state"
+			}),
+			issue({
+				n: 116,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "14",
+				title: "Hidden blocker"
+			}),
+			issue({
+				n: 117,
+				state: S.todo,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "14",
+				title: "Outside-pool blocker"
+			}),
+			issue({
+				n: 118,
+				state: S.todo,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "18",
+				title: "Closed blocker"
+			}),
+			issue({
+				n: 119,
+				state: S.done,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "01",
+				title: "Done blocker"
+			}),
+			issue({
+				n: 120,
+				state: S.inReview,
+				priority: 2,
+				type: T.deliverable,
+				assignee: OTHER,
+				updated: "21",
+				title: "Other in review"
+			}),
+			issue({
+				n: 121,
+				state: S.gatesPending,
+				priority: 3,
+				type: T.deliverable,
+				assignee: OTHER,
+				updated: "21",
+				title: "Other gates pending"
+			}),
+			issue({
+				n: 122,
+				state: S.triage,
+				priority: 2,
+				type: T.bug,
+				assignee: null,
+				updated: "21",
+				title: "Triage bug"
+			}),
+			issue({
+				n: 123,
+				state: S.triage,
+				priority: 3,
+				type: T.proposal,
+				assignee: null,
+				updated: "20",
+				title: "Proposal"
+			}),
+			issue({
+				n: 124,
+				state: S.planReview,
+				priority: 2,
+				type: T.plan,
+				assignee: OTHER,
+				updated: "20",
+				title: "Plan in review"
+			}),
+			issue({
+				n: 125,
+				state: S.triage,
+				priority: 0,
+				type: T.decision,
+				assignee: null,
+				updated: "20",
+				title: "Decision"
+			}),
+			issue({
+				n: 126,
+				state: S.todo,
+				priority: 1,
+				type: T.epic,
+				assignee: ME,
+				updated: "20",
+				title: "Epic"
+			}),
+			issue({
+				n: 127,
+				state: S.todo,
+				priority: 1,
+				type: T.task,
+				assignee: OTHER,
+				updated: "20",
+				title: "Other task"
+			}),
+			issue({
+				n: 128,
+				state: S.canceled,
+				priority: 1,
+				type: T.bug,
+				assignee: ME,
+				updated: "01",
+				title: "Canceled"
+			}),
+			issue({
+				n: 129,
+				state: S.todo,
+				priority: 3,
+				type: T.task,
+				assignee: ME,
+				updated: "13",
+				title: "Mirrored pair"
+			}),
+			issue({
+				n: 130,
+				state: S.todo,
+				priority: 3,
+				type: T.test,
+				assignee: ME,
+				updated: "17",
+				title: "Depends on done"
+			}),
+			issue({
+				n: 131,
+				state: S.todo,
+				priority: 2,
+				type: T.task,
+				assignee: ME,
+				updated: "21",
+				due: day("27"),
+				title: "Due soon"
+			}),
+			issue({
+				n: 132,
+				state: S.todo,
+				priority: 2,
+				type: T.task,
+				assignee: ME,
+				updated: "19",
+				sla: "at_risk",
+				title: "SLA at risk"
+			}),
+			...Object.entries(BLOCKING_TIER_TITLES).map(([n, title]) => issue({
+				n: Number(n),
+				state: S.backlog,
+				priority: 3,
+				type: T.task,
+				assignee: null,
+				updated: "09",
+				title
+			})),
+			issue({
+				n: 300,
+				state: S.todo,
+				priority: 2,
+				type: T.task,
+				assignee: OTHER,
+				updated: "20",
+				title: "Open blocker"
+			})
+		],
+		relations: [
+			rel(100, "blocks", 101),
+			rel(101, "blocked_by", 100),
+			rel(100, "blocks", 102),
+			rel(102, "blocked_by", 300),
+			rel(116, "blocked_by", "x-999"),
+			rel(117, "blocked_by", "out-1"),
+			rel(118, "blocked_by", 119),
+			rel(129, "blocked_by", 300),
+			rel(300, "blocks", 129),
+			rel(130, "depends_on", 119),
+			rel(119, "is_dependency_of", 130),
+			rel(104, "relates_to", 105),
+			rel(134, "blocks", 127),
+			rel(127, "blocked_by", 134),
+			rel(300, "blocked_by", 134),
+			rel(135, "blocks", "out-1"),
+			rel(136, "blocks", "x-999"),
+			rel(137, "is_dependency_of", 119)
+		],
+		relationEndStates: {
+			"out-1": "open",
+			"out-2": "closed"
+		}
+	},
+	expected: {
+		dev: [
+			"ENG-104",
+			"ENG-105",
+			"ENG-131",
+			"ENG-132",
+			"ENG-118",
+			"ENG-114",
+			"ENG-130",
+			"ENG-106",
+			"ENG-101",
+			"ENG-103",
+			"ENG-107",
+			"ENG-110",
+			"ENG-111",
+			"ENG-112",
+			"ENG-108",
+			"ENG-109",
+			"ENG-122",
+			"ENG-134",
+			"ENG-135",
+			"ENG-133",
+			"ENG-136",
+			"ENG-137",
+			"ENG-115",
+			"ENG-102",
+			"ENG-113",
+			"ENG-116",
+			"ENG-117",
+			"ENG-129"
+		],
+		qa: [
+			"ENG-120",
+			"ENG-121",
+			"ENG-104",
+			"ENG-105",
+			"ENG-131",
+			"ENG-132",
+			"ENG-130",
+			"ENG-118",
+			"ENG-114",
+			"ENG-106",
+			"ENG-101",
+			"ENG-103",
+			"ENG-107",
+			"ENG-110",
+			"ENG-111",
+			"ENG-112",
+			"ENG-108",
+			"ENG-109",
+			"ENG-122",
+			"ENG-134",
+			"ENG-135",
+			"ENG-133",
+			"ENG-136",
+			"ENG-137",
+			"ENG-115",
+			"ENG-102",
+			"ENG-113",
+			"ENG-116",
+			"ENG-117",
+			"ENG-129"
+		],
+		pm: [
+			"ENG-122",
+			"ENG-123",
+			"ENG-125",
+			"ENG-124",
+			"ENG-104",
+			"ENG-105",
+			"ENG-131",
+			"ENG-132",
+			"ENG-118",
+			"ENG-114",
+			"ENG-130",
+			"ENG-106",
+			"ENG-101",
+			"ENG-103",
+			"ENG-107",
+			"ENG-110",
+			"ENG-111",
+			"ENG-112",
+			"ENG-108",
+			"ENG-109",
+			"ENG-134",
+			"ENG-135",
+			"ENG-133",
+			"ENG-136",
+			"ENG-137",
+			"ENG-115",
+			"ENG-102",
+			"ENG-113",
+			"ENG-116",
+			"ENG-117",
+			"ENG-129"
+		]
+	}
+};
+
+//#endregion
+//#region ../shared/dist/first-task/first-task-prompt.js
+/**
+* The framing of a first-task prompt — plan ENG-6341 D4 rev 3.1 (ENG-6763).
+*
+* The client builds the prompts the user pastes into their coding agent from
+* these constants (the first-task card, the own-feature dialog), and the
+* backender strips the same framing from the request before choosing a recipe
+* and titling the Plan and the task (`extractFirstTaskRequest`). One source,
+* so client and server cannot drift.
+*
+* Pure and browser-safe: no imports.
+*/
+/** The product name the app's prompts carry (the email words its own brand). */
+const FIRST_TASK_PROMPT_BRAND = "Levr";
+/**
+* The opening of a first-task prompt for a brand: `Use <brand> to hold you to
+* this task: `. Review F-061: the nudge email builds its prompt with the
+* brand it is sent under, so the backender strips this framing for ANY
+* single-word brand, not only the literal "Levr".
+*/
+function firstTaskPromptPrefix(brandName) {
+	return `Use ${brandName} to hold you to this task: `;
+}
+/** Opens every first-task prompt; an instruction to the agent, never the task. */
+const FIRST_TASK_PROMPT_PREFIX = firstTaskPromptPrefix(FIRST_TASK_PROMPT_BRAND);
+/**
+* The fixed todo-starter task, in the first-task card's words (plan ENG-6341
+* D4, the `todo-starter` recipe). Code review F-007 (ENG-7148): ONE source for
+* the card the user copies from and the `get_context` example the agent reads.
+*/
+const FIRST_TASK_TODO_TASK = "build a tiny TypeScript todo app with tests: add, complete, delete; reject empty or whitespace-only titles; completing a todo twice is a no-op.";
+/**
+* The todo-starter prompt: what the first-task card copies and what
+* `get_context` offers an owner's agent as `first_task.example_prompt`.
+*/
+const FIRST_TASK_TODO_PROMPT = `${FIRST_TASK_PROMPT_PREFIX}in this empty folder, ${FIRST_TASK_TODO_TASK}`;
+
+//#endregion
+//#region ../shared/dist/ai-pricing/rate-card.js
+const PER_TOKEN = 1 / 1e6;
+
+//#endregion
+//#region ../shared/dist/schemas/ai-usage-batch.zod.js
+const AI_USAGE_BATCH_VERSION = 1;
+const AiUsageBatchEntrySchema = z.object({
+	workspace_id: z.string().uuid().nullable(),
+	provider: z.string().min(1).max(64),
+	model: z.string().min(1).max(128),
+	calls: z.number().int().positive().max(1e7),
+	input_tokens: z.number().int().nonnegative().max(0xe8d4a51000).nullable(),
+	latency_ms: z.number().int().nonnegative().max(0xe8d4a51000)
+});
+const AiUsageBatchSchema = z.object({
+	v: z.literal(AI_USAGE_BATCH_VERSION),
+	batch_id: z.string().min(1).max(64),
+	flushed_at: z.string().datetime(),
+	entries: z.array(AiUsageBatchEntrySchema).min(1).max(5e3)
+});
+
+//#endregion
+export { JUDGE_GATE_KEYS, JUDGE_PRESETS, JUDGE_PRESET_IDS, PayloadError, buildJudgeSetupPrompt, gateBindingTransferExportConfigV1, gateBindingTransferImportConfigV1, isJudgePresetId, jsonEqual, missingFiles, namedFiles, parsePayload, validatePayload };

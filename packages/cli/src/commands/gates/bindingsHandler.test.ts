@@ -113,6 +113,45 @@ describe('gates bindings import', () => {
     expect(out.stdout).toContain('# Dry run: nothing written.');
   });
 
+  // [issue:internal] Review R1 C12.
+  it('without --replace-judge the request is unchanged: no replace_judge is sent', async () => {
+    const d = deps();
+    await executeBindingsImport(
+      { 'dry-run': true, 'replace-judge': false },
+      'agv.json',
+      d,
+    );
+    expect(d.importConfig.mock.calls[0]).toEqual([JSON.parse(AGV), true]);
+  });
+
+  it('--replace-judge sends replace_judge and reports the replaced judge rows', async () => {
+    const d = deps({
+      importReply: (_file, dryRun) => ({
+        status: 200,
+        body: {
+          dry_run: dryRun,
+          definitions: [],
+          bindings: [
+            row('spec_conformance', 'replace', !dryRun, { stored_id: 'b-1' }),
+            row('typecheck', 'exists', false),
+          ],
+        },
+      }),
+    });
+    const out = await executeBindingsImport(
+      { 'dry-run': true, 'replace-judge': true },
+      'agv.json',
+      d,
+    );
+    expect(out.exitCode).toBe(0);
+    expect(d.importConfig).toHaveBeenCalledWith(JSON.parse(AGV), true, {
+      replaceJudge: true,
+    });
+    expect(out.stdout).toContain(
+      'replace  spec_conformance [workspace-wide]  (the stored judge binding is replaced)',
+    );
+  });
+
   it('a file that is not JSON, or that the shared parser refuses, exits 2 and sends nothing', async () => {
     const d = deps({
       files: {

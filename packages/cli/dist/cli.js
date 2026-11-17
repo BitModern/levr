@@ -1,58 +1,14 @@
 #!/usr/bin/env node
-import { COMPLETION_SHELLS } from "./completionHandler-O2G_WZLf.js";
-import { COVERAGE_DEFAULT_EXCLUDES } from "./coverage-defaults-Ct3KNnGl.js";
-import "./gate-op-BINrIT2l.js";
-import { gatesInspectCommand } from "./inspect-CinRBSv6.js";
+import { buildContext } from "./context-DM60OOvm.js";
+import { COMPLETION_SHELLS } from "./completionHandler-CQMdpN_f.js";
+import { COVERAGE_DEFAULT_EXCLUDES } from "./coverage-defaults-SDxhaaeS.js";
+import "./gate-op-CvE5u-xj.js";
+import { gatesInspectCommand } from "./inspect-CMztxkvW.js";
 import { buildApplication, buildCommand, buildRouteMap, proposeCompletions, run, text_en } from "@stricli/core";
-import chalk from "chalk";
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { parse } from "dotenv";
 
-//#region src/utils/logger.ts
-var Logger = class {
-	verbose;
-	stdout;
-	stderr;
-	constructor(options) {
-		this.verbose = options.verbose ?? false;
-		this.stdout = options.stdout ?? process.stdout;
-		this.stderr = options.stderr ?? process.stderr;
-	}
-	info(message) {
-		this.stdout.write(`${chalk.blue("info")}  ${message}\n`);
-	}
-	success(message) {
-		this.stdout.write(`${chalk.green("ok")}    ${message}\n`);
-	}
-	error(message) {
-		this.stderr.write(`${chalk.red("error")} ${message}\n`);
-	}
-	warning(message) {
-		this.stdout.write(`${chalk.yellow("warn")}  ${message}\n`);
-	}
-	debug(message) {
-		if (this.verbose) this.stdout.write(`${chalk.gray("debug")} ${message}\n`);
-	}
-	setVerbose(verbose) {
-		this.verbose = verbose;
-	}
-};
-
-//#endregion
-//#region src/context.ts
-function buildContext(process$1) {
-	return {
-		process: process$1,
-		logger: new Logger({
-			verbose: false,
-			stdout: process$1.stdout,
-			stderr: process$1.stderr
-		})
-	};
-}
-
-//#endregion
 //#region src/commands/completion.ts
 const completionCommand = buildCommand({
 	docs: {
@@ -86,7 +42,7 @@ or when generating a script for a shell other than the one you are running.`
 		flags: {}
 	},
 	loader: async () => {
-		const { completionHandler } = await import("./completionHandler-DtG_CsK0.js");
+		const { completionHandler } = await import("./completionHandler-DesikJ6_.js");
 		return completionHandler;
 	}
 });
@@ -226,7 +182,7 @@ Examples:
 		aliases: { y: "yes" }
 	},
 	loader: async () => {
-		const { mcpAddHandler } = await import("./addHandler-CefzsA_l.js");
+		const { mcpAddHandler } = await import("./addHandler-CcoUHsO5.js");
 		return mcpAddHandler;
 	}
 });
@@ -238,9 +194,13 @@ const loginCommand = buildCommand({
 		brief: "Authenticate with Levr",
 		fullDescription: `Authenticate with Levr using OAuth.
 
-By default, opens a browser for PKCE-based authentication.
-For headless environments (SSH, containers), use --device-code
-to authenticate via a code displayed in the terminal.
+By default, opens a browser for PKCE-based authentication and prints
+the link too. When no browser can be opened (SSH, containers, no
+display) it uses a device code instead; while waiting, press d to switch
+to a device code. --device-code skips the browser altogether.
+
+With --signup, the browser opens on the signup page; the new account's
+token comes back to the CLI the same way (same as 'levr auth signup').
 
 With --workspace, the login selects that workspace for the CLI, and a
 url_key also skips the workspace picker in the browser.
@@ -248,7 +208,57 @@ url_key also skips the workspace picker in the browser.
 Examples:
   levr auth login                   # Browser-based PKCE login
   levr auth login --device-code     # Device flow for SSH/headless
+  levr auth login --signup          # Create an account, then log in
   levr auth login --workspace acme  # Skip the picker; select acme`
+	},
+	parameters: {
+		flags: {
+			"device-code": {
+				kind: "boolean",
+				default: false,
+				brief: "Use device code flow (for SSH/headless environments)"
+			},
+			signup: {
+				kind: "boolean",
+				default: false,
+				brief: "Open the signup page instead of sign-in"
+			},
+			url: {
+				kind: "parsed",
+				parse: String,
+				brief: "API base URL (default: https://api.levr.one)",
+				placeholder: "url",
+				optional: true
+			},
+			workspace: {
+				kind: "parsed",
+				parse: String,
+				brief: "Workspace to select, by url_key or name (a url_key also skips the workspace picker)",
+				placeholder: "url_key|name",
+				optional: true
+			}
+		},
+		aliases: { d: "device-code" }
+	},
+	loader: async () => {
+		const { loginHandler } = await import("./loginHandler-ut3ugpCn.js");
+		return loginHandler;
+	}
+});
+/** `levr auth signup` (ENG-8226): the login flow, opened on signup. */
+const signupCommand = buildCommand({
+	docs: {
+		brief: "Create a Levr account and log in",
+		fullDescription: `Create a Levr account, then log the CLI in to it.
+
+Opens the browser on the signup page and prints the link too. Once the
+account exists, the token comes back to the CLI. When no browser can be
+opened it uses a device code instead; while waiting, press d to switch to
+a device code.
+
+Examples:
+  levr auth signup                  # Browser signup, token to the CLI
+  levr auth signup --device-code    # Device flow for SSH/headless`
 	},
 	parameters: {
 		flags: {
@@ -275,8 +285,8 @@ Examples:
 		aliases: { d: "device-code" }
 	},
 	loader: async () => {
-		const { loginHandler } = await import("./loginHandler-CXmNViCo.js");
-		return loginHandler;
+		const { signupHandler } = await import("./loginHandler-ut3ugpCn.js");
+		return signupHandler;
 	}
 });
 
@@ -294,7 +304,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { logoutHandler } = await import("./logoutHandler-DwTURB_A.js");
+		const { logoutHandler } = await import("./logoutHandler-jcfvZzlT.js");
 		return logoutHandler;
 	}
 });
@@ -314,7 +324,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { statusHandler } = await import("./statusHandler-BgQTktJm.js");
+		const { statusHandler } = await import("./statusHandler-DkfmO2uU.js");
 		return statusHandler;
 	}
 });
@@ -443,7 +453,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-D02XXrQZ.js");
+		const { pushHandler } = await import("./pushHandler-BenmbPhd.js");
 		return pushHandler;
 	}
 });
@@ -563,7 +573,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { importHandler } = await import("./importHandler-t4UNZ-tS.js");
+		const { importHandler } = await import("./importHandler-CT1v0wCr.js");
 		return importHandler;
 	}
 });
@@ -584,7 +594,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { listHandler } = await import("./listHandler-D-W39_YC.js");
+		const { listHandler } = await import("./listHandler-CM6H_B48.js");
 		return listHandler;
 	}
 });
@@ -622,7 +632,7 @@ Examples:
 		flags: {}
 	},
 	loader: async () => {
-		const { selectHandler } = await import("./selectHandler-9pNaEvpf.js");
+		const { selectHandler } = await import("./selectHandler-D78vpVB1.js");
 		return selectHandler;
 	}
 });
@@ -639,7 +649,7 @@ Examples:
 	},
 	parameters: {},
 	loader: async () => {
-		const { currentHandler } = await import("./currentHandler-DmffKHyZ.js");
+		const { currentHandler } = await import("./currentHandler-BJfM1CuC.js");
 		return currentHandler;
 	}
 });
@@ -688,7 +698,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesBindingsExportHandler } = await import("./bindingsHandler-DUpQFFLm.js");
+		const { gatesBindingsExportHandler } = await import("./bindingsHandler-BCpw3qcc.js");
 		return gatesBindingsExportHandler;
 	}
 });
@@ -708,10 +718,18 @@ writes nothing. One line per entry:
   exists   stored exactly as the file says; nothing to do
   differs  stored differently; reported and NOT overwritten
   update   the disabled placeholder a workspace starts with; filled in
+  replace  with --replace-judge only: a judge gate type's differing
+           binding (spec_conformance, behavioral_intent,
+           edge_case_coverage), replaced as the file says
   delete   the entry says "delete": true; the stored binding is removed
   absent   the entry says "delete": true; nothing was stored
 A binding the file does not mention is never touched: deletes are explicit.
 Running the same import twice writes nothing the second time.
+
+--replace-judge confirms that a differing binding of one of the three
+judge gate types is replaced (the dry run shows "replace"). Without it such
+a row is "differs" and not written; every other differing row is "differs"
+whatever the flag says.
 
 Owner or Admin only.
 
@@ -725,6 +743,7 @@ that does not parse.
 Examples:
   levr gates bindings import gates.json --dry-run
   levr gates bindings import gates.json
+  levr gates bindings import judges.json --replace-judge --dry-run
   levr gates bindings import scripts/gates/bindings/lansweeper-agv.json --repo-root ~/src/agv`
 	},
 	parameters: {
@@ -756,12 +775,17 @@ Examples:
 				kind: "boolean",
 				default: false,
 				brief: "Preview the plan; write nothing"
+			},
+			"replace-judge": {
+				kind: "boolean",
+				optional: true,
+				brief: "Replace a differing judge binding (the three judge gate types only)"
 			}
 		},
 		aliases: { w: "workspace-id" }
 	},
 	loader: async () => {
-		const { gatesBindingsImportHandler } = await import("./bindingsHandler-DUpQFFLm.js");
+		const { gatesBindingsImportHandler } = await import("./bindingsHandler-BCpw3qcc.js");
 		return gatesBindingsImportHandler;
 	}
 });
@@ -845,7 +869,7 @@ Examples:
 		}
 	} },
 	loader: async () => {
-		const { gatesChangedCoverageHandler } = await import("./changedCoverageHandler-B8Zh5WIK.js");
+		const { gatesChangedCoverageHandler } = await import("./changedCoverageHandler-ByeAle17.js");
 		return gatesChangedCoverageHandler;
 	}
 });
@@ -913,7 +937,7 @@ Examples:
 		}
 	} },
 	loader: async () => {
-		const { gatesDependencyAuditHandler } = await import("./dependencyAuditHandler-CdpW-IvY.js");
+		const { gatesDependencyAuditHandler } = await import("./dependencyAuditHandler-DOd3aF7A.js");
 		return gatesDependencyAuditHandler;
 	}
 });
@@ -971,7 +995,7 @@ Examples:
 		}
 	} },
 	loader: async () => {
-		const { gatesRefsHandler } = await import("./refsHandler-BPlcdJvR.js");
+		const { gatesRefsHandler } = await import("./refsHandler-DfZAlv6e.js");
 		return gatesRefsHandler;
 	}
 });
@@ -1052,8 +1076,89 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { gatesRunHandler } = await import("./runHandler-DMJO--tc.js");
+		const { gatesRunHandler } = await import("./runHandler-BOFBzCP8.js");
 		return gatesRunHandler;
+	}
+});
+
+//#endregion
+//#region src/commands/gates/setup.ts
+/**
+* [issue:ENG-8225] `levr gates setup` (plan ENG-8199 D7): detect the
+* repository, the judge CLIs and the toolchain, propose, confirm, write
+* through `levr gates bindings import`'s endpoint, and read the result back.
+*/
+const gatesSetupCommand = buildCommand({
+	docs: {
+		brief: "Detect this repo's judge CLIs and commands and write its gate bindings",
+		fullDescription: `Run inside one of your repositories. Setup:
+
+  1. reads the git root and the origin remote (an ssh alias such as
+     git@github-work:acme/api.git is resolved with \`ssh -G\` when you say it
+     is one) and finds the repository in Levr, offering to add it;
+  2. chooses the scope: this repository when the workspace already has
+     bindings for it, or when you opt in; otherwise the whole workspace. The
+     choice is always printed;
+  3. looks for the judge CLIs (codex, claude, gemini, agy, grok) on PATH: one
+     is used, several are offered with no default, none prints a prompt to
+     paste into your coding agent to set a judge up over MCP;
+  4. proposes typecheck, unit test, e2e test and lint commands from
+     package.json, Cargo.toml, go.mod, pyproject.toml and composer.json, each
+     unselected until you choose it;
+  5. shows the dry run (create / exists / differs / replace), asks before it
+     writes, then reads the bindings back and checks each one.
+
+An existing judge binding that differs is replaced only after you confirm it.
+
+Owner or Admin only: a Member is told so.
+
+--yes asks nothing and accepts only what was passed: the judge from --judge,
+no detected command, no new repository entry.
+
+Exit code 0 on success; 1 when the server refuses, a row differs, or the
+read-back does not match; 2 outside a git repository or for a usage error;
+130 when a prompt is cancelled (Ctrl+C).
+
+Examples:
+  levr gates setup
+  levr gates setup --dry-run
+  levr gates setup --yes --judge claude`
+	},
+	parameters: {
+		flags: {
+			"dry-run": {
+				kind: "boolean",
+				default: false,
+				brief: "Show the plan; write nothing"
+			},
+			yes: {
+				kind: "boolean",
+				default: false,
+				brief: "Ask nothing; accept only what was explicitly passed"
+			},
+			judge: {
+				kind: "parsed",
+				parse: String,
+				brief: "The judge preset to bind (codex, claude, gemini, agy, grok)",
+				placeholder: "id",
+				optional: true
+			},
+			"workspace-id": {
+				kind: "parsed",
+				parse: String,
+				brief: "Workspace ID: needed with a login token and several workspaces; a personal access token is bound to its own",
+				placeholder: "uuid",
+				optional: true
+			}
+		},
+		aliases: {
+			y: "yes",
+			w: "workspace-id"
+		}
+	},
+	loader: async () => {
+		const { gatesSetupHandler } = await import("./setupHandler-Cpo2SDYL.js");
+		return gatesSetupHandler;
 	}
 });
 
@@ -1166,7 +1271,7 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { attachHandler } = await import("./attachHandler-DFlDUObZ.js");
+		const { attachHandler } = await import("./attachHandler-ByVfO6zm.js");
 		return attachHandler;
 	}
 });
@@ -1242,20 +1347,21 @@ Examples:
 		}
 	},
 	loader: async () => {
-		const { resultAppendHandler } = await import("./appendHandler-mYa2KKNC.js");
+		const { resultAppendHandler } = await import("./appendHandler-D1QxyDts.js");
 		return resultAppendHandler;
 	}
 });
 
 //#endregion
 //#region package.json
-var version = "0.12.20";
+var version = "0.12.21";
 
 //#endregion
 //#region src/app.ts
 const authRoutes = buildRouteMap({
 	routes: {
 		login: loginCommand,
+		signup: signupCommand,
 		logout: logoutCommand,
 		status: statusCommand
 	},
@@ -1282,7 +1388,8 @@ const gatesRoutes = buildRouteMap({
 		"dependency-audit": gatesDependencyAuditCommand,
 		inspect: gatesInspectCommand,
 		refs: gatesRefsCommand,
-		run: gatesRunCommand
+		run: gatesRunCommand,
+		setup: gatesSetupCommand
 	},
 	docs: { brief: "Run an issue's gates and report the raw results" }
 });
@@ -1416,6 +1523,48 @@ function loadEnvFile(cwd = process.cwd(), env = process.env) {
 }
 
 //#endregion
+//#region src/onboarding/interactive.ts
+/**
+* Does a bare `levr` run the onboarding wizard? (ENG-8227, plan ENG-8199 D9)
+*
+* Pure and import-free, so `bin/cli.ts` can ask before it loads the wizard.
+* Only a person at a terminal is ever prompted: stdin AND stdout must be a
+* TTY, and none of the opt-outs may be set. Anything else prints the Stricli
+* help exactly as before.
+*/
+/** The one flag a bare `levr` may carry and still be "bare". */
+const NON_INTERACTIVE_FLAG = "--non-interactive";
+/**
+* CI is detected by the exact `CI` variable, the convention every major CI
+* provider sets. A `CI_*` prefix is NOT a signal: `CI_TOKEN` in a developer's
+* shell must not silence the wizard. `CI=false` / `CI=0` / empty mean "not CI".
+*/
+function isCiEnv(env) {
+	const value = env["CI"];
+	if (value === void 0) return false;
+	const v = value.trim().toLowerCase();
+	return v !== "" && v !== "false" && v !== "0";
+}
+/** `LEVR_NO_PROMPT` set to anything but empty, `0` or `false`. */
+function noPrompt(env) {
+	const value = env["LEVR_NO_PROMPT"];
+	if (value === void 0) return false;
+	const v = value.trim().toLowerCase();
+	return v !== "" && v !== "false" && v !== "0";
+}
+/** Is this argv a bare `levr` (optionally with `--non-interactive`)? */
+function isBareInvocation(argv$1) {
+	return argv$1.length === 0 || argv$1.length === 1 && argv$1[0] === NON_INTERACTIVE_FLAG;
+}
+function shouldRunOnboarding(entry) {
+	if (entry.argv.length !== 0) return false;
+	if (entry.stdinIsTTY !== true || entry.stdoutIsTTY !== true) return false;
+	if (isCiEnv(entry.env)) return false;
+	if (noPrompt(entry.env)) return false;
+	return true;
+}
+
+//#endregion
 //#region src/bin/cli.ts
 const argv = process.argv.slice(2);
 try {
@@ -1427,12 +1576,21 @@ try {
 	}
 }
 if (argv[0] === "__complete") for (const line of await proposeCompletionLines(argv, process.env["COMP_LINE"], buildContext(process))) process.stdout.write(`${line}\n`);
-else {
+else if (argv.length === 0 && shouldRunOnboarding({
+	argv,
+	env: process.env,
+	stdinIsTTY: process.stdin.isTTY,
+	stdoutIsTTY: process.stdout.isTTY
+})) {
+	const { liveOnboardingDeps, runOnboarding } = await import("./onboarding-flow-Bi-4ejCo.js");
+	process.exitCode = await runOnboarding(await liveOnboardingDeps(process));
+} else {
 	let savedExitCode;
-	await run(app, argv, buildContext(new Proxy(process, { set(target, prop, value) {
+	const processProxy = new Proxy(process, { set(target, prop, value) {
 		if (prop === "exitCode" && typeof value === "number" && value !== 0) savedExitCode = value;
 		return Reflect.set(target, prop, value);
-	} })));
+	} });
+	await run(app, isBareInvocation(argv) ? [] : argv, buildContext(processProxy));
 	if (savedExitCode !== void 0) process.exitCode = savedExitCode;
 }
 

@@ -33,6 +33,33 @@ import type {
  */
 const CLEAR_TOKENS_AFTER_FAILURES = 3;
 
+/**
+ * An isolated token store (internal D15.12, R3 C8 + C13).
+ *
+ * When an `OAuthClient` is given one, it is the ONLY place the client reads
+ * or writes tokens: the shared `~/.tq` store (token map, backup, refresh lock
+ * and workspace file) is never read, locked, refreshed from, restored or
+ * written. Used by tools that hold a narrowly scoped token of their own (the
+ * demo-video publish token), which must never replace or rotate the
+ * operator's everyday Levr login.
+ */
+export interface OAuthTokenStore {
+  /** The stored tokens, or null when there are none usable. */
+  load(): StoredTokens | null;
+  save(tokens: StoredTokens): void;
+  clear(): void;
+}
+
+/** `OAuthClient` constructor options. */
+export type OAuthClientOptions = Partial<OAuthConfig> & {
+  clientId: string;
+  /**
+   * Optional isolated token store. Absent: today's behaviour, the shared
+   * `~/.tq` store. Present: see `OAuthTokenStore`.
+   */
+  tokenStore?: OAuthTokenStore;
+};
+
 export class OAuthClient {
   private config: OAuthConfig;
   private accessToken: string | null = null;
@@ -53,8 +80,31 @@ export class OAuthClient {
    * request to fail with invalid_grant (token already revoked by first).
    */
   private refreshPromise: Promise<void> | null = null;
+  /** The isolated token store, when the caller supplied one (D15.12). */
+  private readonly tokenStore: OAuthTokenStore | null;
 
-  constructor(config: Partial<OAuthConfig> & { clientId: string }) {
+  constructor(options: OAuthClientOptions) {
+    const { tokenStore, ...config } = options;
+    this.tokenStore = tokenStore ?? null;
+    if (this.tokenStore) {
+      // Isolated: nothing under ~/.tq is read, not even the unified config,
+      // so the server URL must be explicit; tokens come from the isolated
+      // store alone.
+      if (!config.authServerUrl) {
+        throw new Error(
+          'An OAuthClient with an isolated tokenStore needs an explicit authServerUrl',
+        );
+      }
+      this.config = {
+        redirectPort: 6274,
+        scopes: ['read:own', 'write:own'],
+        ...config,
+        authServerUrl: config.authServerUrl,
+      } as OAuthConfig;
+      this.loadIsolatedTokens(this.tokenStore);
+      return;
+    }
+
     // Resolve defaults from unified config (staging default)
     const tqConfig = loadConfig();
     const defaults: Partial<OAuthConfig> = {
@@ -82,6 +132,16 @@ export class OAuthClient {
       this.refreshToken = stored.refreshToken;
       this.expiresAt = stored.expiresAt;
     }
+  }
+
+  /**
+   * Load tokens from the isolated store only (D15.12).
+   */
+  private loadIsolatedTokens(tokenStore: OAuthTokenStore): void {
+    const stored = tokenStore.load();
+    this.accessToken = stored?.accessToken ?? null;
+    this.refreshToken = stored?.refreshToken || null;
+    this.expiresAt = stored?.expiresAt ?? 0;
   }
 
   /**
@@ -385,6 +445,24 @@ export class OAuthClient {
       return this.refreshPromise;
     }
 
+    if (this.tokenStore) {
+      // Isolated store: no backup restore, no shared lock, no re-read of
+      // the shared token map. Without a refresh token the caller must run a
+      // new authorization.
+      if (!this.refreshToken) {
+        throw new Error('No refresh token available - authorization required');
+      }
+      if (this.refreshRejected) {
+        throw new Error(
+          'Refresh token was rejected - re-authorization required',
+        );
+      }
+      this.refreshPromise = this.refreshInternal().finally(() => {
+        this.refreshPromise = null;
+      });
+      return this.refreshPromise;
+    }
+
     // Pre-flight checks (synchronous — safe before dedup)
     if (!this.refreshToken) {
       // Last resort: try restoring from backup before giving up
@@ -514,7 +592,11 @@ export class OAuthClient {
           this.refreshToken = null;
           this.expiresAt = 0;
           this.refreshRejected = true;
-          clearTokens();
+          if (this.tokenStore) {
+            this.tokenStore.clear();
+          } else {
+            clearTokens();
+          }
           this.consecutiveRefreshFailures = 0;
           throw new Error(
             'Refresh token rejected by server after multiple attempts - re-authorization required',
@@ -555,6 +637,17 @@ export class OAuthClient {
     this.refreshToken = tokens.refresh_token;
     // Expire 1 minute early to avoid edge cases
     this.expiresAt = Date.now() + tokens.expires_in * 1000 - 60000;
+
+    if (this.tokenStore) {
+      // Isolated: the isolated store is the only write; no workspace pin.
+      this.tokenStore.save({
+        accessToken: this.accessToken,
+        refreshToken: this.refreshToken,
+        expiresAt: this.expiresAt,
+        apiBaseUrl: this.config.authServerUrl,
+      });
+      return;
+    }
 
     // Persist to disk (keyed by apiBaseUrl in the token map)
     saveTokens({
@@ -650,6 +743,11 @@ export class OAuthClient {
     this.accessToken = null;
     this.refreshToken = null;
     this.expiresAt = 0;
+    if (this.tokenStore) {
+      // Isolated: only the isolated store is cleared.
+      this.tokenStore.clear();
+      return;
+    }
     clearTokens();
     // Only this client's backend loses its workspace pin — other backends'
     // entries (a worktree, staging) are none of this logout's business.
@@ -699,6 +797,10 @@ export class OAuthClient {
    * Reload tokens from storage (useful after external refresh)
    */
   reloadTokens(): void {
+    if (this.tokenStore) {
+      this.loadIsolatedTokens(this.tokenStore);
+      return;
+    }
     this.loadStoredTokens();
   }
 }

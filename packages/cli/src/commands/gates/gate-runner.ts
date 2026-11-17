@@ -86,6 +86,12 @@ export interface GateLocalCommand {
    * its display form. Older servers omit it.
    */
   op?: { op?: unknown } & Record<string, unknown>;
+  /**
+   * internal — the program a judge check runs (`argv[0]` of the judge the
+   * binding names). The command runs it as `"${__j[@]}"`, so the runner
+   * prints this before running it. Older servers omit it.
+   */
+  judge_program?: string;
 }
 
 /** One `manual_tasks[]` entry — a guided gate a person or agent performs. */

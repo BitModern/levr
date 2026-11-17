@@ -367,6 +367,11 @@ export async function gatesRunHandler(
       announce(
         `[${index + 1}/${commands.length}] ${command.test_name ?? command.gate_type}: ${command.command}`,
       );
+      // internal — a judge runs as `"${__j[@]}"`, so name the program the
+      // binding is about to execute on this machine before it runs.
+      if (command.judge_program) {
+        announce(`[judge] running ${command.judge_program}`);
+      }
     },
     gatesRunDeps.inspect,
   );

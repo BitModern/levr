@@ -11,6 +11,8 @@ export * from './gate-binding-transfer/index.js';
 export * from './import/index.js';
 export * from './issue/index.js';
 export * from './issue-gate-verification/index.js';
+export * from './repository-ref/index.js';
+export * from './repository-ref-catalog/index.js';
 export * from './run-api/index.js';
 export * from './team/index.js';
 export * from './test-case-import/index.js';

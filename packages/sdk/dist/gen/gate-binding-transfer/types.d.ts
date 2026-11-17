@@ -36,10 +36,11 @@ export type GateConfigImportResultDto = {
   gate_key: string;
   repo_key: string | null | null;
   path_prefix: string | null | null;
-  action: "create" | "exists" | "differs" | "update" | "delete" | "absent";
+  action: "create" | "exists" | "differs" | "update" | "replace" | "delete" | "absent";
   stored_id?: string;
   note?: string;
   applied: boolean;
+  technique?: string;
 }>;
 };
 
@@ -61,6 +62,7 @@ export type GateBindingTransferImportConfigV1Data = {
   path?: never;
   query?: {
     dry_run?: "true" | "false";
+    replace_judge?: "true" | "false";
   };
   url: '/v1/gate/bindings/import';
 };

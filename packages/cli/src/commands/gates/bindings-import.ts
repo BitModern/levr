@@ -13,10 +13,18 @@ writes nothing. One line per entry:
   exists   stored exactly as the file says; nothing to do
   differs  stored differently; reported and NOT overwritten
   update   the disabled placeholder a workspace starts with; filled in
+  replace  with --replace-judge only: a judge gate type's differing
+           binding (spec_conformance, behavioral_intent,
+           edge_case_coverage), replaced as the file says
   delete   the entry says "delete": true; the stored binding is removed
   absent   the entry says "delete": true; nothing was stored
 A binding the file does not mention is never touched: deletes are explicit.
 Running the same import twice writes nothing the second time.
+
+--replace-judge confirms that a differing binding of one of the three
+judge gate types is replaced (the dry run shows "replace"). Without it such
+a row is "differs" and not written; every other differing row is "differs"
+whatever the flag says.
 
 Owner or Admin only.
 
@@ -30,6 +38,7 @@ that does not parse.
 Examples:
   levr gates bindings import gates.json --dry-run
   levr gates bindings import gates.json
+  levr gates bindings import judges.json --replace-judge --dry-run
   levr gates bindings import scripts/gates/bindings/lansweeper-agv.json --repo-root ~/src/agv`,
   },
   parameters: {
@@ -64,6 +73,13 @@ Examples:
         kind: 'boolean',
         default: false,
         brief: 'Preview the plan; write nothing',
+      },
+      // [issue:internal] plan internal Review R1 C12.
+      'replace-judge': {
+        kind: 'boolean',
+        optional: true,
+        brief:
+          'Replace a differing judge binding (the three judge gate types only)',
       },
     },
     aliases: { w: 'workspace-id' },

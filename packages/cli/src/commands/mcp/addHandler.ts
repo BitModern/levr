@@ -308,8 +308,8 @@ const PREAPPROVE_EXPLANATION =
   "a task's gates, and transition_issue can waive a failing required gate " +
   'to finish a task; every change and waiver is recorded on the gate.';
 
-/** The confirmation question. The default is No. */
-const PREAPPROVE_QUESTION = 'Add these permissions? (y/N)';
+/** The confirmation question. The default is Yes (user decision 2026-11-11). */
+const PREAPPROVE_QUESTION = 'Add these permissions? (Y/n)';
 
 interface PreapproveMode {
   mode: 'interactive' | 'non-interactive';
@@ -533,7 +533,7 @@ async function offerPreapproval(
       const p = await import('@clack/prompts');
       const answer = await p.confirm({
         message: PREAPPROVE_QUESTION,
-        initialValue: false,
+        initialValue: true,
       });
       if (p.isCancel(answer)) {
         out(`${harness.label}: permissions not added.`);

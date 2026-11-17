@@ -326,6 +326,73 @@ describe('internal F — levr gates run', () => {
     expect(() => JSON.parse(written.join('')) as unknown).not.toThrow();
   });
 
+  // internal — a judge runs as "${__j[@]}", so its command names no program;
+  // the server sends judge_program and the run names it before running.
+  describe('a judge check', () => {
+    beforeEach(() => {
+      sdk.issueGateVerificationVerifyGatesV1.mockResolvedValue({
+        data: {
+          deliverable: 'internal',
+          status: 'pending_local',
+          local_commands: [
+            {
+              gate_type: 'spec_conformance',
+              command:
+                "GATE_JUDGE_ARGV='my-judge\n--strict' GATE_PATH=src/x.ts bash -c 'x'",
+              expected: 'PASS',
+              link_id: 'link-9',
+              test_name: 'Spec conforms',
+              step_id: 'step-9',
+              judge_program: 'my-judge',
+            },
+          ],
+          manual_tasks: [],
+        },
+      });
+    });
+
+    it('prints the judge program before it runs the command', async () => {
+      const { ctx, written } = context();
+      const seenAtRun: string[] = [];
+      gatesRunDeps.run = vi.fn(() => {
+        seenAtRun.push(written.join(''));
+        return { exitCode: 0, stdout: 'PASS\n', stderr: '' };
+      });
+      await gatesRunHandler.call(ctx, flags, ISSUE_ID);
+      expect(seenAtRun).toHaveLength(1);
+      expect(seenAtRun[0]).toContain('[judge] running my-judge');
+    });
+
+    it('prints the judge program on stderr under --json', async () => {
+      const { ctx, written, errWritten } = context();
+      await gatesRunHandler.call(ctx, { ...flags, json: true }, ISSUE_ID);
+      expect(errWritten.join('')).toContain('[judge] running my-judge');
+      expect(written.join('')).not.toContain('[judge] running');
+      expect(() => JSON.parse(written.join('')) as unknown).not.toThrow();
+    });
+
+    it('prints no judge line for a check that is not a judge', async () => {
+      sdk.issueGateVerificationVerifyGatesV1.mockResolvedValue({
+        data: {
+          deliverable: 'internal',
+          status: 'pending_local',
+          local_commands: [
+            {
+              gate_type: 'file_exists',
+              command: 'test -f x',
+              expected: 'exit 0',
+              link_id: 'link-1',
+            },
+          ],
+          manual_tasks: [],
+        },
+      });
+      const { ctx, written } = context();
+      await gatesRunHandler.call(ctx, flags, ISSUE_ID);
+      expect(written.join('')).not.toContain('[judge]');
+    });
+  });
+
   describe('no local allowlist — the server validates (R3-01, user decision 2026-09-25)', () => {
     beforeEach(() => {
       sdk.issueGateVerificationVerifyGatesV1.mockResolvedValue({

@@ -1,7 +1,7 @@
 import { buildApplication, buildRouteMap, text_en } from '@stricli/core';
 import { completionCommand } from './commands/completion.js';
 import { mcpAddCommand } from './commands/mcp/add.js';
-import { loginCommand } from './commands/auth/login.js';
+import { loginCommand, signupCommand } from './commands/auth/login.js';
 import { logoutCommand } from './commands/auth/logout.js';
 import { statusCommand } from './commands/auth/status.js';
 import { pushCommand } from './commands/push.js';
@@ -16,6 +16,7 @@ import { gatesDependencyAuditCommand } from './commands/gates/dependency-audit.j
 import { gatesInspectCommand } from './commands/gates/inspect.js';
 import { gatesRefsCommand } from './commands/gates/refs.js';
 import { gatesRunCommand } from './commands/gates/run.js';
+import { gatesSetupCommand } from './commands/gates/setup.js';
 import { attachCommand } from './commands/attach.js';
 import { resultAppendCommand } from './commands/result/append.js';
 import { version } from '../package.json' with { type: 'json' };
@@ -23,6 +24,7 @@ import { version } from '../package.json' with { type: 'json' };
 const authRoutes = buildRouteMap({
   routes: {
     login: loginCommand,
+    signup: signupCommand,
     logout: logoutCommand,
     status: statusCommand,
   },
@@ -64,6 +66,8 @@ const gatesRoutes = buildRouteMap({
     // internal D5: the symbol_referenced gate's runner.
     refs: gatesRefsCommand,
     run: gatesRunCommand,
+    // internal (plan internal D7): detect, propose, confirm, write, read back.
+    setup: gatesSetupCommand,
   },
   docs: {
     brief: "Run an issue's gates and report the raw results",

@@ -39,10 +39,11 @@ export const zGateConfigImportResultDto = /* @__PURE__ */ z.object({
   gate_key: z.string(),
   repo_key: z.string().nullable(),
   path_prefix: z.string().nullable(),
-  action: z.enum(["create", "exists", "differs", "update", "delete", "absent"]),
+  action: z.enum(["create", "exists", "differs", "update", "replace", "delete", "absent"]),
   stored_id: z.string().optional(),
   note: z.string().optional(),
   applied: z.boolean(),
+  technique: z.string().optional(),
 })),
 });
 
@@ -54,6 +55,7 @@ export const zGateBindingTransferImportConfigV1Data = /* @__PURE__ */ z.object({
   body: zGateConfigFileDto,
   query: z.object({
     'dry_run': z.enum(["true", "false"]).optional(),
+    'replace_judge': z.enum(["true", "false"]).optional(),
   }).optional(),
   url: z.literal('/v1/gate/bindings/import'),
 });

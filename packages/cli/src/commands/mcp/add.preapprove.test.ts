@@ -182,7 +182,7 @@ afterEach(() => {
 });
 
 describe('mcp add: tool pre-approval', () => {
-  it('defaults to no in interactive mode', async () => {
+  it('defaults to yes in interactive mode', async () => {
     process.stdout.isTTY = true;
     const ctx = createMockContext();
     await mcpAddHandler.call(ctx, {
@@ -196,12 +196,12 @@ describe('mcp add: tool pre-approval', () => {
     expect(prompts.confirm).toHaveBeenCalledTimes(1);
     const [question] = prompts.confirm.mock.calls[0] ?? [];
     expect(question).toMatchObject({
-      message: 'Add these permissions? (y/N)',
-      initialValue: false,
+      message: 'Add these permissions? (Y/n)',
+      initialValue: true,
     });
-    // The user pressed Enter: nothing was written.
-    expect(writes()).toHaveLength(0);
-    expect(ctx.stdout.join('')).toContain('permissions not added');
+    // The mocked prompt answers with the default, as Enter does: written.
+    expect(writes()).toHaveLength(1);
+    expect(ctx.stdout.join('')).not.toContain('permissions not added');
   });
 
   it('writes after an explicit yes in interactive mode', async () => {
@@ -361,6 +361,7 @@ describe('mcp add: tool pre-approval', () => {
 
   it('keeps exit 0 for an interactive "No" and for --dry-run', async () => {
     process.stdout.isTTY = true;
+    prompts.confirm.mockResolvedValueOnce(false);
     const interactive = createMockContext();
     await mcpAddHandler.call(interactive, {
       all: false,

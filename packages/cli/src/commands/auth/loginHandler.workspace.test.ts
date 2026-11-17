@@ -100,6 +100,9 @@ function createMockContext(): LocalContext & {
   return {
     process: {
       stdout: {
+        // internal: a terminal, so the browser flow is tried (a non-TTY
+        // stdout is headless and goes to the device code).
+        isTTY: true,
         write: vi.fn((s: string) => {
           output.push(s);
           return true;
@@ -149,6 +152,9 @@ describe('performLogin --workspace (internal)', () => {
     };
     delete process.env['LEVR_MCP_URL'];
     delete process.env['LEVR_TOKEN'];
+    // internal: a display, so a Linux CI host is not headless.
+    process.env['DISPLAY'] = ':0';
+    delete process.env['SSH_CONNECTION'];
     resetSessionApiUrl();
     vi.clearAllMocks();
     mockRequestDeviceCode.mockResolvedValue(DEVICE);
@@ -256,6 +262,8 @@ describe('performLogin --workspace (internal)', () => {
       expect(mockAutoSelect).toHaveBeenCalledTimes(1);
       expect(mockSaveWorkspace).not.toHaveBeenCalled();
       expect(mockFetchSites).not.toHaveBeenCalled();
+      // The browser (PKCE) flow, not the device-code fallback.
+      expect(mockRequestDeviceCode).not.toHaveBeenCalled();
     });
   });
 

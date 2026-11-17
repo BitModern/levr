@@ -6,6 +6,7 @@ import {
   generateCodeChallenge,
 } from '../../auth/pkce.js';
 import { startCallbackServer } from '../../auth/localhost-server.js';
+import { launchBrowserOrFallback } from '../../auth/browser-launch.js';
 import {
   requestDeviceCode,
   pollForDeviceToken,
@@ -36,9 +37,18 @@ import type {
 
 interface LoginFlags {
   'device-code': boolean;
+  /** `levr auth login --signup`: open auth-web on the signup page. */
+  signup: boolean;
   url?: string;
   workspace?: string;
 }
+
+type SignupFlags = Omit<LoginFlags, 'signup'>;
+
+/** Exit code for a run the user cancelled with Ctrl-C (128 + SIGINT). */
+const EXIT_CANCELLED = 130;
+/** Byte a raw-mode terminal delivers for Ctrl-C (it is no longer SIGINT). */
+const CTRL_C = 0x03;
 
 export interface LoginOptions {
   deviceCode: boolean;
@@ -49,6 +59,12 @@ export interface LoginOptions {
    * its workspace picker for a member. Never stored on a token.
    */
   workspace?: string;
+  /**
+   * internal: `'signup'` sends `screen_hint=signup`, so auth-web shows an
+   * anonymous user the signup page; once the account exists the same
+   * authorize flow returns the token to this CLI. Unset for a plain login.
+   */
+  screenHint?: 'signup';
 }
 
 function formatCountdown(ms: number): string {
@@ -66,7 +82,79 @@ export async function loginHandler(
     deviceCode: flags['device-code'],
     url: flags.url,
     workspace: flags.workspace,
+    ...(flags.signup ? { screenHint: 'signup' as const } : {}),
   });
+}
+
+/** `levr auth signup`: the login flow, opened on the signup page. */
+export async function signupHandler(
+  this: LocalContext,
+  flags: SignupFlags,
+): Promise<void> {
+  await performLogin(this, {
+    deviceCode: flags['device-code'],
+    url: flags.url,
+    workspace: flags.workspace,
+    screenHint: 'signup',
+  });
+}
+
+type WaitKey = 'device' | 'restart' | 'cancel';
+
+/**
+ * While the browser flow waits, read single keys from a terminal: `d`
+ * switches to the device code, Ctrl-C (byte 0x03 — raw mode stops the
+ * terminal turning it into SIGINT) cancels and, when `restart` is set, `r`
+ * opens the browser again. `restore()` puts the terminal back and must run
+ * on every exit. Without a TTY nothing is read.
+ */
+function watchWaitKeys(
+  ctx: LocalContext,
+  options: { restart?: boolean } = {},
+): {
+  key: Promise<WaitKey> | null;
+  restore: () => void;
+} {
+  const stdin = ctx.process.stdin as NodeJS.ReadStream | undefined;
+  if (!stdin?.isTTY || typeof stdin.setRawMode !== 'function') {
+    return { key: null, restore: () => {} };
+  }
+  let onData: ((chunk: Buffer | string) => void) | undefined;
+  const key = new Promise<WaitKey>((resolve) => {
+    onData = (chunk) => {
+      const bytes =
+        typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk;
+      if (bytes.includes(CTRL_C)) resolve('cancel');
+      // Only a lone `d`/`D` switches. An escape sequence (an arrow key is
+      // ESC [ D, which ends in `D`) or pasted text is ignored.
+      else if (bytes.length === 1 && (bytes[0] === 0x64 || bytes[0] === 0x44))
+        resolve('device');
+      else if (
+        options.restart === true &&
+        bytes.length === 1 &&
+        (bytes[0] === 0x72 || bytes[0] === 0x52)
+      )
+        resolve('restart');
+    };
+  });
+  stdin.setRawMode(true);
+  stdin.on('data', onData!);
+  stdin.resume();
+  let restored = false;
+  return {
+    key,
+    restore: () => {
+      if (restored) return;
+      restored = true;
+      stdin.setRawMode(false);
+      stdin.off('data', onData!);
+      stdin.pause();
+    },
+  };
+}
+
+function isCallbackTimeout(err: unknown): boolean {
+  return err instanceof Error && /timed out/i.test(err.message);
 }
 
 /**
@@ -84,12 +172,13 @@ export async function performLogin(
   if (options.deviceCode) {
     return deviceCodeLogin(ctx, options.workspace);
   }
-  return pkceLogin(ctx, options.workspace);
+  return pkceLogin(ctx, options.workspace, options.screenHint);
 }
 
 async function pkceLogin(
   ctx: LocalContext,
   workspace?: string,
+  screenHint?: 'signup',
 ): Promise<boolean> {
   const apiUrl = getApiUrl();
   let authUrl: string;
@@ -145,26 +234,42 @@ async function pkceLogin(
     state,
   });
   if (resource) params.append('resource', resource);
+  // internal: auth-web sends an anonymous user to signup, then back to this
+  // same authorize request; a signed-in user goes straight to consent.
+  if (screenHint) params.append('screen_hint', screenHint);
   // auth-web uses React Router basename '/auth/' — all routes resolve under
   // /auth/, so the consent page is at /auth/oauth/authorize.
   const authorizeUrl = `${authUrl}/auth/oauth/authorize?${params.toString()}`;
 
-  // 4. Open browser
-  ctx.process.stdout.write('Opening browser to authenticate...\n\n');
+  // 4. Print the link, then open the browser (internal). A host with no
+  // browser, or a launch that fails, goes to the device code instead.
   ctx.process.stdout.write(
-    `  If the browser doesn't open, visit:\n  ${chalk.cyan(authorizeUrl)}\n\n`,
+    screenHint === 'signup'
+      ? 'Opening browser to sign up...\n\n'
+      : 'Opening browser to authenticate...\n\n',
   );
-
-  try {
-    const open = await import('open');
-    await open.default(authorizeUrl);
-  } catch {
-    // Browser open failed — user can manually visit the URL
+  const launch = await launchBrowserOrFallback(authorizeUrl, {
+    write: (text) => ctx.process.stdout.write(text),
+    host: { stdoutIsTTY: ctx.process.stdout.isTTY === true },
+  });
+  if (!launch.opened) {
+    close();
+    // Nothing is listening for this rejection any more.
+    codePromise.catch(() => {});
+    return deviceCodeLogin(ctx, workspace);
   }
 
-  // 5. Wait for callback with countdown
+  // 5. Wait for callback with countdown. On a terminal, `d` switches to the
+  // device code and Ctrl-C cancels; a callback timeout offers the device
+  // code rather than only failing.
   const timeoutMs = 120_000;
   const deadline = Date.now() + timeoutMs;
+  const keys = watchWaitKeys(ctx);
+  if (keys.key) {
+    ctx.process.stdout.write(
+      `Browser not showing the page? Press d to use a device code instead, Ctrl-C to cancel.\n`,
+    );
+  }
   const countdownTimer = setInterval(() => {
     const remaining = deadline - Date.now();
     ctx.process.stdout.write(
@@ -175,21 +280,67 @@ async function pkceLogin(
     `Waiting for authentication... ${chalk.dim(`(${formatCountdown(timeoutMs)})`)}`,
   );
 
-  let authCode: string;
-  try {
-    const result = await codePromise;
-    authCode = result.code;
-  } catch (err) {
+  type WaitOutcome =
+    | { kind: 'code'; code: string }
+    | { kind: 'key'; key: WaitKey }
+    | { kind: 'error'; err: unknown };
+  const waiters: Promise<WaitOutcome>[] = [
+    codePromise.then(
+      (result): WaitOutcome => ({ kind: 'code', code: result.code }),
+      (err: unknown): WaitOutcome => ({ kind: 'error', err }),
+    ),
+  ];
+  if (keys.key) {
+    waiters.push(keys.key.then((key): WaitOutcome => ({ kind: 'key', key })));
+  }
+  const outcome = await Promise.race(waiters);
+  keys.restore();
+  clearInterval(countdownTimer);
+
+  if (outcome.kind !== 'code') {
     close();
-    clearInterval(countdownTimer);
     ctx.process.stdout.write('\n');
+    if (outcome.kind === 'key' && outcome.key === 'cancel') {
+      ctx.logger.error('Cancelled.');
+      ctx.process.exitCode = EXIT_CANCELLED;
+      return false;
+    }
+    if (outcome.kind === 'key') {
+      // `d` pressed: the device code instead of the browser.
+      return deviceCodeLogin(ctx, workspace);
+    }
+    if (isCallbackTimeout(outcome.err)) {
+      const waited = `${Math.round(timeoutMs / 60_000)} minutes`;
+      // On a terminal the user chooses: a signup can take longer than the
+      // wait, and the browser may still be open on the form.
+      const choice = watchWaitKeys(ctx, { restart: true });
+      if (choice.key) {
+        ctx.process.stdout.write(
+          `No response from the browser after ${waited}.\n` +
+            `Press r to open the browser again, d to use a device code, Ctrl-C to cancel.\n`,
+        );
+        const key = await choice.key;
+        choice.restore();
+        if (key === 'restart') return pkceLogin(ctx, workspace, screenHint);
+        if (key === 'device') return deviceCodeLogin(ctx, workspace);
+        ctx.logger.error('Cancelled.');
+        ctx.process.exitCode = EXIT_CANCELLED;
+        return false;
+      }
+      ctx.process.stdout.write(
+        `No response from the browser after ${waited}. Using a device code instead.\n`,
+      );
+      return deviceCodeLogin(ctx, workspace);
+    }
     ctx.logger.error(
-      err instanceof Error ? err.message : 'Authentication failed.',
+      outcome.err instanceof Error
+        ? outcome.err.message
+        : 'Authentication failed.',
     );
     ctx.process.exitCode = 1;
     return false;
   }
-  clearInterval(countdownTimer);
+  const authCode = outcome.code;
 
   // 6. Exchange code for tokens
   try {
