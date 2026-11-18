@@ -453,7 +453,7 @@ levr attach --manifest or later uploads.`
 		}
 	},
 	loader: async () => {
-		const { pushHandler } = await import("./pushHandler-BenmbPhd.js");
+		const { pushHandler } = await import("./pushHandler-tHErRzio.js");
 		return pushHandler;
 	}
 });
@@ -1354,7 +1354,7 @@ Examples:
 
 //#endregion
 //#region package.json
-var version = "0.12.21";
+var version = "0.12.22";
 
 //#endregion
 //#region src/app.ts

@@ -131,7 +131,7 @@ async function runBounded(tasks, limit) {
 
 //#endregion
 //#region src/commands/pushHandler.ts
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 function formatBytes(bytes) {
 	if (bytes < 1024) return `${bytes}B`;
 	const kb = bytes / 1024;
@@ -177,7 +177,7 @@ async function pushHandler(flags, file) {
 	}
 	if (fileStat.size > MAX_FILE_SIZE) {
 		const sizeMB = (fileStat.size / (1024 * 1024)).toFixed(1);
-		this.logger.error(`File too large (${sizeMB}MB). Maximum is 10MB.`);
+		this.logger.error(`File too large (${sizeMB}MB). Maximum is 50MB.`);
 		this.process.exitCode = 1;
 		return;
 	}

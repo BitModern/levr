@@ -20,7 +20,10 @@ import {
   uploadReportArtifacts,
 } from '../utils/push-artifacts.js';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+// internal: the server's import endpoints accept 50 MB
+// (apps/backender/src/import/import.controller.ts). A lower cap here refused
+// Levr's own 13.6 MB backend e2e report with no server reason behind it.
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -90,7 +93,7 @@ export async function pushHandler(
 
   if (fileStat.size > MAX_FILE_SIZE) {
     const sizeMB = (fileStat.size / (1024 * 1024)).toFixed(1);
-    this.logger.error(`File too large (${sizeMB}MB). Maximum is 10MB.`);
+    this.logger.error(`File too large (${sizeMB}MB). Maximum is 50MB.`);
     this.process.exitCode = 1;
     return;
   }

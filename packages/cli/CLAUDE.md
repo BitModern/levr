@@ -14,7 +14,7 @@ See [arch.md](arch.md) for architecture, component diagrams, auth flows, and dat
 
 ## Bundle size ceiling (`MAX_CLI_BUNDLE_BYTES`)
 
-`scripts/check-cli-bundle.ts` fails when the built `dist/` is larger than `MAX_CLI_BUNDLE_BYTES` (internal). The ceiling is a measured baseline plus 30% headroom, so normal CLI growth fits; it exists to catch the SDK becoming un-tree-shaken again. When a legitimate CLI change crosses it, bump it in the same PR:
+`scripts/check-cli-bundle.ts` fails when the built `dist/` is larger than `MAX_CLI_BUNDLE_BYTES` (internal). The ceiling is a measured baseline plus 30% headroom, so normal CLI growth fits; it exists to catch the SDK becoming un-tree-shaken again. PR CI runs it in `e2e-tests` right after building the CLI, and export-levr runs it again before each release (internal). When a legitimate CLI change crosses it, bump it in the same PR:
 
 1. Build: `yarn turbo run build --filter=@levr-one/cli...`
 2. Measure: `find packages/cli/dist -type f -printf '%s\n' | awk '{s+=$1} END {print s}'`

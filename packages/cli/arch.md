@@ -169,7 +169,7 @@ CLI                                 Backender
 │     → PAT or JWT                         │    │                                     │
 │                                          │    │                                     │
 │  2. Validate file                        │    │                                     │
-│     → exists, ≤10MB                      │    │                                     │
+│     → exists, ≤50MB                      │    │                                     │
 │                                          │    │                                     │
 │  3. Resolve team ID (optional)            │    │                                     │
 │     → --team-id flag > LEVR_TEAM_ID env  │    │                                     │
