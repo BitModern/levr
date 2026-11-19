@@ -11,11 +11,32 @@ vi.mock('../utils/env.js', () => ({
   CLI_CLIENT_ID: '3',
 }));
 
-import { pollForDeviceToken } from './device-flow.js';
+import { pollForDeviceToken, requestDeviceCode } from './device-flow.js';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
+
+describe('requestDeviceCode', () => {
+  afterEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('sends the requested scope (internal: --admin adds workspace:admin)', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ device_code: 'dc' }),
+    });
+
+    await requestDeviceCode('read:own write:own workspace:admin');
+
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.test.com/v1/oauth/device/authorize');
+    const body = init.body as URLSearchParams;
+    expect(body.get('scope')).toBe('read:own write:own workspace:admin');
+    expect(body.get('client_id')).toBe('3');
+  });
+});
 
 describe('pollForDeviceToken', () => {
   afterEach(() => {

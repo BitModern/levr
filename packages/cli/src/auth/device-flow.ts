@@ -6,9 +6,12 @@ import { getApiUrl, CLI_CLIENT_ID } from '../utils/env.js';
 import { sleep } from '../utils/sleep.js';
 
 /**
- * Request a device authorization code from the backend.
+ * Request a device authorization code from the backend for `scope` (a
+ * space-separated OAuth scope string, e.g. `read:own write:own`).
  */
-export async function requestDeviceCode(): Promise<DeviceAuthorizationResponse> {
+export async function requestDeviceCode(
+  scope: string,
+): Promise<DeviceAuthorizationResponse> {
   const apiUrl = getApiUrl();
   let res: Response;
   try {
@@ -17,7 +20,7 @@ export async function requestDeviceCode(): Promise<DeviceAuthorizationResponse> 
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         client_id: CLI_CLIENT_ID,
-        scope: 'read:own write:own',
+        scope,
       }),
     });
   } catch {

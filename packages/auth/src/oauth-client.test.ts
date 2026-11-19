@@ -32,7 +32,7 @@ vi.mock('./config.js', () => ({
   }),
 }));
 
-import { OAuthClient } from './oauth-client.js';
+import { OAuthClient, loginScopes } from './oauth-client.js';
 import { saveTokens } from './token-store.js';
 import { saveWorkspace } from './workspace-store.js';
 
@@ -238,6 +238,65 @@ describe('OAuthClient.authorizeDevice', () => {
     await expect(client.authorizeDevice()).rejects.toThrow(
       'Device authorization request failed (400): Bad Request',
     );
+  });
+});
+
+describe('loginScopes (internal: tq:login --admin)', () => {
+  it('is undefined without --admin, so the default scopes stay', () => {
+    expect(loginScopes([])).toBeUndefined();
+    expect(loginScopes(['--device'])).toBeUndefined();
+  });
+
+  it('adds workspace:admin with --admin', () => {
+    expect(loginScopes(['--admin'])).toEqual([
+      'read:own',
+      'write:own',
+      'workspace:admin',
+    ]);
+    expect(loginScopes(['--device', '--admin'])).toEqual([
+      'read:own',
+      'write:own',
+      'workspace:admin',
+    ]);
+  });
+
+  it('the device flow requests exactly the scopes it was given', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: () => Promise.resolve('stop here'),
+    });
+    const client = new OAuthClient({
+      clientId: '2',
+      authServerUrl: 'https://api.test.com',
+      scopes: loginScopes(['--admin']),
+    });
+
+    await expect(client.authorizeDevice()).rejects.toThrow('stop here');
+    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect((opts.body as URLSearchParams).get('scope')).toBe(
+      'read:own write:own workspace:admin',
+    );
+    mockFetch.mockReset();
+  });
+
+  it('a client built without scopes still requests read:own write:own', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: () => Promise.resolve('stop here'),
+    });
+    const client = new OAuthClient({
+      clientId: '2',
+      authServerUrl: 'https://api.test.com',
+    });
+
+    await expect(client.authorizeDevice()).rejects.toThrow('stop here');
+    const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect((opts.body as URLSearchParams).get('scope')).toBe(
+      'read:own write:own',
+    );
+    mockFetch.mockReset();
   });
 });
 

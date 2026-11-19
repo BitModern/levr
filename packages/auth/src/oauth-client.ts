@@ -24,6 +24,25 @@ import type {
 } from './types.js';
 
 /**
+ * Scopes `tq:login --admin` requests (internal). `workspace:admin` gates
+ * workspace administration (e.g. enabling Qinetic) and is never granted by
+ * default, only by this explicit step-up.
+ */
+export const ADMIN_LOGIN_SCOPES: readonly string[] = [
+  'read:own',
+  'write:own',
+  'workspace:admin',
+];
+
+/**
+ * The scopes a `login` invocation asks for: `ADMIN_LOGIN_SCOPES` with
+ * `--admin`, otherwise `undefined` (the client's default scopes).
+ */
+export function loginScopes(args: readonly string[]): string[] | undefined {
+  return args.includes('--admin') ? [...ADMIN_LOGIN_SCOPES] : undefined;
+}
+
+/**
  * OAuth 2.0 client with PKCE support
  */
 /**

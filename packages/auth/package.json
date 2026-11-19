@@ -1,6 +1,6 @@
 {
   "name": "@levr-one/auth",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Shared OAuth 2.1 client with self-healing token management for Levr MCP servers",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

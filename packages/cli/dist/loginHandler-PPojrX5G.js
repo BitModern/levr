@@ -234,9 +234,10 @@ async function launchBrowserOrFallback(url, options) {
 //#endregion
 //#region src/auth/device-flow.ts
 /**
-* Request a device authorization code from the backend.
+* Request a device authorization code from the backend for `scope` (a
+* space-separated OAuth scope string, e.g. `read:own write:own`).
 */
-async function requestDeviceCode() {
+async function requestDeviceCode(scope) {
 	const apiUrl = getApiUrl();
 	let res;
 	try {
@@ -245,7 +246,7 @@ async function requestDeviceCode() {
 			headers: { "Content-Type": "application/x-www-form-urlencoded" },
 			body: new URLSearchParams({
 				client_id: CLI_CLIENT_ID,
-				scope: "read:own write:own"
+				scope
 			})
 		});
 	} catch {
@@ -295,6 +296,13 @@ async function pollForDeviceToken(options) {
 
 //#endregion
 //#region src/commands/auth/loginHandler.ts
+/** Scopes a plain login requests. */
+const DEFAULT_LOGIN_SCOPE = "read:own write:own";
+/**
+* Scopes `levr auth login --admin` requests (ENG-13834). `workspace:admin`
+* gates workspace administration and is granted only by explicit step-up.
+*/
+const ADMIN_LOGIN_SCOPE = `${DEFAULT_LOGIN_SCOPE} workspace:admin`;
 /** Exit code for a run the user cancelled with Ctrl-C (128 + SIGINT). */
 const EXIT_CANCELLED = 130;
 /** Byte a raw-mode terminal delivers for Ctrl-C (it is no longer SIGINT). */
@@ -308,6 +316,7 @@ async function loginHandler(flags) {
 		deviceCode: flags["device-code"],
 		url: flags.url,
 		workspace: flags.workspace,
+		admin: flags.admin,
 		...flags.signup ? { screenHint: "signup" } : {}
 	});
 }
@@ -367,10 +376,11 @@ function isCallbackTimeout(err) {
 */
 async function performLogin(ctx, options) {
 	if (options.url) setSessionApiUrl(options.url);
-	if (options.deviceCode) return deviceCodeLogin(ctx, options.workspace);
-	return pkceLogin(ctx, options.workspace, options.screenHint);
+	const scope = options.admin ? ADMIN_LOGIN_SCOPE : DEFAULT_LOGIN_SCOPE;
+	if (options.deviceCode) return deviceCodeLogin(ctx, scope, options.workspace);
+	return pkceLogin(ctx, scope, options.workspace, options.screenHint);
 }
-async function pkceLogin(ctx, workspace, screenHint) {
+async function pkceLogin(ctx, scope, workspace, screenHint) {
 	const apiUrl = getApiUrl();
 	let authUrl;
 	try {
@@ -400,7 +410,7 @@ async function pkceLogin(ctx, workspace, screenHint) {
 		redirect_uri: redirectUri,
 		code_challenge: codeChallenge,
 		code_challenge_method: "S256",
-		scope: "read:own write:own",
+		scope,
 		state
 	});
 	if (resource) params.append("resource", resource);
@@ -413,7 +423,7 @@ async function pkceLogin(ctx, workspace, screenHint) {
 	})).opened) {
 		close();
 		codePromise.catch(() => {});
-		return deviceCodeLogin(ctx, workspace);
+		return deviceCodeLogin(ctx, scope, workspace);
 	}
 	const timeoutMs = 12e4;
 	const deadline = Date.now() + timeoutMs;
@@ -446,7 +456,7 @@ async function pkceLogin(ctx, workspace, screenHint) {
 			ctx.process.exitCode = EXIT_CANCELLED;
 			return false;
 		}
-		if (outcome.kind === "key") return deviceCodeLogin(ctx, workspace);
+		if (outcome.kind === "key") return deviceCodeLogin(ctx, scope, workspace);
 		if (isCallbackTimeout(outcome.err)) {
 			const waited = `${Math.round(timeoutMs / 6e4)} minutes`;
 			const choice = watchWaitKeys(ctx, { restart: true });
@@ -454,14 +464,14 @@ async function pkceLogin(ctx, workspace, screenHint) {
 				ctx.process.stdout.write(`No response from the browser after ${waited}.\nPress r to open the browser again, d to use a device code, Ctrl-C to cancel.\n`);
 				const key = await choice.key;
 				choice.restore();
-				if (key === "restart") return pkceLogin(ctx, workspace, screenHint);
-				if (key === "device") return deviceCodeLogin(ctx, workspace);
+				if (key === "restart") return pkceLogin(ctx, scope, workspace, screenHint);
+				if (key === "device") return deviceCodeLogin(ctx, scope, workspace);
 				ctx.logger.error("Cancelled.");
 				ctx.process.exitCode = EXIT_CANCELLED;
 				return false;
 			}
 			ctx.process.stdout.write(`No response from the browser after ${waited}. Using a device code instead.\n`);
-			return deviceCodeLogin(ctx, workspace);
+			return deviceCodeLogin(ctx, scope, workspace);
 		}
 		ctx.logger.error(outcome.err instanceof Error ? outcome.err.message : "Authentication failed.");
 		ctx.process.exitCode = 1;
@@ -492,9 +502,9 @@ async function pkceLogin(ctx, workspace, screenHint) {
 		return false;
 	}
 }
-async function deviceCodeLogin(ctx, workspace) {
+async function deviceCodeLogin(ctx, scope, workspace) {
 	try {
-		const device = await requestDeviceCode();
+		const device = await requestDeviceCode(scope);
 		let visit = device.verification_uri;
 		if (workspace !== void 0 && looksLikeUrlKey(workspace)) try {
 			const url = new URL(device.verification_uri);

@@ -268,7 +268,7 @@ async function liveOnboardingDeps(base) {
 			}
 		},
 		async signIn(mode) {
-			const { performLogin } = await import("./loginHandler-ut3ugpCn.js");
+			const { performLogin } = await import("./loginHandler-PPojrX5G.js");
 			const step = stepContext();
 			if (await performLogin(step.ctx, {
 				deviceCode: false,

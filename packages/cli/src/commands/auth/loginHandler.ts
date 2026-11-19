@@ -39,11 +39,21 @@ interface LoginFlags {
   'device-code': boolean;
   /** `levr auth login --signup`: open auth-web on the signup page. */
   signup: boolean;
+  /** `levr auth login --admin`: also request `workspace:admin` (internal). */
+  admin: boolean;
   url?: string;
   workspace?: string;
 }
 
-type SignupFlags = Omit<LoginFlags, 'signup'>;
+type SignupFlags = Omit<LoginFlags, 'signup' | 'admin'>;
+
+/** Scopes a plain login requests. */
+export const DEFAULT_LOGIN_SCOPE = 'read:own write:own';
+/**
+ * Scopes `levr auth login --admin` requests (internal). `workspace:admin`
+ * gates workspace administration and is granted only by explicit step-up.
+ */
+export const ADMIN_LOGIN_SCOPE = `${DEFAULT_LOGIN_SCOPE} workspace:admin`;
 
 /** Exit code for a run the user cancelled with Ctrl-C (128 + SIGINT). */
 const EXIT_CANCELLED = 130;
@@ -65,6 +75,11 @@ export interface LoginOptions {
    * authorize flow returns the token to this CLI. Unset for a plain login.
    */
   screenHint?: 'signup';
+  /**
+   * internal: also request `workspace:admin`, on every path (browser,
+   * device code, and the fallbacks between them). Unset for a plain login.
+   */
+  admin?: boolean;
 }
 
 function formatCountdown(ms: number): string {
@@ -82,6 +97,7 @@ export async function loginHandler(
     deviceCode: flags['device-code'],
     url: flags.url,
     workspace: flags.workspace,
+    admin: flags.admin,
     ...(flags.signup ? { screenHint: 'signup' as const } : {}),
   });
 }
@@ -169,14 +185,16 @@ export async function performLogin(
   if (options.url) {
     setSessionApiUrl(options.url);
   }
+  const scope = options.admin ? ADMIN_LOGIN_SCOPE : DEFAULT_LOGIN_SCOPE;
   if (options.deviceCode) {
-    return deviceCodeLogin(ctx, options.workspace);
+    return deviceCodeLogin(ctx, scope, options.workspace);
   }
-  return pkceLogin(ctx, options.workspace, options.screenHint);
+  return pkceLogin(ctx, scope, options.workspace, options.screenHint);
 }
 
 async function pkceLogin(
   ctx: LocalContext,
+  scope: string,
   workspace?: string,
   screenHint?: 'signup',
 ): Promise<boolean> {
@@ -230,7 +248,7 @@ async function pkceLogin(
     redirect_uri: redirectUri,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
-    scope: 'read:own write:own',
+    scope,
     state,
   });
   if (resource) params.append('resource', resource);
@@ -256,7 +274,7 @@ async function pkceLogin(
     close();
     // Nothing is listening for this rejection any more.
     codePromise.catch(() => {});
-    return deviceCodeLogin(ctx, workspace);
+    return deviceCodeLogin(ctx, scope, workspace);
   }
 
   // 5. Wait for callback with countdown. On a terminal, `d` switches to the
@@ -307,7 +325,7 @@ async function pkceLogin(
     }
     if (outcome.kind === 'key') {
       // `d` pressed: the device code instead of the browser.
-      return deviceCodeLogin(ctx, workspace);
+      return deviceCodeLogin(ctx, scope, workspace);
     }
     if (isCallbackTimeout(outcome.err)) {
       const waited = `${Math.round(timeoutMs / 60_000)} minutes`;
@@ -321,8 +339,9 @@ async function pkceLogin(
         );
         const key = await choice.key;
         choice.restore();
-        if (key === 'restart') return pkceLogin(ctx, workspace, screenHint);
-        if (key === 'device') return deviceCodeLogin(ctx, workspace);
+        if (key === 'restart')
+          return pkceLogin(ctx, scope, workspace, screenHint);
+        if (key === 'device') return deviceCodeLogin(ctx, scope, workspace);
         ctx.logger.error('Cancelled.');
         ctx.process.exitCode = EXIT_CANCELLED;
         return false;
@@ -330,7 +349,7 @@ async function pkceLogin(
       ctx.process.stdout.write(
         `No response from the browser after ${waited}. Using a device code instead.\n`,
       );
-      return deviceCodeLogin(ctx, workspace);
+      return deviceCodeLogin(ctx, scope, workspace);
     }
     ctx.logger.error(
       outcome.err instanceof Error
@@ -376,11 +395,12 @@ async function pkceLogin(
 
 async function deviceCodeLogin(
   ctx: LocalContext,
+  scope: string,
   workspace?: string,
 ): Promise<boolean> {
   try {
     // 1. Request device code
-    const device = await requestDeviceCode();
+    const device = await requestDeviceCode(scope);
 
     // 2. Display code and URL. A url_key rides on the URL so auth-web can
     // skip its workspace picker for a member (internal); the approval itself

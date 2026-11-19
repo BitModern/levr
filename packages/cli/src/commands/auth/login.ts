@@ -16,11 +16,16 @@ token comes back to the CLI the same way (same as 'levr auth signup').
 With --workspace, the login selects that workspace for the CLI, and a
 url_key also skips the workspace picker in the browser.
 
+With --admin, the login also requests workspace administration
+(workspace:admin), which connecting integrations, changing on-demand
+sharing and managing members need. It is never granted by default.
+
 Examples:
   levr auth login                   # Browser-based PKCE login
   levr auth login --device-code     # Device flow for SSH/headless
   levr auth login --signup          # Create an account, then log in
-  levr auth login --workspace acme  # Skip the picker; select acme`,
+  levr auth login --workspace acme  # Skip the picker; select acme
+  levr auth login --admin           # Also request workspace administration`,
   },
   parameters: {
     flags: {
@@ -33,6 +38,12 @@ Examples:
         kind: 'boolean',
         default: false,
         brief: 'Open the signup page instead of sign-in',
+      },
+      admin: {
+        kind: 'boolean',
+        default: false,
+        brief:
+          'Also request workspace administration (workspace:admin): needed to connect integrations, change on-demand sharing, or manage members',
       },
       url: {
         kind: 'parsed',

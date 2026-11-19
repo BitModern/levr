@@ -52,7 +52,7 @@ vi.mock('../../workspace/resolve-workspace.js', () => ({
   autoSelectWorkspace: vi.fn(() => Promise.resolve({ kind: 'none' })),
 }));
 
-import { performLogin } from './loginHandler.js';
+import { loginHandler, performLogin } from './loginHandler.js';
 import { resetSessionApiUrl } from '../../utils/env.js';
 
 const TOKEN: OAuthTokenResponse = {
@@ -423,5 +423,90 @@ describe('performLogin browser flow and device-code fallback (internal)', () => 
     // Both the link and the user code are printed.
     expect(authorizeUrlIn(output)).toBeTruthy();
     expect(output.join('')).toContain('ABCD-EFGH');
+  });
+
+  /**
+   * internal: `--admin` adds `workspace:admin` on every path; without it
+   * the requested scope is unchanged.
+   */
+  it('a plain login requests read:own write:own on both the browser and the device code', async () => {
+    mockOpen.mockRejectedValue(new Error('spawn xdg-open ENOENT'));
+    const { ctx, output } = createContext();
+    await performLogin(ctx, { deviceCode: false });
+
+    expect(authorizeUrlIn(output).searchParams.get('scope')).toBe(
+      'read:own write:own',
+    );
+    expect(mockRequestDeviceCode).toHaveBeenCalledWith('read:own write:own');
+  });
+
+  it('--admin requests workspace:admin in the browser authorize URL', async () => {
+    const { ctx, output } = createContext();
+    const ok = await performLogin(ctx, { deviceCode: false, admin: true });
+
+    expect(ok).toBe(true);
+    expect(authorizeUrlIn(output).searchParams.get('scope')).toBe(
+      'read:own write:own workspace:admin',
+    );
+  });
+
+  it('the levr auth login --admin flag reaches the device flow', async () => {
+    const { ctx } = createContext();
+    await loginHandler.call(ctx, {
+      'device-code': true,
+      signup: false,
+      admin: true,
+    });
+
+    expect(mockRequestDeviceCode).toHaveBeenCalledWith(
+      'read:own write:own workspace:admin',
+    );
+  });
+
+  it('--admin --device-code requests workspace:admin from the device flow', async () => {
+    const { ctx } = createContext();
+    const ok = await performLogin(ctx, { deviceCode: true, admin: true });
+
+    expect(ok).toBe(true);
+    expect(mockRequestDeviceCode).toHaveBeenCalledWith(
+      'read:own write:own workspace:admin',
+    );
+  });
+
+  it('--admin keeps workspace:admin when the browser falls back to a device code', async () => {
+    mockOpen.mockRejectedValue(new Error('spawn xdg-open ENOENT'));
+    const { ctx } = createContext();
+    await performLogin(ctx, { deviceCode: false, admin: true });
+
+    expect(mockRequestDeviceCode).toHaveBeenCalledWith(
+      'read:own write:own workspace:admin',
+    );
+  });
+
+  it('--admin keeps workspace:admin when r reopens the browser after a timeout', async () => {
+    const stdin = fakeStdin();
+    let calls = 0;
+    callback.code = () =>
+      ++calls === 1
+        ? Promise.reject(new Error('Authentication timed out'))
+        : Promise.resolve({ code: 'auth-code' });
+    const { ctx, output } = createContext(stdin);
+    const login = performLogin(ctx, { deviceCode: false, admin: true });
+    await vi.waitFor(() =>
+      expect(output.join('')).toContain('Press r to open the browser again'),
+    );
+    stdin.emit('data', Buffer.from('r'));
+    expect(await login).toBe(true);
+
+    const text = output.join('');
+    const urls = text.match(
+      /http:\/\/localhost:3021\/auth\/oauth\/authorize\?\S+/g,
+    );
+    expect(urls).toHaveLength(2);
+    for (const u of urls!) {
+      expect(new URL(u).searchParams.get('scope')).toBe(
+        'read:own write:own workspace:admin',
+      );
+    }
   });
 });
