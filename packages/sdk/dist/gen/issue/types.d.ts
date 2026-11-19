@@ -36,6 +36,7 @@ export type ResponseIssueDto = {
   creator_id?: string;
   gate_set_id?: string | null | null;
   milestone_id?: string | null | null;
+  initiative_id?: string | null | null;
   gate_run_id?: string | null | null;
   external_provenance?: unknown | null;
   project_id?: string | null | null;
@@ -96,6 +97,7 @@ export type IssueFindAllV1Data = {
     'filter.creator_id'?: Array<string>;
     'filter.gate_set_id'?: Array<string>;
     'filter.milestone_id'?: Array<string>;
+    'filter.initiative_id'?: Array<string>;
     'filter.gate_run_id'?: Array<string>;
     'filter.assignee_id'?: Array<string>;
     'filter.parent_id'?: Array<string>;
@@ -106,7 +108,7 @@ export type IssueFindAllV1Data = {
     'filter.project_id'?: Array<string>;
     'filter.deleted_at'?: Array<string>;
     'filter.archived_at'?: Array<string>;
-    sortBy?: Array<"id:ASC" | "id:DESC" | "identifier:ASC" | "identifier:DESC" | "number:ASC" | "number:DESC" | "title:ASC" | "title:DESC" | "description:ASC" | "description:DESC" | "priority:ASC" | "priority:DESC" | "estimate:ASC" | "estimate:DESC" | "rolled_up_estimate:ASC" | "rolled_up_estimate:DESC" | "rolled_up_completed_estimate:ASC" | "rolled_up_completed_estimate:DESC" | "sequence:ASC" | "sequence:DESC" | "sub_issue_sequence:ASC" | "sub_issue_sequence:DESC" | "due_date:ASC" | "due_date:DESC" | "snoozed_until:ASC" | "snoozed_until:DESC" | "started_at:ASC" | "started_at:DESC" | "completed_at:ASC" | "completed_at:DESC" | "canceled_at:ASC" | "canceled_at:DESC" | "auto_closed_at:ASC" | "auto_closed_at:DESC" | "origin:ASC" | "origin:DESC" | "origin_detail:ASC" | "origin_detail:DESC" | "origin_model:ASC" | "origin_model:DESC" | "origin_harness:ASC" | "origin_harness:DESC" | "origin_harness_version:ASC" | "origin_harness_version:DESC" | "verification_status:ASC" | "verification_status:DESC" | "confidence_score:ASC" | "confidence_score:DESC" | "added_to_cycle_at:ASC" | "added_to_cycle_at:DESC" | "sla_status:ASC" | "sla_status:DESC" | "project_id:ASC" | "project_id:DESC" | "assignee_id:ASC" | "assignee_id:DESC" | "parent_id:ASC" | "parent_id:DESC" | "origin_run_result_id:ASC" | "origin_run_result_id:DESC" | "cycle_id:ASC" | "cycle_id:DESC" | "type_label_id:ASC" | "type_label_id:DESC" | "gate_set_id:ASC" | "gate_set_id:DESC" | "milestone_id:ASC" | "milestone_id:DESC" | "gate_run_id:ASC" | "gate_run_id:DESC" | "created_at:ASC" | "created_at:DESC" | "updated_at:ASC" | "updated_at:DESC" | "deleted_at:ASC" | "deleted_at:DESC" | "archived_at:ASC" | "archived_at:DESC">;
+    sortBy?: Array<"id:ASC" | "id:DESC" | "identifier:ASC" | "identifier:DESC" | "number:ASC" | "number:DESC" | "title:ASC" | "title:DESC" | "description:ASC" | "description:DESC" | "priority:ASC" | "priority:DESC" | "estimate:ASC" | "estimate:DESC" | "rolled_up_estimate:ASC" | "rolled_up_estimate:DESC" | "rolled_up_completed_estimate:ASC" | "rolled_up_completed_estimate:DESC" | "sequence:ASC" | "sequence:DESC" | "sub_issue_sequence:ASC" | "sub_issue_sequence:DESC" | "due_date:ASC" | "due_date:DESC" | "snoozed_until:ASC" | "snoozed_until:DESC" | "started_at:ASC" | "started_at:DESC" | "completed_at:ASC" | "completed_at:DESC" | "canceled_at:ASC" | "canceled_at:DESC" | "auto_closed_at:ASC" | "auto_closed_at:DESC" | "origin:ASC" | "origin:DESC" | "origin_detail:ASC" | "origin_detail:DESC" | "origin_model:ASC" | "origin_model:DESC" | "origin_harness:ASC" | "origin_harness:DESC" | "origin_harness_version:ASC" | "origin_harness_version:DESC" | "verification_status:ASC" | "verification_status:DESC" | "confidence_score:ASC" | "confidence_score:DESC" | "added_to_cycle_at:ASC" | "added_to_cycle_at:DESC" | "sla_status:ASC" | "sla_status:DESC" | "project_id:ASC" | "project_id:DESC" | "assignee_id:ASC" | "assignee_id:DESC" | "parent_id:ASC" | "parent_id:DESC" | "origin_run_result_id:ASC" | "origin_run_result_id:DESC" | "cycle_id:ASC" | "cycle_id:DESC" | "type_label_id:ASC" | "type_label_id:DESC" | "gate_set_id:ASC" | "gate_set_id:DESC" | "milestone_id:ASC" | "milestone_id:DESC" | "initiative_id:ASC" | "initiative_id:DESC" | "gate_run_id:ASC" | "gate_run_id:DESC" | "created_at:ASC" | "created_at:DESC" | "updated_at:ASC" | "updated_at:DESC" | "deleted_at:ASC" | "deleted_at:DESC" | "archived_at:ASC" | "archived_at:DESC">;
     search?: string;
     searchBy?: Array<string>;
   };
